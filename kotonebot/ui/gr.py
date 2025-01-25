@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple, Literal
 
 import gradio as gr
 
-from kotonebot.backend.core import task_registry
+from kotonebot.backend.context import task_registry
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
