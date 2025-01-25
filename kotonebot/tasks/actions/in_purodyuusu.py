@@ -12,7 +12,7 @@ from . import loading
 from .scenes import at_home
 from .common import acquisitions
 from ..common import conf
-from kotonebot.backend.util import AdaptiveWait, crop_y, cropper_y
+from kotonebot.backend.util import AdaptiveWait, crop, cropped
 from kotonebot import ocr, device, contains, image, regex, action, debug, config, sleep
 from .non_lesson_actions import enter_allowance, allowance_available, study_available, enter_study
 
@@ -29,7 +29,7 @@ def enter_recommended_action_ocr(final_week: bool = False) -> ActionType:
     """
     # 获取课程
     logger.debug("Waiting for recommended lesson...")
-    with device.hook(cropper_y(0.00, 0.30)):
+    with cropped(device, y1=0.00, y2=0.30):
         ret = ocr.wait_for(regex('ボーカル|ダンス|ビジュアル|休|体力'))
     logger.debug("ocr.wait_for: %s", ret)
     if ret is None:
@@ -75,7 +75,7 @@ def enter_recommended_action(final_week: bool = False) -> ActionType:
     """
     # 获取课程
     logger.debug("Getting recommended lesson...")
-    with device.hook(cropper_y(0.00, 0.30)):
+    with cropped(device, y1=0.00, y2=0.30):
         result = image.find_multi([
             R.InPurodyuusu.TextSenseiTipDance,
             R.InPurodyuusu.TextSenseiTipVocal,
@@ -298,7 +298,7 @@ def click_recommended_card(timeout: float = 7, card_count: int = 3) -> int:
 def skill_card_count1():
     """获取当前持有的技能卡数量"""
     img = device.screenshot()
-    img = crop_y(img, 0.83, 0.90)
+    img = crop(img, y1=0.83, y2=0.90)
     # 黑白
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # 白色 -> 黑色
@@ -322,7 +322,7 @@ def skill_card_count():
     device.click(0, 0)
     sleep(0.5)
     img = device.screenshot()
-    img = crop_y(img, 0.83, 0.90)
+    img = crop(img, y1=0.83, y2=0.90)
     count = image.raw().count(img, R.InPurodyuusu.A, threshold=0.85)
     count += image.raw().count(img, R.InPurodyuusu.M, threshold=0.85)
     logger.info("Current skill card count: %d", count)

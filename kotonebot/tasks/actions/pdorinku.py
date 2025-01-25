@@ -1,8 +1,7 @@
 from logging import getLogger
 
-from kotonebot import device, ocr, image, Rect, action, sleep
-from kotonebot.backend.util import contains
 from .. import R
+from kotonebot import device, ocr, image, Rect, action, sleep, contains
 
 logger = getLogger(__name__)
 
