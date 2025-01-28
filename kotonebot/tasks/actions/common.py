@@ -62,9 +62,11 @@ AcquisitionType = Literal[
 def acquisitions() -> AcquisitionType | None:
     """处理行动开始前和结束后可能需要处理的事件，直到到行动页面为止"""
     img = device.screenshot_raw()
+    screen_size = device.screen_size
     gray_img = grayscaled(img)
     ocr_results = ocr.raw().ocr(img)
     ocr_text = ''.join(r.text for r in ocr_results)
+    bottom_pos = (int(screen_size[0] * 0.5), int(screen_size[1] * 0.7)) # 底部中间
     logger.info("Acquisition stuffs...")
 
     # P饮料被动领取
@@ -100,13 +102,13 @@ def acquisitions() -> AcquisitionType | None:
     # [screenshots/produce/in_produce/support_card_change.png]
     if 'チェンジ' in ocr_text:
         logger.info("Change skill card found")
-        device.click_center()
+        device.click(*bottom_pos)
         return "PSkillCardChange"
     # 技能卡强化
     # [screenshots/produce/in_produce/skill_card_enhance.png]
     if '強化' in ocr_text:
         logger.info("Enhance skill card found")
-        device.click_center()
+        device.click(*bottom_pos)
         return "PSkillCardEnhance"
     # 技能卡选择
     if '受け取るスキルカードを選んでください' in ocr_text:
