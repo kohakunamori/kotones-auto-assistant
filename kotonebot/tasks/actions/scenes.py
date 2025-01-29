@@ -68,7 +68,13 @@ def goto_shop():
     until(at_daily_shop, critical=True)
 
 
+@action('测试颜色')
+def test():
+    from kotonebot import color
+    while True:
+        print(color.find_rgb('#ffffff', threshold=0.9999))
+        print(image.find(R.Common.ButtonHome))
+
 if __name__ == "__main__":
-    print(at_home())
-    print(at_daily_shop())
-    goto_shop()
+    import time
+    test()
