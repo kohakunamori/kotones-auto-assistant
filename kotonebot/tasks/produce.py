@@ -9,8 +9,13 @@ from .actions.scenes import loading, at_home, goto_home
 
 logger = logging.getLogger(__name__)
 
-@task('培育')
-def produce():
+def format_time(seconds):
+    minutes = int(seconds // 60)
+    seconds = int(seconds % 60)
+    return f"{minutes}m {seconds}s"
+
+@action('单次培育')
+def do_produce():
     """进行培育流程"""
     if not conf().produce.enabled:
         logger.info('Produce is disabled.')
@@ -22,7 +27,10 @@ def produce():
     sleep(0.3)
     wait_loading_end()
     # [screenshots/produce/regular_or_pro.png]
-    device.click(image.expect_wait(R.Produce.ButtonRegular))
+    # device.click(image.expect_wait(R.Produce.ButtonRegular))
+    # 解锁 PRO 和解锁 PRO 前的 REGULAR 字体大小好像不一样。这里暂时用 OCR 代替
+    # TODO: 截图比较解锁 PRO 前和解锁后 REGULAR 的文字图像
+    device.click(ocr.expect_wait('REGULAR'))
     sleep(0.3)
     wait_loading_end()
     # 选择 PIdol [screenshots/produce/select_p_idol.png]
@@ -67,11 +75,19 @@ def produce():
     hajime_regular()
 
 
+@task('培育')
+def produce_task():
+    import time
+    start_time = time.time()
+    do_produce()
+    end_time = time.time()
+    logger.info(f"Produce time used: {format_time(end_time - start_time)}")
+
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     logging.getLogger('kotonebot').setLevel(logging.DEBUG)
     logger.setLevel(logging.DEBUG)
-    produce()
+    produce_task()
 
 

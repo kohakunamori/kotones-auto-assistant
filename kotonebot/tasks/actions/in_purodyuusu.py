@@ -731,11 +731,12 @@ if __name__ == '__main__':
     # acquisitions()
     # acquire_pdorinku(0)
     # image.wait_for(R.InPurodyuusu.InPractice.PDorinkuIcon)
-    hajime_regular(start_from=8)
+    hajime_regular(start_from=4)
     # until_practice_scene()
     # device.click(image.expect_wait_any([
     #     R.InPurodyuusu.PSkillCardIconBlue,
-    #     R.InPurodyuusu.PSkillCardIconColorful
+    #     R.InPurodyuusu.PSkill
+    # CardIconColorful
     # ]).rect)
     # exam()
     # device.double_click(image.expect_wait(R.InPurodyuusu.Action.VocalWhiteBg).rect)
