@@ -10,7 +10,7 @@ from kotonebot.config.manager import load_config, save_config
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
-    MissionRewardConfig
+    MissionRewardConfig, PIdol
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 
@@ -115,6 +115,7 @@ class KotoneBotUI:
         produce_enabled: bool,
         produce_mode: Literal["regular"],
         produce_count: int,
+        produce_idols: List[str],
         auto_set_memory: bool,
         auto_set_support: bool,
         use_pt_boost: bool,
@@ -163,6 +164,7 @@ class KotoneBotUI:
                 enabled=produce_enabled,
                 mode=produce_mode,
                 produce_count=produce_count,
+                idols=[PIdol[idol] for idol in produce_idols],
                 auto_set_memory=auto_set_memory,
                 auto_set_support_card=auto_set_support,
                 use_pt_boost=use_pt_boost,
@@ -298,7 +300,7 @@ class KotoneBotUI:
             )
         return assignment_enabled, mini_live_reassign, mini_live_duration, online_live_reassign, online_live_duration
 
-    def _create_produce_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown, gr.Number, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox]:
+    def _create_produce_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown, gr.Number, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox]:
         with gr.Column():
             gr.Markdown("### 培育设置")
             produce_enabled = gr.Checkbox(
@@ -315,6 +317,16 @@ class KotoneBotUI:
                     minimum=1,
                     value=self.current_config.options.produce.produce_count,
                     label="培育次数",
+                    interactive=True
+                )
+                # 添加偶像选择
+                idol_choices = [idol.name for idol in PIdol]
+                selected_idols = [idol.name for idol in self.current_config.options.produce.idols]
+                produce_idols = gr.Dropdown(
+                    choices=idol_choices,
+                    value=selected_idols,
+                    label="选择要培育的偶像",
+                    multiselect=True,
                     interactive=True
                 )
                 auto_set_memory = gr.Checkbox(
@@ -343,7 +355,7 @@ class KotoneBotUI:
                 inputs=[produce_enabled],
                 outputs=[produce_group]
             )
-        return produce_enabled, produce_mode, produce_count, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer
+        return produce_enabled, produce_mode, produce_count, produce_idols, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer
 
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
