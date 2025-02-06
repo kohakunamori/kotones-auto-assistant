@@ -10,7 +10,7 @@ from kotonebot.config.manager import load_config, save_config
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
-    MissionRewardConfig, PIdol
+    MissionRewardConfig, PIdol, DailyMoneyShopItems
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 
@@ -104,6 +104,7 @@ class KotoneBotUI:
         money_enabled: bool,
         ap_enabled: bool,
         ap_items: List[str],
+        money_items: List[DailyMoneyShopItems],
         activity_funds_enabled: bool,
         presents_enabled: bool,
         assignment_enabled: bool,
@@ -125,9 +126,9 @@ class KotoneBotUI:
     ) -> str:
         ap_items_enum: List[Literal[0, 1, 2, 3]] = []
         ap_items_map: Dict[str, APShopItems] = {
-            "获取支援强化 Pt 提升": APShopItems.PRODUCE_PT_UP,
-            "获取笔记数提升": APShopItems.PRODUCE_NOTE_UP,
-            "再挑战券": APShopItems.RECHALLENGE,
+            "支援强化点数提升": APShopItems.PRODUCE_PT_UP,
+            "笔记数提升": APShopItems.PRODUCE_NOTE_UP,
+            "重新挑战券": APShopItems.RECHALLENGE,
             "回忆再生成券": APShopItems.REGENERATE_MEMORY
         }
         for item in ap_items:
@@ -141,6 +142,7 @@ class KotoneBotUI:
             purchase=PurchaseConfig(
                 enabled=purchase_enabled,
                 money_enabled=money_enabled,
+                money_items=money_items,
                 ap_enabled=ap_enabled,
                 ap_items=ap_items_enum
             ),
@@ -217,7 +219,7 @@ class KotoneBotUI:
                 outputs=[task_status]
             )
 
-    def _create_purchase_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Dropdown]:
+    def _create_purchase_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Dropdown, gr.Dropdown]:
         with gr.Column():
             gr.Markdown("### 商店购买设置")
             purchase_enabled = gr.Checkbox(
@@ -229,6 +231,15 @@ class KotoneBotUI:
                     label="启用金币购买",
                     value=self.current_config.options.purchase.money_enabled
                 )
+                
+                # 添加金币商店商品选择
+                money_items = gr.Dropdown(
+                    multiselect=True,
+                    choices=list(DailyMoneyShopItems.all()),
+                    value=self.current_config.options.purchase.money_items,
+                    label="金币商店购买物品"
+                )
+                
                 ap_enabled = gr.Checkbox(
                     label="启用AP购买",
                     value=self.current_config.options.purchase.ap_enabled
@@ -237,9 +248,9 @@ class KotoneBotUI:
                 # 转换枚举值为显示文本
                 selected_items: List[str] = []
                 ap_items_map = {
-                    APShopItems.PRODUCE_PT_UP: "获取支援强化 Pt 提升",
-                    APShopItems.PRODUCE_NOTE_UP: "获取笔记数提升",
-                    APShopItems.RECHALLENGE: "再挑战券",
+                    APShopItems.PRODUCE_PT_UP: "支援强化点数提升",
+                    APShopItems.PRODUCE_NOTE_UP: "笔记数提升",
+                    APShopItems.RECHALLENGE: "重新挑战券",
                     APShopItems.REGENERATE_MEMORY: "回忆再生成券"
                 }
                 for item_value in self.current_config.options.purchase.ap_items:
@@ -259,7 +270,7 @@ class KotoneBotUI:
                 inputs=[purchase_enabled],
                 outputs=[purchase_group]
             )
-        return purchase_enabled, money_enabled, ap_enabled, ap_items
+        return purchase_enabled, money_enabled, ap_enabled, ap_items, money_items
 
     def _create_work_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Dropdown, gr.Checkbox, gr.Dropdown]:
         with gr.Column():

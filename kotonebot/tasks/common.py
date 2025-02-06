@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Dict
 from enum import IntEnum, Enum
 
 from pydantic import BaseModel
@@ -102,13 +102,136 @@ class PIdol(Enum):
     藤田ことね_冠菊 = ["藤田ことね", "冠菊"]
     藤田ことね_初声 = ["藤田ことね", "初声"]
     藤田ことね_学園生活 = ["藤田ことね", "学園生活"]
+
+class DailyMoneyShopItems(IntEnum):
+    """日常商店物品"""
+    Recommendations = -1
+    """所有推荐商品"""
+    LessonNote = 0
+    """レッスンノート"""
+    VeteranNote = 1
+    """ベテランノート"""
+    SupportEnhancementPt = 2
+    """サポート強化Pt 支援强化Pt"""
+    SenseNoteVocal = 3
+    """センスノート（ボーカル）感性笔记（声乐）"""
+    SenseNoteDance = 4
+    """センスノート（ダンス）感性笔记（舞蹈）"""
+    SenseNoteVisual = 5
+    """センスノート（ビジュアル）感性笔记（形象）"""
+    LogicNoteVocal = 6
+    """ロジックノート（ボーカル）理性笔记（声乐）"""
+    LogicNoteDance = 7
+    """ロジックノート（ダンス）理性笔记（舞蹈）"""
+    LogicNoteVisual = 8
+    """ロジックノート（ビジュアル）理性笔记（形象）"""
+    AnomalyNoteVocal = 9
+    """アノマリーノート（ボーカル）非凡笔记（声乐）"""
+    AnomalyNoteDance = 10
+    """アノマリーノート（ダンス）非凡笔记（舞蹈）"""
+    AnomalyNoteVisual = 11
+    """アノマリーノート（ビジュアル）非凡笔记（形象）"""
+    RechallengeTicket = 12
+    """再挑戦チケット 重新挑战券"""
+    RecordKey = 13
+
+    # 碎片
+    """記録の鍵 解锁交流的物品"""
+    IdolPiece_倉本千奈_WonderScale = 14
+    """倉本千奈 WonderScale 碎片"""
+    IdolPiece_篠泽广_光景 = 15
+    """篠泽广 光景 碎片"""
+    IdolPiece_紫云清夏_TameLieOneStep = 16
+    """紫云清夏 Tame-Lie-One-Step 碎片"""
+
+    @classmethod
+    def to_ui_text(cls, item: "DailyMoneyShopItems") -> str:
+        """获取枚举值对应的UI显示文本"""
+        MAP = {
+            cls.Recommendations: "所有推荐商品",
+            cls.LessonNote: "课程笔记",
+            cls.VeteranNote: "老手笔记",
+            cls.SupportEnhancementPt: "支援强化点数",
+            cls.SenseNoteVocal: "感性笔记（声乐）",
+            cls.SenseNoteDance: "感性笔记（舞蹈）",
+            cls.SenseNoteVisual: "感性笔记（形象）",
+            cls.LogicNoteVocal: "理性笔记（声乐）",
+            cls.LogicNoteDance: "理性笔记（舞蹈）",
+            cls.LogicNoteVisual: "理性笔记（形象）",
+            cls.AnomalyNoteVocal: "非凡笔记（声乐）",
+            cls.AnomalyNoteDance: "非凡笔记（舞蹈）",
+            cls.AnomalyNoteVisual: "非凡笔记（形象）",
+            cls.RechallengeTicket: "重新挑战券",
+            cls.RecordKey: "记录钥匙",
+            cls.IdolPiece_倉本千奈_WonderScale: "倉本千奈 WonderScale 碎片",
+            cls.IdolPiece_篠泽广_光景: "篠泽广 光景 碎片",
+            cls.IdolPiece_紫云清夏_TameLieOneStep: "紫云清夏 Tame-Lie-One-Step 碎片"
+        }
+        return MAP.get(item, str(item))
     
+    @classmethod
+    def all(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
+        """获取所有枚举值及其对应的UI显示文本"""
+        return [(cls.to_ui_text(item), item) for item in cls]
+
+    def to_resource(self):
+        from . import R
+        match self:
+            case DailyMoneyShopItems.Recommendations:
+                return R.Daily.TextShopRecommended
+            case DailyMoneyShopItems.LessonNote:
+                return R.Shop.ItemLessonNote
+            case DailyMoneyShopItems.VeteranNote:
+                return R.Shop.ItemVeteranNote
+            case DailyMoneyShopItems.SupportEnhancementPt:
+                return R.Shop.ItemSupportEnhancementPt
+            case DailyMoneyShopItems.SenseNoteVocal:
+                return R.Shop.ItemSenseNoteVocal
+            case DailyMoneyShopItems.SenseNoteDance:
+                return R.Shop.ItemSenseNoteDance
+            case DailyMoneyShopItems.SenseNoteVisual:
+                return R.Shop.ItemSenseNoteVisual
+            case DailyMoneyShopItems.LogicNoteVocal:
+                return R.Shop.ItemLogicNoteVocal
+            case DailyMoneyShopItems.LogicNoteDance:
+                return R.Shop.ItemLogicNoteDance
+            case DailyMoneyShopItems.LogicNoteVisual:
+                return R.Shop.ItemLogicNoteVisual
+            case DailyMoneyShopItems.AnomalyNoteVocal:
+                return R.Shop.ItemAnomalyNoteVocal
+            case DailyMoneyShopItems.AnomalyNoteDance:
+                return R.Shop.ItemAnomalyNoteDance
+            case DailyMoneyShopItems.AnomalyNoteVisual:
+                return R.Shop.ItemAnomalyNoteVisual
+            case DailyMoneyShopItems.RechallengeTicket:
+                return R.Shop.ItemRechallengeTicket
+            case DailyMoneyShopItems.RecordKey:
+                return R.Shop.ItemRecordKey
+            case DailyMoneyShopItems.IdolPiece_倉本千奈_WonderScale:
+                return R.Shop.IdolPiece.倉本千奈_WonderScale
+            case DailyMoneyShopItems.IdolPiece_篠泽广_光景:
+                return R.Shop.IdolPiece.篠泽广_光景
+            case DailyMoneyShopItems.IdolPiece_紫云清夏_TameLieOneStep:
+                return R.Shop.IdolPiece.紫云清夏_TameLieOneStep
+            case _:
+                raise ValueError(f"Unknown daily shop item: {self}")
+
 
 class PurchaseConfig(BaseModel):
     enabled: bool = False
     """是否启用商店购买"""
     money_enabled: bool = False
     """是否启用金币购买"""
+    money_items: list[DailyMoneyShopItems] = []
+    """金币商店要购买的物品"""
+    money_refresh_on: Literal['never', 'not_found', 'always'] = 'never'
+    """
+    金币商店刷新逻辑。
+
+    * never: 从不刷新。
+    * not_found: 仅当要购买的物品不存在时刷新。
+    * always: 总是刷新。
+    """
     ap_enabled: bool = False
     """是否启用AP购买"""
     ap_items: list[Literal[0, 1, 2, 3]] = []

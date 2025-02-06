@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from . import R
 from .common import conf, PIdol
@@ -95,6 +96,9 @@ def select_idol(target_titles: list[str] | PIdol):
 def do_produce(idol: PIdol | None = None):
     """
     进行培育流程
+
+    前置条件：可导航至首页的任意页面\n
+    结束状态：游戏首页\n
     
     :param idol: 要培育的偶像。如果为 None，则使用配置文件中的偶像。
     """
@@ -162,14 +166,23 @@ def do_produce(idol: PIdol | None = None):
     wait_loading_end()
     hajime_regular()
 
-
 @task('培育')
-def produce_task():
+def produce_task(count: Optional[int] = None):
+    """
+    培育任务
+
+    :param count: 
+        培育次数。若为 None，则从配置文件中读入。
+    """
     import time
-    start_time = time.time()
-    do_produce()
-    end_time = time.time()
-    logger.info(f"Produce time used: {format_time(end_time - start_time)}")
+    if count is None:
+        count = conf().produce.produce_count
+    for _ in range(count):
+        start_time = time.time()
+        do_produce()
+
+        end_time = time.time()
+        logger.info(f"Produce time used: {format_time(end_time - start_time)}")
 
 if __name__ == '__main__':
     import logging
