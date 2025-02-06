@@ -1,7 +1,7 @@
 from typing import Literal, Dict
 from enum import IntEnum, Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from kotonebot import config
 
@@ -216,8 +216,10 @@ class DailyMoneyShopItems(IntEnum):
             case _:
                 raise ValueError(f"Unknown daily shop item: {self}")
 
+class ConfigBaseModel(BaseModel):
+    model_config = ConfigDict(use_attribute_docstrings=True)
 
-class PurchaseConfig(BaseModel):
+class PurchaseConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用商店购买"""
     money_enabled: bool = False
@@ -238,17 +240,17 @@ class PurchaseConfig(BaseModel):
     """AP商店要购买的物品"""
 
 
-class ActivityFundsConfig(BaseModel):
+class ActivityFundsConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用收取活动费"""
 
 
-class PresentsConfig(BaseModel):
+class PresentsConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用收取礼物"""
 
 
-class AssignmentConfig(BaseModel):
+class AssignmentConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用工作"""
 
@@ -263,12 +265,11 @@ class AssignmentConfig(BaseModel):
     """OnlineLive 工作时长"""
 
 
-class ContestConfig(BaseModel):
+class ContestConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用竞赛"""
 
-
-class ProduceConfig(BaseModel):
+class ProduceConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用培育"""
     mode: Literal['regular'] = 'regular'
@@ -276,7 +277,10 @@ class ProduceConfig(BaseModel):
     produce_count: int = 1
     """培育的次数。"""
     idols: list[PIdol] = []
-    """要培育的偶像。将会按顺序循环选择培育。"""
+    """
+    要培育的偶像。将会按顺序循环选择培育。
+    若未选择任何偶像，则使用游戏默认选择的偶像（为上次培育偶像）。
+    """
     memory_sets: list[int] = []
     """要使用的回忆编成编号，从 1 开始。将会按顺序循环选择使用。"""
     support_card_sets: list[int] = []
@@ -294,12 +298,12 @@ class ProduceConfig(BaseModel):
     """是否关注租借了支援卡的制作人。"""
 
 
-class MissionRewardConfig(BaseModel):
+class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用领取任务奖励"""
 
 
-class BaseConfig(BaseModel):
+class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
     """商店购买配置"""
 
@@ -327,3 +331,6 @@ def conf() -> BaseConfig:
     """获取当前配置数据"""
     c = config.to(BaseConfig).current
     return c.options
+
+if __name__ == '__main__':
+    print(PurchaseConfig.model_fields['money_refresh_on'].description)

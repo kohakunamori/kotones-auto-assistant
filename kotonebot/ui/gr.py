@@ -224,12 +224,14 @@ class KotoneBotUI:
             gr.Markdown("### 商店购买设置")
             purchase_enabled = gr.Checkbox(
                 label="启用商店购买",
-                value=self.current_config.options.purchase.enabled
+                value=self.current_config.options.purchase.enabled,
+                info=PurchaseConfig.model_fields['enabled'].description
             )
             with gr.Group(visible=self.current_config.options.purchase.enabled) as purchase_group:
                 money_enabled = gr.Checkbox(
                     label="启用金币购买",
-                    value=self.current_config.options.purchase.money_enabled
+                    value=self.current_config.options.purchase.money_enabled,
+                    info=PurchaseConfig.model_fields['money_enabled'].description
                 )
                 
                 # 添加金币商店商品选择
@@ -237,12 +239,14 @@ class KotoneBotUI:
                     multiselect=True,
                     choices=list(DailyMoneyShopItems.all()),
                     value=self.current_config.options.purchase.money_items,
-                    label="金币商店购买物品"
+                    label="金币商店购买物品",
+                    info=PurchaseConfig.model_fields['money_items'].description
                 )
                 
                 ap_enabled = gr.Checkbox(
                     label="启用AP购买",
-                    value=self.current_config.options.purchase.ap_enabled
+                    value=self.current_config.options.purchase.ap_enabled,
+                    info=PurchaseConfig.model_fields['ap_enabled'].description
                 )
                 
                 # 转换枚举值为显示文本
@@ -262,7 +266,8 @@ class KotoneBotUI:
                     multiselect=True,
                     choices=list(ap_items_map.values()),
                     value=selected_items,
-                    label="AP商店购买物品"
+                    label="AP商店购买物品",
+                    info=PurchaseConfig.model_fields['ap_items'].description
                 )
             
             purchase_enabled.change(
@@ -277,31 +282,36 @@ class KotoneBotUI:
             gr.Markdown("### 工作设置")
             assignment_enabled = gr.Checkbox(
                 label="启用工作",
-                value=self.current_config.options.assignment.enabled
+                value=self.current_config.options.assignment.enabled,
+                info=AssignmentConfig.model_fields['enabled'].description
             )
             with gr.Group(visible=self.current_config.options.assignment.enabled) as work_group:
                 with gr.Row():
                     with gr.Column():
                         mini_live_reassign = gr.Checkbox(
                             label="启用重新分配 MiniLive",
-                            value=self.current_config.options.assignment.mini_live_reassign_enabled
+                            value=self.current_config.options.assignment.mini_live_reassign_enabled,
+                            info=AssignmentConfig.model_fields['mini_live_reassign_enabled'].description
                         )
                         mini_live_duration = gr.Dropdown(
                             choices=[4, 6, 12],
                             value=self.current_config.options.assignment.mini_live_duration,
                             label="MiniLive 工作时长",
-                            interactive=True
+                            interactive=True,
+                            info=AssignmentConfig.model_fields['mini_live_duration'].description
                         )
                     with gr.Column():
                         online_live_reassign = gr.Checkbox(
                             label="启用重新分配 OnlineLive",
-                            value=self.current_config.options.assignment.online_live_reassign_enabled
+                            value=self.current_config.options.assignment.online_live_reassign_enabled,
+                            info=AssignmentConfig.model_fields['online_live_reassign_enabled'].description
                         )
                         online_live_duration = gr.Dropdown(
                             choices=[4, 6, 12],
                             value=self.current_config.options.assignment.online_live_duration,
                             label="OnlineLive 工作时长",
-                            interactive=True
+                            interactive=True,
+                            info=AssignmentConfig.model_fields['online_live_duration'].description
                         )
             
             assignment_enabled.change(
@@ -316,19 +326,22 @@ class KotoneBotUI:
             gr.Markdown("### 培育设置")
             produce_enabled = gr.Checkbox(
                 label="启用培育",
-                value=self.current_config.options.produce.enabled
+                value=self.current_config.options.produce.enabled,
+                info=ProduceConfig.model_fields['enabled'].description
             )
             with gr.Group(visible=self.current_config.options.produce.enabled) as produce_group:
                 produce_mode = gr.Dropdown(
                     choices=["regular"],
                     value=self.current_config.options.produce.mode,
-                    label="培育模式"
+                    label="培育模式",
+                    info=ProduceConfig.model_fields['mode'].description
                 )
                 produce_count = gr.Number(
                     minimum=1,
                     value=self.current_config.options.produce.produce_count,
                     label="培育次数",
-                    interactive=True
+                    interactive=True,
+                    info=ProduceConfig.model_fields['produce_count'].description
                 )
                 # 添加偶像选择
                 idol_choices = [idol.name for idol in PIdol]
@@ -338,27 +351,33 @@ class KotoneBotUI:
                     value=selected_idols,
                     label="选择要培育的偶像",
                     multiselect=True,
-                    interactive=True
+                    interactive=True,
+                    info=ProduceConfig.model_fields['idols'].description
                 )
                 auto_set_memory = gr.Checkbox(
                     label="自动编成回忆",
-                    value=self.current_config.options.produce.auto_set_memory
+                    value=self.current_config.options.produce.auto_set_memory,
+                    info=ProduceConfig.model_fields['auto_set_memory'].description
                 )
                 auto_set_support = gr.Checkbox(
                     label="自动编成支援卡",
-                    value=self.current_config.options.produce.auto_set_support_card
+                    value=self.current_config.options.produce.auto_set_support_card,
+                    info=ProduceConfig.model_fields['auto_set_support_card'].description
                 )
                 use_pt_boost = gr.Checkbox(
                     label="使用支援强化 Pt 提升",
-                    value=self.current_config.options.produce.use_pt_boost
+                    value=self.current_config.options.produce.use_pt_boost,
+                    info=ProduceConfig.model_fields['use_pt_boost'].description
                 )
                 use_note_boost = gr.Checkbox(
                     label="使用笔记数提升",
-                    value=self.current_config.options.produce.use_note_boost
+                    value=self.current_config.options.produce.use_note_boost,
+                    info=ProduceConfig.model_fields['use_note_boost'].description
                 )
                 follow_producer = gr.Checkbox(
                     label="关注租借了支援卡的制作人",
-                    value=self.current_config.options.produce.follow_producer
+                    value=self.current_config.options.produce.follow_producer,
+                    info=ProduceConfig.model_fields['follow_producer'].description
                 )
             
             produce_enabled.change(
@@ -398,7 +417,8 @@ class KotoneBotUI:
                 gr.Markdown("### 活动费设置")
                 activity_funds = gr.Checkbox(
                     label="启用收取活动费",
-                    value=self.current_config.options.activity_funds.enabled
+                    value=self.current_config.options.activity_funds.enabled,
+                    info=ActivityFundsConfig.model_fields['enabled'].description
                 )
             
             # 礼物设置
@@ -406,7 +426,8 @@ class KotoneBotUI:
                 gr.Markdown("### 礼物设置")
                 presents = gr.Checkbox(
                     label="启用收取礼物",
-                    value=self.current_config.options.presents.enabled
+                    value=self.current_config.options.presents.enabled,
+                    info=PresentsConfig.model_fields['enabled'].description
                 )
             
             # 工作设置
@@ -417,7 +438,8 @@ class KotoneBotUI:
                 gr.Markdown("### 竞赛设置")
                 contest = gr.Checkbox(
                     label="启用竞赛",
-                    value=self.current_config.options.contest.enabled
+                    value=self.current_config.options.contest.enabled,
+                    info=ContestConfig.model_fields['enabled'].description
                 )
             
             # 培育设置
@@ -428,7 +450,8 @@ class KotoneBotUI:
                 gr.Markdown("### 任务奖励设置")
                 mission_reward = gr.Checkbox(
                     label="启用领取任务奖励",
-                    value=self.current_config.options.mission_reward.enabled
+                    value=self.current_config.options.mission_reward.enabled,
+                    info=MissionRewardConfig.model_fields['enabled'].description
                 )
             
             save_btn = gr.Button("保存设置")

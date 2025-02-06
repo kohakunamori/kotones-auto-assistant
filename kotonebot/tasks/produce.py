@@ -1,5 +1,8 @@
 import logging
+from itertools import cycle
 from typing import Optional
+
+from kotonebot.ui import user
 
 from . import R
 from .common import conf, PIdol
@@ -167,20 +170,29 @@ def do_produce(idol: PIdol | None = None):
     hajime_regular()
 
 @task('培育')
-def produce_task(count: Optional[int] = None):
+def produce_task(count: Optional[int] = None, idols: Optional[list[PIdol]] = None):
     """
     培育任务
 
     :param count: 
         培育次数。若为 None，则从配置文件中读入。
+    :param idols: 
+        要培育的偶像。若为 None，则从配置文件中读入。
     """
     import time
     if count is None:
         count = conf().produce.produce_count
+    if idols is None:
+        idols = conf().produce.idols
+    # 数据验证
+    if count < 0:
+        user.warning('培育次数不能小于 0。将跳过本次培育。')
+        return
+
+    idol_iterator = cycle(idols)
     for _ in range(count):
         start_time = time.time()
-        do_produce()
-
+        do_produce(next(idol_iterator))
         end_time = time.time()
         logger.info(f"Produce time used: {format_time(end_time - start_time)}")
 
