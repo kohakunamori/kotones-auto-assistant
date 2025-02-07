@@ -105,9 +105,6 @@ def do_produce(idol: PIdol | None = None):
     
     :param idol: 要培育的偶像。如果为 None，则使用配置文件中的偶像。
     """
-    if not conf().produce.enabled:
-        logger.info('Produce is disabled.')
-        return
     if not at_home():
         goto_home()
     # [screenshots/produce/home.png]
@@ -179,6 +176,9 @@ def produce_task(count: Optional[int] = None, idols: Optional[list[PIdol]] = Non
     :param idols: 
         要培育的偶像。若为 None，则从配置文件中读入。
     """
+    if not conf().produce.enabled:
+        logger.info('Produce is disabled.')
+        return
     import time
     if count is None:
         count = conf().produce.produce_count

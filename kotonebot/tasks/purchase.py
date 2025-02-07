@@ -85,7 +85,7 @@ def dispatch_purchase_dialog(ctx: DispatcherContext):
     """
     确认购买
 
-    前置条件：购买确认对话框\n
+    前置条件：点击某个商品后的瞬间\n
     结束状态：对话框关闭后原来的界面
     """
     # 前置条件：[screenshots\shop\dialog.png]
@@ -94,43 +94,11 @@ def dispatch_purchase_dialog(ctx: DispatcherContext):
         device.click()
     elif image.find(R.Common.ButtonConfirm):
         logger.debug('Confirming purchase...')
-        # device.click()
-        device.click(image.expect(R.InPurodyuusu.ButtonCancel))
+        device.click()
         ctx.finish()
-
-@deprecated('改用 `money_items2`')
-@action('购买 Money 物品')
-def money_items():
-    """
-    购买マニー物品
-
-    前置条件：位于商店页面的マニー Tab
-    """
-    logger.info(f'Purchasing マニー items.')
-    # [screenshots\shop\money1.png]
-    results = image.find_all(R.Daily.TextShopRecommended)
-    # device.click(results[0])
-    index = 1
-    for index, result in enumerate(results, 1):
-        # [screenshots\shop\dialog.png]
-        logger.info(f'Purchasing #{index} item.')
-        device.click(result)
-        sleep(0.5)
-        with cropped(device, y1=0.3):
-            purchased = image.wait_for(R.Daily.TextShopPurchased, timeout=1)
-            if purchased is not None:
-                logger.info(f'AP item #{index} already purchased.')
-                continue
-            comfirm = image.expect_wait(R.Common.ButtonConfirm, timeout=2)
-            # 如果数量不是最大，调到最大
-            while image.find(R.Daily.ButtonShopCountAdd, colored=True):
-                logger.debug('Adjusting quantity(+1)...')
-                device.click()
-                sleep(0.3)
-            logger.debug(f'Confirming purchase...')
-            device.click(comfirm)
-            sleep(1.5)
-    logger.info(f'Purchasing マニー items completed. {index} items purchased.')
+    elif image.find(R.Daily.TextShopPurchased):
+        logger.info('Item sold out.')
+        ctx.finish()
 
 @action('购买 AP 物品')
 def ap_items():
@@ -211,4 +179,4 @@ if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     logger.setLevel(logging.DEBUG)
-    dispatch_recommended_items()
+    purchase()
