@@ -12,7 +12,8 @@ from . import loading
 from .scenes import at_home
 from .common import acquisitions
 from ..common import conf
-from kotonebot.backend.util import AdaptiveWait, crop, cropped
+from kotonebot.backend.dispatch import DispatcherContext
+from kotonebot.backend.util import AdaptiveWait, UnrecoverableError, crop, cropped
 from kotonebot import ocr, device, contains, image, regex, action, debug, config, sleep
 from .non_lesson_actions import enter_allowance, allowance_available, study_available, enter_study
 
@@ -88,11 +89,11 @@ def enter_recommended_action(final_week: bool = False) -> ActionType:
         return None
     if not final_week:
         if result.index == 0:
-            lesson_text = "Da"
+            lesson_text = contains("Da")
         elif result.index == 1:
-            lesson_text = "Vo"
+            lesson_text = regex("Vo|V0")
         elif result.index == 2:
-            lesson_text = "Vi"
+            lesson_text = contains("Vi")
         elif result.index == 3:
             rest()
             return 'rest'
@@ -101,7 +102,7 @@ def enter_recommended_action(final_week: bool = False) -> ActionType:
         logger.info("Rec. lesson: %s", lesson_text)
         # 点击课程
         logger.debug("Try clicking lesson...")
-        lesson_ret = ocr.expect(contains(lesson_text))
+        lesson_ret = ocr.expect(lesson_text)
         device.double_click(lesson_ret.rect)
         return 'lesson'
     else:
@@ -355,7 +356,7 @@ def remaing_turns_and_points():
         turns_rect_extended[1]:turns_rect_extended[1]+turns_rect_extended[3],
         turns_rect_extended[0]:turns_rect_extended[0]+turns_rect_extended[2]
     ]
-    turns_ocr = ocr.ocr(turns_img)
+    turns_ocr = ocr.raw().ocr(turns_img)
     logger.debug("turns_ocr: %s", turns_ocr)
 
 
@@ -653,96 +654,72 @@ def hajime_regular(week: int = -1, start_from: int = 1):
             logger.info("Week %d started.", i + start_from)
             w()
 
-def purodyuusu(
-    # TODO: 参数：成员、支援、记忆、 两个道具
-):
-    # 流程：
-    # 1. Sensei 对话
-    # 2. Idol 对话
-    # 3. 领取P饮料（？）
-    # 4. 触发支援卡事件。触发后必定需要领取物品
-    pass
+ProduceStage = Literal[
+    'action', # 行动场景
+    'practice', # 练习场景
+    'exam', # 考试场景
+    'unknown', # 未知场景
+]
+@action('检测培育阶段并开始培育', dispatcher=True)
+def detect_regular_produce_stage(ctx: DispatcherContext) -> ProduceStage:
+    """
 
+    判断当前是培育的什么阶段，并开始 Regular 培育。
 
-__actions__ = [enter_recommended_action]
+    前置条件：培育中的任意场景\n
+    结束状态：游戏主页面\n
+    """
+    logger.info("Detecting current produce stage...")
+    # 行动场景
+    if (
+        image.find_multi([
+            R.InPurodyuusu.TextPDiary, # 普通周
+            R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
+        ]) 
+        and (week_ret := ocr.find(contains('週'), rect=R.InPurodyuusu.BoxWeeksUntilExam))
+    ):
+        week = week_ret.numbers()
+        if week:
+            logger.info("Detection result: At action scene. Current week: %d", week[0])
+            # hajime_regular(week=week[0])
+            ctx.finish()
+            return 'action'
+        else:
+            return 'unknown'
+    else:
+        return 'unknown'
+
+@action('开始 Regular 培育')
+def hajime_regular_from_stage(stage: ProduceStage):
+    """
+    开始 Regular 培育。
+    """
+    if stage == 'action':
+        texts = ocr.ocr(rect=R.InPurodyuusu.BoxWeeksUntilExam)
+        week_text = texts.where(contains('週')).first()
+        if not week_text:
+            raise UnrecoverableError("Failed to detect week.")
+        # 提取周数
+        remaining_week = week_text.numbers()
+        if not remaining_week:
+            raise UnrecoverableError("Failed to detect week.")
+        # 判断阶段
+        if texts.where(contains('中間')):
+            week = 6 - remaining_week[0]
+            hajime_regular(start_from=week)
+        elif texts.where(contains('最終')):
+            week = 13 - remaining_week[0]
+            hajime_regular(start_from=week)
+        else:
+            raise UnrecoverableError("Failed to detect produce stage.")
 
 if __name__ == '__main__':
     from logging import getLogger
+
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s')
     getLogger('kotonebot').setLevel(logging.DEBUG)
     getLogger(__name__).setLevel(logging.DEBUG)
 
-    # exam()
-    # until_action_scene()
+    stage = (detect_regular_produce_stage())
+    hajime_regular_from_stage(stage)
 
-    # exam()
-    # produce_end()
-
-    # import cProfile
-    # p = cProfile.Prof
-    # ile()
-    # p.enable()
-    # acquisitions()
-    # p.disable()
-    # p.print_stats()
-    # p.dump_stats('profile.prof')
-    
-    # until_action_scene()
-
-    # # 第一个箱子 [screenshots\allowance\step_2.png]
-    # logger.info("Clicking on the first lootbox.")
-    # device.click(image.expect_wait_any([
-    #     R.InPurodyuusu.LootboxSliverLock
-    # ]))
-    # while acquisitions() is None:
-    #     logger.info("Waiting for acquisitions finished.")
-    #     sleep(2)
-    # # 第二个箱子
-    # logger.info("Clicking on the second lootbox.")
-    # device.click(image.expect_wait_any([
-    #     R.InPurodyuusu.LootboxSliverLock
-    # ]))
-    # while acquisitions() is None:
-    #     logger.info("Waiting for acquisitions finished.")
-    #     sleep(2)
-    # logger.info("活動支給 completed.")
-
-    # while not image.wait_for_any([
-    #     R.InPurodyuusu.TextPDiary, # 普通周
-    #     R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
-    # ], timeout=2):
-    #     logger.info("Action scene not detected. Retry...")
-    #     acquisitions()
-    #     sleep(3)
-
-    # image.wait_for_any([
-    #     R.InPurodyuusu.TextPDiary, # 普通周
-    #     R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
-    # ], timeout=2)
-    # while True:
-    #     sleep(10)
-
-    # exam()
-    # produce_end()
-    # enter_recommended_action()
-    # remaing_turns_and_points()
-    # practice()
-    # until_action_scene()
-    # acquisitions()
-    # acquire_pdorinku(0)
-    # image.wait_for(R.InPurodyuusu.InPractice.PDorinkuIcon)
-    hajime_regular(start_from=4)
-    # until_practice_scene()
-    # device.click(image.expect_wait_any([
-    #     R.InPurodyuusu.PSkillCardIconBlue,
-    #     R.InPurodyuusu.PSkill
-    # CardIconColorful
-    # ]).rect)
-    # exam()
-    # device.double_click(image.expect_wait(R.InPurodyuusu.Action.VocalWhiteBg).rect)
-    # print(skill_card_count())
-    # click_recommended_card(card_count=skill_card_count())
-    # click_recommended_card(card_count=2)
-    # acquire_skill_card()
-    # rest()
-    # enter_recommended_lesson(final_week=True)
