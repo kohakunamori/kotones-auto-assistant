@@ -295,27 +295,6 @@ def click_recommended_card(timeout: float = 7, card_count: int = 3) -> int:
             return return_value
     return -1
 
-@deprecated('此方法待改进')
-def skill_card_count1():
-    """获取当前持有的技能卡数量"""
-    img = device.screenshot()
-    img = crop(img, y1=0.83, y2=0.90)
-    # 黑白
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # 白色 -> 黑色
-    # 仅将白色(255)替换为黑色(0),保持其他颜色不变
-    img[img == 255] = 0
-    # 二值化
-    _, img = cv2.threshold(img, 240, 255, cv2.THRESH_BINARY)
-    
-    ret = ocr.raw('en').ocr(img)
-    # 统计字母 A、M 数量
-    count = 0
-    for item in ret:
-        if 'A' in item.text or 'M' in item.text:
-            count += 1
-    logger.info("Current skill card count: %d", count)
-    return count
 
 @action('获取当前卡片数量')
 def skill_card_count():
@@ -654,16 +633,23 @@ def hajime_regular(week: int = -1, start_from: int = 1):
             logger.info("Week %d started.", i + start_from)
             w()
 
+@action('是否在考试场景')
+def is_exam_scene():
+    """是否在考试场景"""
+    return ocr.find(contains('残りターン'), rect=R.InPurodyuusu.BoxExamTop) is not None
+
 ProduceStage = Literal[
     'action', # 行动场景
     'practice', # 练习场景
-    'exam', # 考试场景
+    'exam-start', # 考试开始确认页面
+    'exam-ongoing', # 考试进行中
+    'exam-end', # 考试结束
     'unknown', # 未知场景
 ]
 @action('检测培育阶段并开始培育', dispatcher=True)
+
 def detect_regular_produce_stage(ctx: DispatcherContext) -> ProduceStage:
     """
-
     判断当前是培育的什么阶段，并开始 Regular 培育。
 
     前置条件：培育中的任意场景\n
@@ -681,11 +667,14 @@ def detect_regular_produce_stage(ctx: DispatcherContext) -> ProduceStage:
         week = week_ret.numbers()
         if week:
             logger.info("Detection result: At action scene. Current week: %d", week[0])
-            # hajime_regular(week=week[0])
             ctx.finish()
             return 'action'
         else:
             return 'unknown'
+    elif is_exam_scene():
+        logger.info("Detection result: At exam scene.")
+        ctx.finish()
+        return 'exam-ongoing'
     else:
         return 'unknown'
 
@@ -712,6 +701,11 @@ def hajime_regular_from_stage(stage: ProduceStage):
             hajime_regular(start_from=week)
         else:
             raise UnrecoverableError("Failed to detect produce stage.")
+    elif stage == 'exam-ongoing':
+        # TODO: 应该直接调用 week_final_exam 而不是再写一次
+        logger.info("Exam ongoing. Start exam.")
+        exam()
+        produce_end()
 
 if __name__ == '__main__':
     from logging import getLogger
@@ -720,6 +714,8 @@ if __name__ == '__main__':
     getLogger('kotonebot').setLevel(logging.DEBUG)
     getLogger(__name__).setLevel(logging.DEBUG)
 
-    stage = (detect_regular_produce_stage())
-    hajime_regular_from_stage(stage)
+    # stage = (detect_regular_produce_stage())
+    # hajime_regular_from_stage(stage)
 
+    # click_recommended_card(card_count=skill_card_count())
+    # exam()
