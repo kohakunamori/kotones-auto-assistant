@@ -8,7 +8,7 @@ from . import R
 from .common import conf, PIdol
 from .actions.loading import wait_loading_end
 from .actions.in_purodyuusu import hajime_regular
-from kotonebot import device, image, ocr, task, action, sleep, contains
+from kotonebot import device, image, ocr, task, action, sleep, equals
 from .actions.scenes import loading, at_home, goto_home
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ def select_idol(target_titles: list[str] | PIdol):
     # 前置条件：[res/sprites/jp/produce/produce_preparation1.png]
     # 结束状态：[res/sprites/jp/produce/produce_preparation1.png]
     
+    logger.info(f"Find and select idol: {target_titles}")
     # 进入总览
     device.update_screenshot()
     device.click(image.expect(R.Produce.ButtonPIdolOverview))
@@ -54,7 +55,7 @@ def select_idol(target_titles: list[str] | PIdol):
 
     if isinstance(target_titles, PIdol):
         target_titles = target_titles.value
-    _target_titles = [contains(t) for t in target_titles]
+    _target_titles = [equals(t, remove_space=True) for t in target_titles]
     device.update_screenshot()
     # 定位滑动基准
     results = image.find_all(R.Produce.IconPIdolLevel)
@@ -95,7 +96,7 @@ def select_idol(target_titles: list[str] | PIdol):
     device.click(image.expect(R.Common.ButtonConfirmNoIcon))
     return found
 
-@action('单次培育')
+@action('执行培育')
 def do_produce(idol: PIdol | None = None):
     """
     进行培育流程
