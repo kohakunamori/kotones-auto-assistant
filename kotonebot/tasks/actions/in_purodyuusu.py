@@ -15,7 +15,10 @@ from ..common import conf
 from kotonebot.backend.dispatch import DispatcherContext
 from kotonebot.backend.util import AdaptiveWait, UnrecoverableError, crop, cropped
 from kotonebot import ocr, device, contains, image, regex, action, debug, config, sleep
-from .non_lesson_actions import enter_allowance, allowance_available, study_available, enter_study
+from .non_lesson_actions import (
+    enter_allowance, allowance_available, study_available, enter_study,
+    is_rest_available, rest
+)
 
 logger = logging.getLogger(__name__)
 
@@ -339,16 +342,6 @@ def remaing_turns_and_points():
     logger.debug("turns_ocr: %s", turns_ocr)
 
 
-@action('执行休息')
-def rest():
-    """执行休息"""
-    logger.info("Rest for this week.")
-    # 点击休息
-    device.click(image.expect_wait(R.InPurodyuusu.Rest))
-    # 确定
-    device.click(image.expect_wait(R.InPurodyuusu.RestConfirmBtn))
-
-
 @action('等待进入行动场景')
 def until_action_scene():
     """等待进入行动场景"""
@@ -570,6 +563,8 @@ def hajime_regular(week: int = -1, start_from: int = 1):
             enter_allowance()
         elif study_available():
             enter_study()
+        elif is_rest_available():
+            rest()
         else:
             raise ValueError("No action available.")
         until_action_scene()
@@ -646,9 +641,9 @@ ProduceStage = Literal[
     'exam-end', # 考试结束
     'unknown', # 未知场景
 ]
-@action('检测培育阶段并开始培育', dispatcher=True)
 
-def detect_regular_produce_stage(ctx: DispatcherContext) -> ProduceStage:
+@action('检测当前培育场景', dispatcher=True)
+def detect_regular_produce_scene(ctx: DispatcherContext) -> ProduceStage:
     """
     判断当前是培育的什么阶段，并开始 Regular 培育。
 
@@ -706,6 +701,15 @@ def hajime_regular_from_stage(stage: ProduceStage):
         logger.info("Exam ongoing. Start exam.")
         exam()
         produce_end()
+    else:
+        raise UnrecoverableError(f'Cannot resume produce REGULAR from stage "{stage}".')
+
+@action('继续 Regular 培育')
+def resume_regular_produce():
+    """
+    继续 Regular 培育。
+    """
+    hajime_regular_from_stage(detect_regular_produce_scene())
 
 if __name__ == '__main__':
     from logging import getLogger
@@ -714,8 +718,10 @@ if __name__ == '__main__':
     getLogger('kotonebot').setLevel(logging.DEBUG)
     getLogger(__name__).setLevel(logging.DEBUG)
 
-    # stage = (detect_regular_produce_stage())
+    # stage = (detect_regular_produce_scene())
     # hajime_regular_from_stage(stage)
 
     # click_recommended_card(card_count=skill_card_count())
     # exam()
+
+    hajime_regular(start_from=7)

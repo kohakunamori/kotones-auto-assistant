@@ -8,7 +8,7 @@ from . import R
 from .common import conf, PIdol
 from .actions.loading import wait_loading_end
 from .actions.in_purodyuusu import hajime_regular
-from kotonebot import device, image, ocr, task, action, sleep, equals
+from kotonebot import device, image, ocr, task, action, sleep, equals, contains
 from .actions.scenes import loading, at_home, goto_home
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,23 @@ def select_idol(target_titles: list[str] | PIdol):
     device.click(image.expect(R.Common.ButtonConfirmNoIcon))
     return found
 
+@action('继续当前培育')
+def resume_produce():
+    """
+    继续当前培育
+
+    前置条件：游戏首页，且当前有进行中培育\n
+    结束状态：游戏首页
+    """
+    # 点击 プロデュース中
+    # [res/sprites/jp/daily/home_1.png]
+    logger.info('Click ongoing produce button.')
+    device.click(R.Produce.BoxProduceOngoing)
+    # 点击 再開する
+    # [res/sprites/jp/produce/produce_resume.png]
+    logger.info('Click resume button.')
+    device.click(image.expect_wait(R.Produce.ButtonResume))
+
 @action('执行培育')
 def do_produce(idol: PIdol | None = None):
     """
@@ -108,6 +125,11 @@ def do_produce(idol: PIdol | None = None):
     """
     if not at_home():
         goto_home()
+    # 有进行中培育的情况
+    if ocr.find(contains('プロデュース中'), rect=R.Produce.BoxProduceOngoing):
+        logger.info('Ongoing produce found. Try to resume produce.')
+        resume_produce()
+        return
     # [screenshots/produce/home.png]
     device.click(image.expect_wait(R.Produce.ButtonProduce))
     sleep(0.3)
@@ -202,5 +224,5 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     logging.getLogger('kotonebot').setLevel(logging.DEBUG)
     logger.setLevel(logging.DEBUG)
-    produce_task()
+    do_produce()
     # select_idol(PIdol.藤田ことね_学園生活)

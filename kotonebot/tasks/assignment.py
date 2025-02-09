@@ -1,12 +1,13 @@
 """工作。お仕事"""
 import logging
 from typing import Literal
+from datetime import timedelta
 
 from . import R
 from .common import conf
 from .actions.loading import wait_loading_end
 from .actions.scenes import at_home, goto_home
-from kotonebot import task, device, image, action, ocr, contains, cropped, rect_expand, color, sleep
+from kotonebot import task, device, image, action, ocr, contains, cropped, rect_expand, color, sleep, regex
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,26 @@ def assign(type: Literal['mini', 'online']) -> bool:
     device.click(image.expect_wait(R.Common.ButtonStart, timeout=5))
     return True
 
+@action('获取剩余时间')
+def get_remaining_time() -> timedelta | None:
+    """
+    获取剩余时间
+
+    前置条件：首页 \n
+    结束状态：-
+    """
+    texts = ocr.ocr(rect=R.Daily.BoxHomeAssignment)
+    if not texts.where(contains('お仕事')):
+        logger.warning('お仕事 area not found.')
+        return None
+    time = texts.where(regex(r'\d+:\d+:\d+')).first()
+    if not time:
+        logger.warning('お仕事 remaining time not found.')
+        return None
+    logger.info(f'お仕事 remaining time: {time}')
+    return timedelta(hours=time.numbers()[0], minutes=time.numbers()[1], seconds=time.numbers()[2])
+
+
 @task('工作')
 def assignment():
     """领取工作奖励并重新分配工作"""
@@ -122,6 +143,7 @@ def assignment():
         notification_dot = color.find_rgb('#ff134a', rect=notification_rect)
         if not notification_dot and not completed:
             logger.info('No action needed.')
+            # TODO: 获取剩余时间，并根据时间更新调度
             return
 
     # 点击工作按钮
@@ -152,4 +174,5 @@ if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     logger.setLevel(logging.DEBUG)
-    assignment()
+    # assignment()
+    print(get_remaining_time())

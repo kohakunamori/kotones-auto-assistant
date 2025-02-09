@@ -97,7 +97,19 @@ def enter_allowance():
     # 可能会出现的新动画
     # 技能卡：[screenshots\allowance\step_4.png]
 
+@action('判断是否可以休息')
+def is_rest_available():
+    """
+    判断是否可以休息。
+    """
+    return image.find(R.InPurodyuusu.Rest) is not None
 
-def study():
-    """授業"""
-    pass
+
+@action('执行休息')
+def rest():
+    """执行休息"""
+    logger.info("Rest for this week.")
+    # 点击休息
+    device.click(image.expect_wait(R.InPurodyuusu.Rest))
+    # 确定
+    device.click(image.expect_wait(R.InPurodyuusu.RestConfirmBtn))
