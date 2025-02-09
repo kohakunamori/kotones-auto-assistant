@@ -70,9 +70,14 @@ def enter_recommended_action_ocr(final_week: bool = False) -> ActionType:
         return 'lesson'
 
 @action('执行推荐行动')
-def enter_recommended_action(final_week: bool = False) -> ActionType:
+def handle_recommended_action(final_week: bool = False) -> ActionType:
     """
     在行动选择页面，执行推荐行动
+
+    前置条件：位于行动选择页面\n
+    结束状态：
+        * `lesson`：练习场景，以及中间可能出现的加载、支援卡奖励、交流等
+        * `rest`：休息动画。
 
     :param final_week: 是否是考试前复习周
     :return: 是否成功执行推荐行动
@@ -542,7 +547,7 @@ def hajime_regular(week: int = -1, start_from: int = 1):
     """
     def week_lesson():
         until_action_scene()
-        executed_action = enter_recommended_action()
+        executed_action = handle_recommended_action()
         logger.info("Executed recommended action: %s", executed_action)
         if executed_action == 'lesson':
             sleep(5)
@@ -557,7 +562,7 @@ def hajime_regular(week: int = -1, start_from: int = 1):
     def week_non_lesson():
         """非练习周。可能可用行动包括：おでかけ、相談、活動支給、授業"""
         until_action_scene()
-        if enter_recommended_action() == 'rest':
+        if handle_recommended_action() == 'rest':
             logger.info("Recommended action is rest.")
         elif allowance_available():
             enter_allowance()
@@ -569,8 +574,31 @@ def hajime_regular(week: int = -1, start_from: int = 1):
             raise ValueError("No action available.")
         until_action_scene()
 
+    def week_normal():
+        until_action_scene()
+        executed_action = handle_recommended_action()
+        logger.info("Executed recommended action: %s", executed_action)
+        # 推荐练习
+        if executed_action == 'lesson':
+            until_practice_scene()
+            practice()
+        # 推荐休息
+        elif executed_action == 'rest':
+            pass
+        # 没有推荐行动
+        elif executed_action is None:
+            if allowance_available():
+                enter_allowance()
+            elif study_available():
+                enter_study()
+            elif is_rest_available():
+                rest()
+            else:
+                raise ValueError("No action available.")
+        until_action_scene()
+
     def week_final_lesson():
-        if enter_recommended_action(final_week=True) != 'lesson':
+        if handle_recommended_action(final_week=True) != 'lesson':
             raise ValueError("Failed to enter recommended action on final week.")
         sleep(5)
         until_practice_scene()
@@ -602,17 +630,17 @@ def hajime_regular(week: int = -1, start_from: int = 1):
     
     weeks = [
         # TODO: 似乎一部分选项是随机出现的
-        week_lesson, # 1: Vo.レッスン、Da.レッスン、Vi.レッスン
-        week_lesson, # 2: 授業
-        week_lesson, # 3: Vo.レッスン、Da.レッスン、Vi.レッスン、授業
-        week_non_lesson, # 4: おでかけ、相談、活動支給
+        week_normal, # 1: Vo.レッスン、Da.レッスン、Vi.レッスン
+        week_normal, # 2: 授業
+        week_normal, # 3: Vo.レッスン、Da.レッスン、Vi.レッスン、授業
+        week_normal, # 4: おでかけ、相談、活動支給
         week_final_lesson, # 5: 追い込みレッスン
         week_mid_exam, # 6: 中間試験
-        week_non_lesson, # 7: おでかけ、活動支給
-        week_non_lesson, # 8: 授業、活動支給
-        week_lesson, # 9: Vo.レッスン、Da.レッスン、Vi.レッスン
-        week_lesson, # 10: Vo.レッスン、Da.レッスン、Vi.レッスン、授業
-        week_non_lesson, # 11: おでかけ、相談、活動支給
+        week_normal, # 7: おでかけ、活動支給
+        week_normal, # 8: 授業、活動支給
+        week_normal, # 9: Vo.レッスン、Da.レッスン、Vi.レッスン
+        week_normal, # 10: Vo.レッスン、Da.レッスン、Vi.レッスン、授業
+        week_normal, # 11: おでかけ、相談、活動支給
         week_final_lesson, # 12: 追い込みレッスン
         week_final_exam, # 13: 最終試験
     ]
@@ -651,15 +679,17 @@ def detect_regular_produce_scene(ctx: DispatcherContext) -> ProduceStage:
     结束状态：游戏主页面\n
     """
     logger.info("Detecting current produce stage...")
+    
     # 行动场景
+    texts = ocr.ocr(rect=R.InPurodyuusu.BoxWeeksUntilExam)
     if (
         image.find_multi([
             R.InPurodyuusu.TextPDiary, # 普通周
             R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
         ]) 
-        and (week_ret := ocr.find(contains('週'), rect=R.InPurodyuusu.BoxWeeksUntilExam))
+        and (texts.where(contains('週')).first())
     ):
-        week = week_ret.numbers()
+        week = texts.squash().numbers()
         if week:
             logger.info("Detection result: At action scene. Current week: %d", week[0])
             ctx.finish()
@@ -680,11 +710,8 @@ def hajime_regular_from_stage(stage: ProduceStage):
     """
     if stage == 'action':
         texts = ocr.ocr(rect=R.InPurodyuusu.BoxWeeksUntilExam)
-        week_text = texts.where(contains('週')).first()
-        if not week_text:
-            raise UnrecoverableError("Failed to detect week.")
         # 提取周数
-        remaining_week = week_text.numbers()
+        remaining_week = texts.squash().numbers()
         if not remaining_week:
             raise UnrecoverableError("Failed to detect week.")
         # 判断阶段
@@ -718,10 +745,16 @@ if __name__ == '__main__':
     getLogger('kotonebot').setLevel(logging.DEBUG)
     getLogger(__name__).setLevel(logging.DEBUG)
 
-    # stage = (detect_regular_produce_scene())
-    # hajime_regular_from_stage(stage)
+    stage = (detect_regular_produce_scene())
+    hajime_regular_from_stage(stage)
 
     # click_recommended_card(card_count=skill_card_count())
     # exam()
 
-    hajime_regular(start_from=7)
+    # hajime_regular(start_from=7)
+
+    # import cv2
+    # while True:
+    #     img = device.screenshot()
+    #     cv2.imshow('123', img)
+    #     cv2.waitKey(1)
