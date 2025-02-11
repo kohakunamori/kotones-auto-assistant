@@ -4,9 +4,10 @@ import logging
 from cv2.typing import MatLike
 
 from .. import R
-from kotonebot import device, image, color, user, rect_expand, until, action, sleep
+from kotonebot import device, image, color, user, rect_expand, until, action, sleep, use_screenshot
 
 logger = logging.getLogger(__name__)
+
 
 @action('检查是否处于交流')
 def is_at_commu():
@@ -16,7 +17,7 @@ def is_at_commu():
 def skip_commu():
     device.click(image.expect_wait(R.Common.ButtonCommuSkip))
 
-@action('检查并跳过交流')
+@action('检查并跳过交流', screenshot_mode='manual')
 def check_and_skip_commu(img: MatLike | None = None) -> bool:
     """
     检查当前是否处在未读交流，并自动跳过。
@@ -26,8 +27,7 @@ def check_and_skip_commu(img: MatLike | None = None) -> bool:
     """
     ret = False
     logger.info('Check and skip commu')
-    if img is None:
-        img = device.screenshot()
+    img = use_screenshot(img)
     skip_btn = image.find(R.Common.ButtonCommuFastforward)
     if skip_btn is None:
         logger.info('No fast forward button found. Not at a commu.')
@@ -49,7 +49,7 @@ def check_and_skip_commu(img: MatLike | None = None) -> bool:
     else:
         logger.info('Fast forwarding. No action needed.')
     logger.debug('Wait until not at commu')
-    until(lambda: not is_at_commu(), interval=1)
+    until(lambda: not is_at_commu(), interval=0.3)
     logger.info('Fast forward done')
 
     return ret

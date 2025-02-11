@@ -10,6 +10,7 @@ from .. import R
 
 logger = getLogger(__name__)
 
+@action('检测加载页面', screenshot_mode='manual')
 def loading() -> bool:
     """检测是否在场景加载页面"""
     img = device.screenshot()

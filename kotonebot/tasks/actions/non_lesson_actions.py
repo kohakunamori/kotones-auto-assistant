@@ -46,13 +46,12 @@ def enter_study():
     while not image.find(R.InPurodyuusu.IconTitleStudy):
         logger.debug("Waiting for 授業 screen.")
         check_and_skip_commu()
-        sleep(1)
+        acquisitions()
     # 固定点击 Vi. 选项
     logger.debug("Clicking on Vi. option.")
     device.double_click(image.expect_wait(R.InPurodyuusu.ButtonIconStudyVisual))
     while acquisitions() is None:
         logger.info("Waiting for acquisitions finished.")
-        sleep(1)
     logger.info("授業 completed.")
 
 
@@ -81,7 +80,6 @@ def enter_allowance():
     ]))
     while acquisitions() is None:
         logger.info("Waiting for acquisitions finished.")
-        sleep(2)
     # 第二个箱子
     logger.info("Clicking on the second lootbox.")
     device.click(image.expect_wait_any([
@@ -89,7 +87,6 @@ def enter_allowance():
     ]))
     while acquisitions() is None:
         logger.info("Waiting for acquisitions finished.")
-        sleep(2)
     logger.info("活動支給 completed.")
     # wait_loading_start() # 可能会因为加载太快，截图没截到，导致抛出异常
     sleep(1)

@@ -1,24 +1,30 @@
-import time
-import random
 import logging
-import unicodedata
-from typing import Literal
 from typing_extensions import deprecated
+from typing import Generic, Iterable, Literal, NamedTuple, Callable, Generator, TypeVar, ParamSpec, cast
 
 import cv2
+import numpy as np
+from cv2.typing import MatLike
+
+from kotonebot.backend.context.context import use_screenshot
 
 from .. import R
 from . import loading
-from .scenes import at_home
-from .common import acquisitions
 from ..common import conf
-from kotonebot.backend.dispatch import DispatcherContext
-from kotonebot.backend.util import AdaptiveWait, UnrecoverableError, crop, cropped
-from kotonebot import ocr, device, contains, image, regex, action, debug, config, sleep
+from .scenes import at_home
+from .common import until_acquisition_clear
+from kotonebot.errors import UnrecoverableError
+from kotonebot.backend.util import AdaptiveWait, Countdown, crop, cropped
+from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
+from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect
 from .non_lesson_actions import (
     enter_allowance, allowance_available, study_available, enter_study,
     is_rest_available, rest
 )
+
+class SkillCard(NamedTuple):
+    available: bool
+    rect: Rect
 
 logger = logging.getLogger(__name__)
 
@@ -126,39 +132,50 @@ def handle_recommended_action(final_week: bool = False) -> ActionType:
         device.double_click(image.expect_wait(template))
         return 'lesson'
 
-def before_start_action():
-    """检测支援卡剧情、领取资源等"""
-    raise NotImplementedError()
-
-@action('打出推荐卡')
-# TODO: 这里面的结果也加入 debug 显示
-def click_recommended_card(timeout: float = 7, card_count: int = 3) -> int:
-    """点击推荐卡片
-    
-    :param timeout: 超时时间(秒)
-    :param card_count: 卡片数量(2-4)
-    :return: 执行结果。-1=失败，0~3=卡片位置，10=跳过此回合。
+class CardDetectResult(NamedTuple):
+    type: int
     """
-    import cv2
-    import numpy as np
-    from cv2.typing import MatLike
+    点击的卡片类型。
 
-    # 定义检测参数
-    TARGET_ASPECT_RATIO_RANGE = (0.73, 0.80)
-    TARGET_COLOR = (240, 240, 240)
+    0=第一张卡片，1=第二张卡片，2=第三张卡片，3=第四张卡片，10=SKIP。
+    """
+    score: float
+    """总分数"""
+    left_score: float
+    """左边分数"""
+    right_score: float
+    """右边分数"""
+    top_score: float
+    """上边分数"""
+    bottom_score: float
+    """下边分数"""
+    rect: Rect
+
+def detect_recommended_card(
+        card_count: int,
+        threshold_predicate: Callable[[CardDetectResult], bool],
+        *,
+        img: MatLike | None = None,
+    ):
+    """
+    识别推荐卡片
+
+    前置条件：练习或考试中\n
+    结束状态：-
+
+    :param card_count: 卡片数量(2-4)
+    :param threshold_predicate: 阈值判断函数
+    :return: 执行结果。若返回 None，表示未识别到推荐卡片。
+    """
     YELLOW_LOWER = np.array([20, 100, 100])
     YELLOW_UPPER = np.array([30, 255, 255])
-    GLOW_EXTENSION = 10  # 向外扩展的像素数
-    GLOW_THRESHOLD = 1200  # 荧光值阈值
-
-    # 固定的卡片坐标 (for 720x1280)
     CARD_POSITIONS_1 = [
         # 格式：(x, y, w, h, return_value)
         (264, 883, 192, 252, 0)
     ]
     CARD_POSITIONS_2 = [
-        (156, 883, 192, 252, 1),
-        (372, 883, 192, 252, 2),
+        (156, 883, 192, 252, 0),
+        (372, 883, 192, 252, 1),
         # delta_x = 216, delta_x-width = 24
     ]
     CARD_POSITIONS_3 = [
@@ -175,189 +192,174 @@ def click_recommended_card(timeout: float = 7, card_count: int = 3) -> int:
         # delta_x = 165, delta_x-width = -27
     ]
     SKIP_POSITION = (621, 739, 85, 85, 10)
+    GLOW_EXTENSION = 15
 
-    @deprecated('此方法待改进')
-    def calc_pos(card_count: int):
-        # 根据卡片数量计算实际位置
-        CARD_PAD = 25
-        CARD_SCREEN_PAD = 17
-        card_positions = []
+    if card_count == 1:
+        cards = CARD_POSITIONS_1
+    elif card_count == 2:
+        cards = CARD_POSITIONS_2
+    elif card_count == 3:
+        cards = CARD_POSITIONS_3
+    elif card_count == 4:
+        cards = CARD_POSITIONS_4
+    else:
+        raise ValueError(f"Unsupported card count: {card_count}")
+    cards.append(SKIP_POSITION)
+
+    
+    image = use_screenshot(img)
+    results: list[CardDetectResult] = []
+    for x, y, w, h, return_value in cards:
+        outer = (max(0, x - GLOW_EXTENSION), max(0, y - GLOW_EXTENSION))
+        # 裁剪出检测区域
+        glow_area = image[outer[1]:y + h + GLOW_EXTENSION, outer[0]:x + w + GLOW_EXTENSION]
+        area_h = glow_area.shape[0]
+        area_w = glow_area.shape[1]
+        glow_area[GLOW_EXTENSION:area_h-GLOW_EXTENSION, GLOW_EXTENSION:area_w-GLOW_EXTENSION] = 0
+
+        # 过滤出目标黄色
+        glow_area = cv2.cvtColor(glow_area, cv2.COLOR_BGR2HSV)
+        yellow_mask = cv2.inRange(glow_area, YELLOW_LOWER, YELLOW_UPPER)
         
-        # 计算卡片位置
-        if card_count == 1:
-            card_positions = [CARD_POSITIONS_3[1]]  # 只使用中间位置
-        else:
-            # 计算原始卡片间距
-            card_spacing = CARD_POSITIONS_3[1][0] - CARD_POSITIONS_3[0][0]
-            card_width = CARD_POSITIONS_3[0][2]
-            
-            # 计算屏幕可用宽度
-            screen_width = 720
-            available_width = screen_width - (CARD_SCREEN_PAD * 2)
-            
-            # 计算使用原始间距时的总宽度
-            original_total_width = (card_count - 1) * card_spacing + card_width
-            
-            # 判断是否需要重叠布局
-            if original_total_width > available_width:
-                spacing = (available_width - card_width * card_count - CARD_SCREEN_PAD * 2) // (card_count)
-                start_x = CARD_SCREEN_PAD
-            else:
-                spacing = card_spacing
-                start_x = (screen_width - original_total_width) // 2
-            
-            # 生成所有卡片位置
-            x = start_x
-            for i in range(card_count):
-                y = CARD_POSITIONS_3[0][1]
-                w = CARD_POSITIONS_3[0][2]
-                h = CARD_POSITIONS_3[0][3]
-                card_positions.append((round(x), round(y), round(w), round(h)))
-                x += spacing + card_width
-        return card_positions
+        # 分割出每一边
+        left_border = yellow_mask[:, 0:GLOW_EXTENSION]
+        right_border = yellow_mask[:, area_w-GLOW_EXTENSION:area_w]
+        top_border = yellow_mask[0:GLOW_EXTENSION, :]
+        bottom_border = yellow_mask[area_h-GLOW_EXTENSION:area_h, :]
+        y_border_pixels = area_h * GLOW_EXTENSION
+        x_border_pixels = area_w * GLOW_EXTENSION
 
-    def calc_pos2(card_count: int):
-        if card_count == 1:
-            return CARD_POSITIONS_1
-        elif card_count == 2:
-            return CARD_POSITIONS_2
-        elif card_count == 3:
-            return CARD_POSITIONS_3
-        elif card_count == 4:
-            return CARD_POSITIONS_4
-        else:
-            raise ValueError(f"Unsupported card count: {card_count}")
+        # 计算每一边的分数
+        left_score = np.count_nonzero(left_border) / y_border_pixels
+        right_score = np.count_nonzero(right_border) / y_border_pixels
+        top_score = np.count_nonzero(top_border) / x_border_pixels
+        bottom_score = np.count_nonzero(bottom_border) / x_border_pixels
 
-    if card_count == 4:
-        # 随机选择一张卡片点击
-        # TODO: 支持对四张卡片进行检测
-        logger.warning("4 cards detected, detecting glowing card in 4 cards is not supported yet.")
-        logger.info("Click random card")
-        card_index = random.randint(0, 3)
-        device.click(CARD_POSITIONS_4[card_index][:4])
-        sleep(1)
-        device.click(CARD_POSITIONS_4[card_index][:4])
-        return card_index
+        result = (left_score + right_score + top_score + bottom_score) / 4
+        results.append(CardDetectResult(
+            return_value,
+            result,
+            left_score,
+            right_score,
+            top_score,
+            bottom_score,
+            (x, y, w, h)
+        ))
 
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        img = device.screenshot()
+    filtered_results = list(filter(threshold_predicate, results))
+    if not filtered_results:
+        max_result = max(results, key=lambda x: x.score)
+        logger.info("Max card detect result (discarded): value=%d score=%.4f borders=(%.4f, %.4f, %.4f, %.4f)",
+            max_result.type,
+            max_result.score,
+            max_result.left_score,
+            max_result.right_score,
+            max_result.top_score,
+            max_result.bottom_score
+        )
+        return None
+    filtered_results.sort(key=lambda x: x.score, reverse=True)
+    logger.info("Max card detect result: value=%d score=%.4f borders=(%.4f, %.4f, %.4f, %.4f)",
+        filtered_results[0].type,
+        filtered_results[0].score,
+        filtered_results[0].left_score,
+        filtered_results[0].right_score,
+        filtered_results[0].top_score,
+        filtered_results[0].bottom_score
+    )
+    return filtered_results[0]
 
-        # 检测卡片
-        card_glows = []
-        for x, y, w, h, return_value in calc_pos2(card_count) + [SKIP_POSITION]:
-            # 获取扩展后的卡片区域坐标
-            outer_x = max(0, x - GLOW_EXTENSION)
-            outer_y = max(0, y - GLOW_EXTENSION)
-            outer_w = w + (GLOW_EXTENSION * 2)
-            outer_h = h + (GLOW_EXTENSION * 2)
-            
-            # 获取内外两个区域
-            outer_region = img[outer_y:y+h+GLOW_EXTENSION, outer_x:x+w+GLOW_EXTENSION]
-            inner_region = img[y:y+h, x:x+w]
-            
-            # 创建掩码
-            outer_hsv = cv2.cvtColor(outer_region, cv2.COLOR_BGR2HSV)
-            inner_hsv = cv2.cvtColor(inner_region, cv2.COLOR_BGR2HSV)
-            
-            # 计算外部区域的黄色部分
-            outer_mask = cv2.inRange(outer_hsv, YELLOW_LOWER, YELLOW_UPPER)
-            inner_mask = cv2.inRange(inner_hsv, YELLOW_LOWER, YELLOW_UPPER)
-            
-            # 创建环形区域的掩码（仅计算扩展区域的荧光值）
-            ring_mask = outer_mask.copy()
-            ring_mask[GLOW_EXTENSION:GLOW_EXTENSION+h, GLOW_EXTENSION:GLOW_EXTENSION+w] = 0
-            
-            # 计算环形区域的荧光值
-            glow_value = cv2.countNonZero(ring_mask)
-            
-            card_glows.append((x, y, w, h, glow_value, return_value))
+def handle_recommended_card(
+        card_count: int, timeout: float = 7,
+        threshold_predicate: Callable[[CardDetectResult], bool] = lambda _: True,
+        *,
+        img: MatLike | None = None,
+    ):
+    # cd = Countdown(seconds=timeout)
+    # while not cd.expired():
+    #     result = detect_recommended_card(card_count, threshold_predicate, img=img)
+    #     if result is not None:
+    #         device.double_click(result)
+    #         return result
+    #     sleep(np.random.uniform(0.01, 0.1))
+    # return None
 
-        # 找到荧光值最高的卡片
-        if not card_glows:
-            logger.debug("No glowing card found, retrying...")
-            continue
-        else:
-            max_glow_card = max(card_glows, key=lambda x: x[4])
-            x, y, w, h, glow_value, return_value = max_glow_card
-            if glow_value < GLOW_THRESHOLD:
-                logger.debug("Glow value is too low, retrying...")
-                continue
-            
-            # 点击卡片中心
-            logger.debug(f"Click glowing card at: ({x + w//2}, {y + h//2})")
-            device.click(x + w//2, y + h//2)
-            sleep(random.uniform(0.5, 1.5))
-            device.click(x + w//2, y + h//2)
-            # 体力溢出提示框
-            # 跳过回合提示框 [screenshots/produce/in_produce/skip_turn_popup.png]
-            while image.wait_for(R.Common.ButtonIconCheckMark, timeout=1):
-                logger.info("Confirmation dialog detected")
-                device.click()
-            if return_value == 10:
-                logger.info("No enough AP. Skip this turn")
-            elif return_value == -1:
-                logger.warning("No glowing card found")
-            else:
-                logger.info("Recommended card is Card %d", return_value + 1)
-            return return_value
-    return -1
+    result = detect_recommended_card(card_count, threshold_predicate, img=img)
+    if result is not None:
+        device.double_click(result)
+        return result
+    return None
 
 
-@action('获取当前卡片数量')
-def skill_card_count():
+@action('获取当前卡片数量', screenshot_mode='manual-inherit')
+def skill_card_count(img: MatLike | None = None):
     """获取当前持有的技能卡数量"""
     device.click(0, 0)
-    sleep(0.5)
-    img = device.screenshot()
+    img = use_screenshot(img)
     img = crop(img, y1=0.83, y2=0.90)
-    count = image.raw().count(img, R.InPurodyuusu.A, threshold=0.85)
-    count += image.raw().count(img, R.InPurodyuusu.M, threshold=0.85)
+    count = image.raw().count(img, R.InPurodyuusu.A)
+    count += image.raw().count(img, R.InPurodyuusu.M)
     logger.info("Current skill card count: %d", count)
     return count
 
-@action('获取剩余回合数和积分')
-def remaing_turns_and_points():
-    """获取剩余回合数和积分"""
-    ret = ocr.ocr()
-    logger.debug("ocr.ocr: %s", ret)
-    def index_of(text: str) -> int:
-        for i, item in enumerate(ret):
-            # ＣＬＥＡＲまで -> CLEARまで
-            if text == unicodedata.normalize('NFKC', item.text):
-                return i
-        return -1
-    turns_tip_index = index_of("残りターン数")
-    points_tip_index = index_of("CLEARまで")
-    turns_rect = ret[turns_tip_index].rect
-    # 向下扩展100像素
-    turns_rect_extended = (
-        turns_rect[0],  # x
-        turns_rect[1],  # y 
-        turns_rect[2],  # width
-        turns_rect[3] + 100  # height + 100
-    )
-    
-    # 裁剪并再次识别
-    turns_img = device.screenshot()[
-        turns_rect_extended[1]:turns_rect_extended[1]+turns_rect_extended[3],
-        turns_rect_extended[0]:turns_rect_extended[0]+turns_rect_extended[2]
-    ]
-    turns_ocr = ocr.raw().ocr(turns_img)
-    logger.debug("turns_ocr: %s", turns_ocr)
+
+Yield = TypeVar('Yield')
+Send = TypeVar('Send')
+Return = TypeVar('Return')
+P = ParamSpec('P')
+class GeneratorWrapper(Iterable[Yield], Generic[P, Yield, Send, Return]):
+    def __init__(
+        self,
+        generator_func: Callable[P, Generator[Yield, Send, Return]],
+        *args: P.args,
+        **kwargs: P.kwargs
+    ):
+        self.generator_func = generator_func
+        self.generator = generator_func(*args, **kwargs)
+        self.args = args
+        self.kwargs = kwargs
+
+    def __iter__(self):
+        return self
+
+    def __call__(self):
+        return next(self.generator)
+
+    def reset(self):
+        self.generator = self.generator_func(*self.args, **self.kwargs)
+
+    def loop(self) -> Return:
+        while True:
+            try:
+                next(self.generator)
+            except StopIteration as e:
+                return cast(Return, e.value)
+
+@action('获取当前卡牌信息', screenshot_mode='manual-inherit')
+def obtain_cards(img: MatLike | None = None):
+    img = use_screenshot(img)
+    cards_rects = image.find_all_multi([
+        R.InPurodyuusu.A,
+        R.InPurodyuusu.M
+    ])
+    logger.info("Current cards: %s", len(cards_rects))
+    cards = []
+    for result in cards_rects:
+        available = color.find_rgb('#7a7d7d', rect=result.rect) is None
+        cards.append(SkillCard(available=available, rect=result.rect))
+    return cards
 
 
 @action('等待进入行动场景')
 def until_action_scene():
     """等待进入行动场景"""
     # 检测是否到行动页面
-    while not image.wait_for_any([
+    while not image.find_multi([
         R.InPurodyuusu.TextPDiary, # 普通周
         R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
-    ], timeout=1):
+    ]):
         logger.info("Action scene not detected. Retry...")
-        acquisitions()
-        sleep(1)
+        until_acquisition_clear()
     else:
         logger.info("Now at action scene.")
         return 
@@ -365,70 +367,138 @@ def until_action_scene():
 @action('等待进入练习场景')
 def until_practice_scene():
     """等待进入练习场景"""
-    while image.wait_for(R.InPurodyuusu.TextClearUntil, timeout=1) is None:
-        acquisitions()
-        sleep(1)
+    while image.find(R.InPurodyuusu.TextClearUntil) is None:
+        until_acquisition_clear()
 
 @action('等待进入考试场景')
 def until_exam_scene():
     """等待进入考试场景"""
     while ocr.find(regex("合格条件|三位以上")) is None:
-        acquisitions()
-        sleep(1)
+        until_acquisition_clear()
 
-@action('执行练习')
+@action('执行练习', screenshot_mode='manual')
 def practice():
-    """执行练习"""
+    """
+    执行练习
+    
+    前置条件：位于练习场景\n
+    结束状态：各种奖励领取弹窗、加载画面等
+    """
     logger.info("Practice started")
+
+    def threshold_predicate(result: CardDetectResult):
+        border_scores = (result.left_score, result.right_score, result.top_score, result.bottom_score)
+        return (
+            result.score >= 0.03
+            # and len(list(filter(lambda x: x >= 0.01, border_scores))) >= 3
+        )
+
     # 循环打出推荐卡
     while True:
-        with device.pinned():
-            count = skill_card_count()
-            if count == 0:
-                logger.info("No skill card found. Wait and retry...")
-                if not image.find_multi([
-                    R.InPurodyuusu.TextPerfectUntil,
-                    R.InPurodyuusu.TextClearUntil
-                ]):
-                    logger.info("PERFECTまで/CLEARまで not found. Practice finished.")
-                    break
-                sleep(3)
-                continue
-        if click_recommended_card(card_count=count) == -1:
-            logger.info("Click recommended card failed. Retry...")
+        img = device.screenshot()
+        if image.find(R.Common.ButtonIconCheckMark):
+            logger.info("Confirmation dialog detected")
+            device.click()
+            sleep(3) # 等待卡片刷新
             continue
-        logger.info("Wait for next turn...")
-        sleep(9)
-    # 跳过动画
-    logger.info("Recommend card not found. Practice finished.")
-    ocr.expect_wait(contains("上昇"))
-    logger.info("Click to finish 上昇 ")
-    device.click_center()
+
+        card_count = skill_card_count(img)
+        # cards = obtain_cards(img)
+        # card_count = len(cards)
+        # available_cards = [card for card in cards if card.available]
+        # if len(available_cards) == 1:
+        #     device.double_click(available_cards[0].rect)
+        #     sleep(3) # 等待卡片刷新
+        #     continue
+        if card_count > 0 and handle_recommended_card(
+            card_count=card_count,
+            threshold_predicate=threshold_predicate,
+            img=img
+        ) is not None:
+            sleep(3)
+        elif (
+            card_count == 0
+            and not image.find_multi([
+                R.InPurodyuusu.TextClearUntil,
+                R.InPurodyuusu.TextPerfectUntil
+            ])
+        ):
+            break
+        sleep(np.random.uniform(0.01, 0.2))
+
+    # 结束动画
+    logger.info("CLEAR/PERFECT not found. Practice finished.")
+    (SimpleDispatcher('practice.end')
+        .click(contains("上昇"), finish=True, log="Click to finish 上昇 ")
+        .click('center')
+    ).run()
 
 @action('执行考试')
-def exam():
-    """执行考试"""
-    logger.info("Exam started")
-    # 循环打出推荐卡
-    while True:
-        count = skill_card_count()
-        if count == 0:
-            logger.info("No skill card found. Wait and retry...")
-            if not image.wait_for(R.InPurodyuusu.TextButtonExamSkipTurn, timeout=20):
-                logger.info("Exam skip turn button not found. Exam finished.")
-                break
-            sleep(3)
-            continue
-        if click_recommended_card(card_count=count) == -1:
-            logger.info("Click recommended card failed. Retry...")
-            continue
-        logger.info("Wait for next turn...")
-        sleep(9)
+def exam(type: Literal['mid', 'final']):
+    """
+    执行考试
     
+    前置条件：考试进行中场景（手牌可见）\n
+    结束状态：考试结束交流/对话（TODO：截图）
+    """
+    logger.info("Exam started")
+
+    def threshold_predicate(result: CardDetectResult):
+        if type == 'final':
+            return (
+                result.score >= 0.4
+                and result.left_score >= 0.2
+                and result.right_score >= 0.2
+                and result.top_score >= 0.2
+                and result.bottom_score >= 0.2
+            )
+        else:
+            return result.score >= 0.10
+        # 关于上面阈值的解释：
+        # 两个阈值均指卡片周围的“黄色度”，
+        # total_threshold 指卡片平均的黄色度阈值，border_thresholds 指卡片四边的黄色度阈值
+
+        # 为什么期中和期末考试阈值不一样：
+        # 期末考试的场景为黄昏，背景中含有大量黄色，
+        # 非常容易对推荐卡的检测造成干扰。
+        # 解决方法是提高平均阈值的同时，为每一边都设置阈值。
+        # 这样可以筛选出只有四边都包含黄色的发光卡片，
+        # 而由夕阳背景造成的假发光卡片通常不会四边都包含黄色。
+
+    while True:
+        img = device.screenshot()
+        if image.find(R.Common.ButtonIconCheckMark):
+            logger.info("Confirmation dialog detected")
+            device.click()
+            sleep(3) # 等待卡片刷新
+            continue
+
+        card_count = skill_card_count(img)
+        # cards = obtain_cards(img)
+        # card_count = len(cards)
+        # available_cards = [card for card in cards if card.available]
+        # if len(available_cards) == 1:
+        #     device.double_click(available_cards[0].rect)
+        #     sleep(3) # 等待卡片刷新
+        #     continue
+        if card_count > 0 and handle_recommended_card(
+            card_count=card_count,
+            threshold_predicate=threshold_predicate,
+            img=img
+        ) is not None:
+            sleep(3) # 等待卡片刷新
+        elif (
+            card_count == 0
+            and not ocr.find(contains('残りターン'), rect=R.InPurodyuusu.BoxExamTop)
+        ):
+            break
+        sleep(np.random.uniform(0.01, 0.1))
+
     # 点击“次へ”
     device.click(image.expect_wait(R.Common.ButtonNext))
-    while ocr.wait_for(contains("メモリー"), timeout=7):
-        device.click_center()
+    if type == 'final':
+        while ocr.wait_for(contains("メモリー"), timeout=7):
+            device.click_center()
 
 @action('考试结束流程')
 def produce_end():
@@ -537,6 +607,59 @@ def produce_end():
         sleep(1)
     logger.info("Produce completed.")
 
+def week_normal():
+    until_action_scene()
+    executed_action = handle_recommended_action()
+    logger.info("Executed recommended action: %s", executed_action)
+    # 推荐练习
+    if executed_action == 'lesson':
+        until_practice_scene()
+        practice()
+    # 推荐休息
+    elif executed_action == 'rest':
+        pass
+    # 没有推荐行动
+    elif executed_action is None:
+        if allowance_available():
+            enter_allowance()
+        elif study_available():
+            enter_study()
+        elif is_rest_available():
+            rest()
+        else:
+            raise ValueError("No action available.")
+    until_action_scene()
+
+def week_final_lesson():
+    if handle_recommended_action(final_week=True) != 'lesson':
+        raise ValueError("Failed to enter recommended action on final week.")
+    sleep(5)
+    until_practice_scene()
+    practice()
+
+def week_mid_exam():
+    logger.info("Week mid exam started.")
+    logger.info("Wait for exam scene...")
+    until_exam_scene()
+    logger.info("Exam scene detected.")
+    sleep(5)
+    device.click_center()
+    sleep(5)
+    exam('mid')
+    until_action_scene()
+
+def week_final_exam():
+    logger.info("Week final exam started.")
+    logger.info("Wait for exam scene...")
+    until_exam_scene()
+    logger.info("Exam scene detected.")
+    sleep(5)
+    device.click_center()
+    sleep(0.5)
+    loading.wait_loading_end()
+    exam('final')
+    produce_end()
+
 @action('执行 Regular 培育')
 def hajime_regular(week: int = -1, start_from: int = 1):
     """
@@ -545,91 +668,7 @@ def hajime_regular(week: int = -1, start_from: int = 1):
     :param week: 第几周，从1开始，-1表示全部
     :param start_from: 从第几周开始，从1开始。
     """
-    def week_lesson():
-        until_action_scene()
-        executed_action = handle_recommended_action()
-        logger.info("Executed recommended action: %s", executed_action)
-        if executed_action == 'lesson':
-            sleep(5)
-            until_practice_scene()
-            practice()
-        elif executed_action == 'rest':
-            pass
-        elif executed_action is None:
-            rest()
-        until_action_scene()
-        
-    def week_non_lesson():
-        """非练习周。可能可用行动包括：おでかけ、相談、活動支給、授業"""
-        until_action_scene()
-        if handle_recommended_action() == 'rest':
-            logger.info("Recommended action is rest.")
-        elif allowance_available():
-            enter_allowance()
-        elif study_available():
-            enter_study()
-        elif is_rest_available():
-            rest()
-        else:
-            raise ValueError("No action available.")
-        until_action_scene()
-
-    def week_normal():
-        until_action_scene()
-        executed_action = handle_recommended_action()
-        logger.info("Executed recommended action: %s", executed_action)
-        # 推荐练习
-        if executed_action == 'lesson':
-            until_practice_scene()
-            practice()
-        # 推荐休息
-        elif executed_action == 'rest':
-            pass
-        # 没有推荐行动
-        elif executed_action is None:
-            if allowance_available():
-                enter_allowance()
-            elif study_available():
-                enter_study()
-            elif is_rest_available():
-                rest()
-            else:
-                raise ValueError("No action available.")
-        until_action_scene()
-
-    def week_final_lesson():
-        if handle_recommended_action(final_week=True) != 'lesson':
-            raise ValueError("Failed to enter recommended action on final week.")
-        sleep(5)
-        until_practice_scene()
-        practice()
-        # until_exam_scene()
-    
-    def week_mid_exam():
-        logger.info("Week mid exam started.")
-        logger.info("Wait for exam scene...")
-        until_exam_scene()
-        logger.info("Exam scene detected.")
-        sleep(5)
-        device.click_center()
-        sleep(5)
-        exam()
-        until_action_scene()
-    
-    def week_final_exam():
-        logger.info("Week final exam started.")
-        logger.info("Wait for exam scene...")
-        until_exam_scene()
-        logger.info("Exam scene detected.")
-        sleep(5)
-        device.click_center()
-        sleep(0.5)
-        loading.wait_loading_end()
-        exam()
-        produce_end()
-    
     weeks = [
-        # TODO: 似乎一部分选项是随机出现的
         week_normal, # 1: Vo.レッスン、Da.レッスン、Vi.レッスン
         week_normal, # 2: 授業
         week_normal, # 3: Vo.レッスン、Da.レッスン、Vi.レッスン、授業
@@ -656,6 +695,40 @@ def hajime_regular(week: int = -1, start_from: int = 1):
             logger.info("Week %d started.", i + start_from)
             w()
 
+@action('执行 PRO 培育')
+def hajime_pro(week: int = -1, start_from: int = 1):
+    """
+    「初」 PRO 模式
+
+    :param week: 第几周，从1开始，-1表示全部
+    :param start_from: 从第几周开始，从1开始。
+    """
+    weeks = [
+        week_normal, # 1
+        week_normal, # 2
+        week_normal, # 3
+        week_normal, # 4
+        week_normal, # 5
+        week_final_lesson, # 6
+        week_mid_exam, # 7
+        week_normal, # 8
+        week_normal, # 9
+        week_normal, # 10
+        week_normal, # 11
+        week_normal, # 12
+        week_normal, # 13
+        week_normal, # 14
+        week_final_lesson, # 15
+        week_final_exam, # 16
+    ]
+    if week != -1:
+        logger.info("Week %d started.", week)
+        weeks[week - 1]()
+    else:
+        for i, w in enumerate(weeks[start_from-1:]):
+            logger.info("Week %d started.", i + start_from)
+            w()
+
 @action('是否在考试场景')
 def is_exam_scene():
     """是否在考试场景"""
@@ -663,7 +736,7 @@ def is_exam_scene():
 
 ProduceStage = Literal[
     'action', # 行动场景
-    'practice', # 练习场景
+    'practice-ongoing', # 练习场景
     'exam-start', # 考试开始确认页面
     'exam-ongoing', # 考试进行中
     'exam-end', # 考试结束
@@ -681,26 +754,30 @@ def detect_regular_produce_scene(ctx: DispatcherContext) -> ProduceStage:
     logger.info("Detecting current produce stage...")
     
     # 行动场景
-    texts = ocr.ocr(rect=R.InPurodyuusu.BoxWeeksUntilExam)
+    texts = ocr.ocr()
     if (
         image.find_multi([
             R.InPurodyuusu.TextPDiary, # 普通周
             R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
         ]) 
-        and (texts.where(contains('週')).first())
     ):
-        week = texts.squash().numbers()
-        if week:
-            logger.info("Detection result: At action scene. Current week: %d", week[0])
-            ctx.finish()
-            return 'action'
-        else:
-            return 'unknown'
+        logger.info("Detection result: At action scene.")
+        ctx.finish()
+        return 'action'
+    elif texts.where(regex('CLEARまで|PERFECTまで')):
+        logger.info("Detection result: At practice ongoing.")
+        ctx.finish()
+        return 'practice-ongoing'
     elif is_exam_scene():
         logger.info("Detection result: At exam scene.")
         ctx.finish()
         return 'exam-ongoing'
+    elif texts.where(regex('合格条件|三位以上')):
+        logger.info("Detection result: At exam start.")
+        ctx.finish()
+        return 'exam-start'
     else:
+        until_acquisition_clear()
         return 'unknown'
 
 @action('开始 Regular 培育')
@@ -711,7 +788,7 @@ def hajime_regular_from_stage(stage: ProduceStage):
     if stage == 'action':
         texts = ocr.ocr(rect=R.InPurodyuusu.BoxWeeksUntilExam)
         # 提取周数
-        remaining_week = texts.squash().numbers()
+        remaining_week = texts.squash().replace('ó', '6').numbers()
         if not remaining_week:
             raise UnrecoverableError("Failed to detect week.")
         # 判断阶段
@@ -723,11 +800,26 @@ def hajime_regular_from_stage(stage: ProduceStage):
             hajime_regular(start_from=week)
         else:
             raise UnrecoverableError("Failed to detect produce stage.")
+    elif stage == 'exam-start':
+        device.click_center()
+        until_exam_scene()
+        exam()
     elif stage == 'exam-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Exam ongoing. Start exam.")
         exam()
-        produce_end()
+        result = ocr.expect_wait(contains('中間|最終'))
+        if '中間' in result.text:
+            return hajime_regular_from_stage(detect_regular_produce_scene())
+        elif '最終' in result.text:
+            produce_end()
+        else:
+            raise UnrecoverableError("Failed to detect produce stage.")
+    elif stage == 'practice-ongoing':
+        # TODO: 应该直接调用 week_final_exam 而不是再写一次
+        logger.info("Practice ongoing. Start practice.")
+        practice()
+        return hajime_regular_from_stage(detect_regular_produce_scene())
     else:
         raise UnrecoverableError(f'Cannot resume produce REGULAR from stage "{stage}".')
 
@@ -745,11 +837,26 @@ if __name__ == '__main__':
     getLogger('kotonebot').setLevel(logging.DEBUG)
     getLogger(__name__).setLevel(logging.DEBUG)
 
-    stage = (detect_regular_produce_scene())
-    hajime_regular_from_stage(stage)
+
+    # while True:
+    #     cards = obtain_cards()
+    #     print(cards)
+    #     sleep(1)
+
+
+    # practice()
+    # week_final_exam()
+    exam('final')
+    produce_end()
+
+
+    # hajime_pro(start_from=15)
+    # exam('mid')
+    # stage = (detect_regular_produce_scene())
+    # hajime_regular_from_stage(stage)
 
     # click_recommended_card(card_count=skill_card_count())
-    # exam()
+    # exam('mid')
 
     # hajime_regular(start_from=7)
 

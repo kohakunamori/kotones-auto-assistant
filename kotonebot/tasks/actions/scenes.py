@@ -3,7 +3,8 @@ from typing import Callable
 
 from .. import R
 from .loading import loading
-from kotonebot import device, image, action, cropped, UnrecoverableError, until, sleep
+from kotonebot import device, image, action, cropped, until, sleep
+from kotonebot.errors import UnrecoverableError
 
 logger = logging.getLogger(__name__)
 

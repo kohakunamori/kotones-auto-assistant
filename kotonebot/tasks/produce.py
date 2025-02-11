@@ -178,15 +178,15 @@ def do_produce(idol: PIdol | None = None):
         sleep(0.2)
     device.click(image.expect_wait(R.Produce.ButtonProduceStart))
     sleep(0.5)
-    while not loading():
-        # 跳过交流设置 [screenshots/produce/skip_commu.png]
-        with device.pinned():
-            if image.find(R.Produce.RadioTextSkipCommu):
-                device.click()
-                sleep(0.2)
-            if image.find(R.Common.ButtonConfirmNoIcon):
-                device.click()
-    wait_loading_end()
+    # while not loading():
+    #     # 跳过交流设置 [screenshots/produce/skip_commu.png]
+    #     with device.pinned():
+    #         if image.find(R.Produce.RadioTextSkipCommu):
+    #             device.click()
+    #             sleep(0.2)
+    #         if image.find(R.Common.ButtonConfirmNoIcon):
+    #             device.click()
+    # wait_loading_end()
     hajime_regular()
 
 @task('培育')
