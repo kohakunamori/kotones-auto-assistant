@@ -429,7 +429,8 @@ def practice():
     # 结束动画
     logger.info("CLEAR/PERFECT not found. Practice finished.")
     (SimpleDispatcher('practice.end')
-        .click(contains("上昇"), finish=True, log="Click to finish 上昇 ")
+        .click(contains("上昇"), finish=True, log="Click to finish 上昇")
+        .until(contains("審査基準"))
         .click('center')
     ).run()
 
@@ -846,14 +847,14 @@ if __name__ == '__main__':
 
     # practice()
     # week_final_exam()
-    exam('final')
-    produce_end()
+    # exam('final')
+    # produce_end()
 
 
     # hajime_pro(start_from=15)
     # exam('mid')
-    # stage = (detect_regular_produce_scene())
-    # hajime_regular_from_stage(stage)
+    stage = (detect_regular_produce_scene())
+    hajime_regular_from_stage(stage)
 
     # click_recommended_card(card_count=skill_card_count())
     # exam('mid')
