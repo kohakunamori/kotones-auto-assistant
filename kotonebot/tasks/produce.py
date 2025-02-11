@@ -48,15 +48,15 @@ def select_idol(target_titles: list[str] | PIdol):
     
     logger.info(f"Find and select idol: {target_titles}")
     # 进入总览
-    device.update_screenshot()
+    device.screenshot()
     device.click(image.expect(R.Produce.ButtonPIdolOverview))
     while not image.find(R.Common.ButtonConfirmNoIcon):
-        device.update_screenshot()
+        device.screenshot()
 
     if isinstance(target_titles, PIdol):
         target_titles = target_titles.value
     _target_titles = [equals(t, remove_space=True) for t in target_titles]
-    device.update_screenshot()
+    device.screenshot()
     # 定位滑动基准
     results = image.find_all(R.Produce.IconPIdolLevel)
     results.sort(key=lambda r: tuple(r.position))
@@ -78,7 +78,7 @@ def select_idol(target_titles: list[str] | PIdol):
         # 如果不是，就挨个选中，判断名称
         for r in results:
             device.click(r)
-            device.update_screenshot()
+            device.screenshot()
             if all(ocr.find_all(_target_titles, rect=R.Produce.KbIdolOverviewName)):
                 found = True
                 break
@@ -89,7 +89,7 @@ def select_idol(target_titles: list[str] | PIdol):
             # 翻页
             device.swipe(x1=100, x2=100, y1=max_y, y2=min_y)
             sleep(2)
-            device.update_screenshot()
+            device.screenshot()
             results = image.find_all(R.Produce.IconPIdolLevel)
             results.sort(key=lambda r: tuple(r.position))
 

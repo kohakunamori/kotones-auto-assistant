@@ -28,7 +28,7 @@ def money_items2(items: Optional[list[DailyMoneyShopItems]] = None):
     if items is None:
         items = conf().purchase.money_items
     
-    device.update_screenshot()
+    device.screenshot()
     if DailyMoneyShopItems.Recommendations in items:
         dispatch_recommended_items()
         items.remove(DailyMoneyShopItems.Recommendations)
@@ -51,7 +51,7 @@ def money_items2(items: Optional[list[DailyMoneyShopItems]] = None):
         else:
             device.swipe_scaled(x1=0.5, x2=0.5, y1=0.8, y2=0.5)
             sleep(0.5)
-            device.update_screenshot()
+            device.screenshot()
             scroll += 1
             if scroll >= max_scroll:
                 break
