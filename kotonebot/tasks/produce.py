@@ -204,13 +204,6 @@ def produce_task(count: Optional[int] = None, idols: Optional[list[PIdol]] = Non
         end_time = time.time()
         logger.info(f"Produce time used: {format_time(end_time - start_time)}")
 
-@action('测试')
-def a():
-    ocr.expect_wait(contains('メモリー'), rect=R.Produce.BoxStepIndicator)
-    device.click(image.expect_wait(R.Produce.ButtonAutoSet))
-    device.click(image.expect_wait(R.Common.ButtonConfirm, colored=True))
-    device.click(image.expect_wait(R.Common.ButtonNextNoIcon))
-
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')

@@ -5,11 +5,12 @@
 """
 from logging import getLogger
 
-from kotonebot import device, image, ocr, debug, action, sleep
-from kotonebot.tasks import R
-from ..actions.loading import wait_loading_end, wait_loading_start
+from .. import R
+from ..game_ui import CommuEventButtonUI, EventButton
 from .common import acquisitions, AcquisitionType
-from .commu import check_and_skip_commu
+from kotonebot import device, image, ocr, debug, action, sleep
+from kotonebot.errors import UnrecoverableError
+from ..actions.loading import wait_loading_end, wait_loading_start
 
 logger = getLogger(__name__)
 
@@ -40,16 +41,26 @@ def enter_study():
     # [screenshots/produce/action_study1.png]
     logger.debug("Double clicking on 授業.")
     device.double_click(image.expect_wait(R.InPurodyuusu.ButtonIconStudy))
-    sleep(1.3)
     # 等待进入页面。中间可能会出现未读交流
     # [screenshots/produce/action_study2.png]
     while not image.find(R.InPurodyuusu.IconTitleStudy):
         logger.debug("Waiting for 授業 screen.")
-        check_and_skip_commu()
         acquisitions()
-    # 固定点击 Vi. 选项
-    logger.debug("Clicking on Vi. option.")
-    device.double_click(image.expect_wait(R.InPurodyuusu.ButtonIconStudyVisual))
+    # 获取三个选项的内容
+    ui = CommuEventButtonUI()
+    buttons = ui.all()
+    if not buttons:
+        raise UnrecoverableError("Failed to find any buttons.")
+    # 选中 +30 的选项
+    target_btn = next((btn for btn in buttons if '+30' in btn.description), None)
+    if target_btn is None:
+        logger.error("Failed to find +30 option. Pick the first button instead.")
+        target_btn = buttons[0]
+    logger.debug('Clicking "%s".', target_btn.description)
+    if target_btn.selected:
+        device.click(target_btn)
+    else:
+        device.double_click(target_btn)
     while acquisitions() is None:
         logger.info("Waiting for acquisitions finished.")
     logger.info("授業 completed.")
@@ -110,3 +121,27 @@ def rest():
     device.click(image.expect_wait(R.InPurodyuusu.Rest))
     # 确定
     device.click(image.expect_wait(R.InPurodyuusu.RestConfirmBtn))
+
+if __name__ == '__main__':
+    from kotonebot.backend.context import manual_context, init_context
+    init_context()
+    manual_context().begin()
+    # 获取三个选项的内容
+    ui = CommuEventButtonUI()
+    buttons = ui.all()
+    if not buttons:
+        raise UnrecoverableError("Failed to find any buttons.")
+    # 选中 +30 的选项
+    target_btn = next((btn for btn in buttons if btn.description == '+30'), None)
+    if target_btn is None:
+        logger.error("Failed to find +30 option. Pick the first button instead.")
+        target_btn = buttons[0]
+    # 固定点击 Vi. 选项
+    logger.debug('Clicking "%s".', target_btn.description)
+    if target_btn.selected:
+        device.click(target_btn)
+    else:
+        device.double_click(target_btn)
+    while acquisitions() is None:
+        logger.info("Waiting for acquisitions finished.")
+    logger.info("授業 completed.")

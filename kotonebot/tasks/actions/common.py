@@ -1,6 +1,9 @@
 from typing import Literal
 from logging import getLogger
 
+from kotonebot.tasks.actions.loading import loading
+
+from .. import R
 from kotonebot import (
     ocr,
     device,
@@ -10,10 +13,10 @@ from kotonebot import (
     sleep,
     Interval,
 )
+from ..game_ui import CommuEventButtonUI
+from .pdorinku import acquire_pdorinku
 from kotonebot.backend.dispatch import SimpleDispatcher
 from kotonebot.tasks.actions.commu import check_and_skip_commu
-from .. import R
-from .pdorinku import acquire_pdorinku
 
 logger = getLogger(__name__)
 
@@ -32,24 +35,19 @@ def acquire_skill_card():
     logger.info(f"Found {len(cards)} skill cards")
     logger.debug("Click first skill card")
     device.click(cards[0].rect)
-    sleep(1)
-    # # 确定
-    # logger.debug("Click 受け取る")
-    # device.click(ocr.expect(contains("受け取る")).rect)
-    # # 跳过动画
-    # device.click(image.expect_wait_any([
-    #     R.InPurodyuusu.PSkillCardIconBlue,
-    #     R.InPurodyuusu.PSkillCardIconColorful
-    # ], timeout=60))
-    device.screenshot()
-    (SimpleDispatcher('acquire_skill_card')
-        .click(contains("受け取る"), finish=True,  log="Skill card #1 acquired")
-        # .click_any([
-        #     R.InPurodyuusu.PSkillCardIconBlue,
-        #     R.InPurodyuusu.PSkillCardIconColorful
-        # ], finish=True, log="Skill card #1 acquired")
-    ).run()
-    # logger.info("Skill card #1 acquired")
+    sleep(0.2)
+    logger.debug("Click acquire button")
+    device.click(image.expect_wait(R.InPurodyuusu.AcquireBtnDisabled))
+    # acquisitions(['PSkillCardSelect']) 优先做这个
+    # device.screenshot()
+    # (SimpleDispatcher('acquire_skill_card')
+    #     .click(contains("受け取る"), finish=True,  log="Skill card #1 acquired")
+    #     # .click_any([
+    #     #     R.InPurodyuusu.PSkillCardIconBlue,
+    #     #     R.InPurodyuusu.PSkillCardIconColorful
+    #     # ], finish=True, log="Skill card #1 acquired")
+    # ).run()
+    # # logger.info("Skill card #1 acquired")
 
 @action('选择P物品', screenshot_mode='auto')
 def select_p_item():
@@ -82,6 +80,7 @@ AcquisitionType = Literal[
     "Clear", # 目标达成
     "NetworkError", # 网络中断弹窗
     "SkipCommu", # 跳过交流
+    "Loading", # 加载画面
 ]
 
 @action('处理培育事件', screenshot_mode='manual')
@@ -92,6 +91,11 @@ def acquisitions() -> AcquisitionType | None:
     screen_size = device.screen_size
     bottom_pos = (int(screen_size[0] * 0.5), int(screen_size[1] * 0.7)) # 底部中间
     logger.info("Acquisition stuffs...")
+
+    # 加载画面
+    logger.debug("Check loading screen...")
+    if loading():
+        return "Loading"
 
     # P饮料领取
     logger.debug("Check PDrink acquire...")
@@ -216,6 +220,26 @@ def until_acquisition_clear():
     interval = Interval(0.6)
     while acquisitions():
         interval.wait()
+
+@action('处理交流事件', screenshot_mode='manual-inherit')
+def commut_event():
+    img = device.screenshot()
+    ui = CommuEventButtonUI()
+    buttons = ui.all(description=False, title=True)
+    if buttons:
+        for button in buttons:
+            # 冲刺课程，跳过处理
+            if '重点' in button.title:
+                break
+        logger.info(f"Found commu event: {button.title}")
+        logger.info("Select first choice")
+        if buttons[0].selected:
+            device.click(buttons[0])
+        else:
+            device.double_click(buttons[0])
+        return True
+    return False
+    
 
 if __name__ == '__main__':
     from logging import getLogger

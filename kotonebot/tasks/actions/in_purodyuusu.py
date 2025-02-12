@@ -12,7 +12,7 @@ from .. import R
 from . import loading
 from ..common import conf
 from .scenes import at_home
-from .common import until_acquisition_clear
+from .common import until_acquisition_clear, acquisitions, commut_event
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.util import AdaptiveWait, Countdown, crop, cropped
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
@@ -351,7 +351,7 @@ def obtain_cards(img: MatLike | None = None):
 
 
 @action('等待进入行动场景')
-def until_action_scene():
+def until_action_scene(week_first: bool = False):
     """等待进入行动场景"""
     # 检测是否到行动页面
     while not image.find_multi([
@@ -359,7 +359,11 @@ def until_action_scene():
         R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
     ]):
         logger.info("Action scene not detected. Retry...")
-        until_acquisition_clear()
+        if acquisitions():
+            continue
+        if commut_event():
+            continue
+        sleep(0.2)
     else:
         logger.info("Now at action scene.")
         return 
@@ -684,10 +688,8 @@ def hajime_regular(week: int = -1, start_from: int = 1):
         week_final_lesson, # 12: 追い込みレッスン
         week_final_exam, # 13: 最終試験
     ]
-    if week not in [6, 13] and start_from not in [6, 13]:
-        until_action_scene()
-    else:
-        until_exam_scene()
+    if week == 0 or start_from == 0:
+        until_action_scene(True)
     if week != -1:
         logger.info("Week %d started.", week)
         weeks[week - 1]()
@@ -778,7 +780,10 @@ def detect_regular_produce_scene(ctx: DispatcherContext) -> ProduceStage:
         ctx.finish()
         return 'exam-start'
     else:
-        until_acquisition_clear()
+        if acquisitions():
+            return 'unknown'
+        if commut_event():
+            return 'unknown'
         return 'unknown'
 
 @action('开始 Regular 培育')
