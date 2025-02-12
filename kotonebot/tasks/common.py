@@ -272,8 +272,11 @@ class ContestConfig(ConfigBaseModel):
 class ProduceConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用培育"""
-    mode: Literal['regular'] = 'regular'
-    """培育模式。"""
+    mode: Literal['regular', 'pro'] = 'regular'
+    """
+    培育模式。
+    进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h。
+    """
     produce_count: int = 1
     """培育的次数。"""
     idols: list[PIdol] = []

@@ -223,7 +223,6 @@ def until_acquisition_clear():
 
 @action('处理交流事件', screenshot_mode='manual-inherit')
 def commut_event():
-    img = device.screenshot()
     ui = CommuEventButtonUI()
     buttons = ui.all(description=False, title=True)
     if buttons:

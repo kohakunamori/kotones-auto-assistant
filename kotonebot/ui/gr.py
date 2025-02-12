@@ -331,7 +331,7 @@ class KotoneBotUI:
             )
             with gr.Group(visible=self.current_config.options.produce.enabled) as produce_group:
                 produce_mode = gr.Dropdown(
-                    choices=["regular"],
+                    choices=["regular", "pro"],
                     value=self.current_config.options.produce.mode,
                     label="培育模式",
                     info=ProduceConfig.model_fields['mode'].description
