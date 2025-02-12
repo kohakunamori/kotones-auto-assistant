@@ -2,13 +2,13 @@
 import logging
 
 from . import R
-from .common import conf, BaseConfig
+from .common import conf
 from .actions.scenes import at_home, goto_home
-from kotonebot import task, device, image, cropped, sleep
+from kotonebot import task, device, image, color
 
 logger = logging.getLogger(__name__)
 
-@task('收取活动费')
+@task('收取活动费', screenshot_mode='manual-inherit')
 def acquire_activity_funds():
     if not conf().activity_funds.enabled:
         logger.info('Activity funds acquisition is disabled.')
@@ -16,15 +16,14 @@ def acquire_activity_funds():
 
     if not at_home():
         goto_home()
-    sleep(1)
-    if image.find(R.Daily.TextActivityFundsMax):
-        logger.info('Activity funds maxed out.')
-        device.click()
-        device.click(image.expect_wait(R.Common.ButtonClose, timeout=2))
-        logger.info('Activity funds acquired.')
+    device.screenshot()
+    if color.find_rgb('#ff1249', rect=R.Daily.BoxHomeActivelyFunds):
+        logger.info('Claiming activity funds.')
+        device.click(R.Daily.BoxHomeActivelyFunds)
+        device.click(image.expect_wait(R.Common.ButtonClose))
+        logger.info('Activity funds claimed.')
     else:
-        logger.info('Activity funds not maxed out. No action needed.')
-
+        logger.info('No activity funds to claim.')
 
 if __name__ == '__main__':
     import logging
