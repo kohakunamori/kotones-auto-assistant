@@ -115,7 +115,7 @@ def resume_produce():
     device.click(image.expect_wait(R.Produce.ButtonResume))
 
 @action('执行培育', screenshot_mode='manual-inherit')
-def do_produce(idol: PIdol, mode: Literal['regular', 'pro']):
+def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
     """
     进行培育流程
 
@@ -124,6 +124,7 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']):
     
     :param idol: 要培育的偶像。如果为 None，则使用配置文件中的偶像。
     :param mode: 培育模式。
+    :return: 是否因为 AP 不足而跳过本次培育。
     """
     if not at_home():
         goto_home()
@@ -133,15 +134,20 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']):
     if ocr.find(contains('プロデュース中'), rect=R.Produce.BoxProduceOngoing):
         logger.info('Ongoing produce found. Try to resume produce.')
         resume_produce()
-        return
+        return True
 
     # 0. 进入培育页面
     mode_text = 'REGULAR' if mode == 'regular' else 'PRO'
-    (SimpleDispatcher('enter_produce')
+    result = (SimpleDispatcher('enter_produce')
         .click(R.Produce.ButtonProduce)
         .click(contains(mode_text))
-        .until(R.Produce.ButtonPIdolOverview)
+        .until(R.Produce.ButtonPIdolOverview, result=True)
+        .until(R.Produce.TextAPInsufficient, result=False)
     ).run()
+    if not result:
+        logger.info('AP insufficient. Exiting produce.')
+        device.click(image.expect_wait(R.InPurodyuusu.ButtonCancel))
+        return False
     # 1. 选择 PIdol [screenshots/produce/select_p_idol.png]
     select_idol(idol.value)
     device.click(image.expect_wait(R.Common.ButtonNextNoIcon))
@@ -177,6 +183,7 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']):
         hajime_regular()
     else:
         hajime_pro()
+    return True
 
 @task('培育')
 def produce_task(
@@ -207,9 +214,12 @@ def produce_task(
         return
 
     idol_iterator = cycle(idols)
-    for _ in range(count):
+    for i in range(count):
         start_time = time.time()
-        do_produce(next(idol_iterator), mode)
+        if not do_produce(next(idol_iterator), mode):
+            user.info(f'由于 AP 不足，跳过了 {count - i} 次培育。')
+            logger.info('%d produce(s) skipped because of insufficient AP.', count - i)
+            break
         end_time = time.time()
         logger.info(f"Produce time used: {format_time(end_time - start_time)}")
 
@@ -229,11 +239,7 @@ if __name__ == '__main__':
     from kotonebot.backend.context import init_context
     from kotonebot.tasks.common import BaseConfig
     init_context(config_type=BaseConfig)
-    from kotonebot.backend.util import Profiler
-    pf = Profiler('profiler')
-    pf.begin()
-    do_produce(conf().produce.idols[0], 'regular')
-    pf.end()
-    pf.snakeviz()
+    conf().produce.enabled = True
+    produce_task()
     # a()
     # select_idol(PIdol.藤田ことね_学園生活)
