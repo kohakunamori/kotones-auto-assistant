@@ -106,11 +106,11 @@ def handle_recommended_action(final_week: bool = False) -> ActionType:
         return None
     if not final_week:
         if result.index == 0:
-            lesson_text = contains("Da")
+            lesson_text = regex("Da")
         elif result.index == 1:
-            lesson_text = regex("Vo|V0")
+            lesson_text = regex("Vo|V0|VO")
         elif result.index == 2:
-            lesson_text = contains("Vi")
+            lesson_text = regex("Vi|V1|VI")
         elif result.index == 3:
             rest()
             return 'rest'
@@ -380,7 +380,10 @@ def until_practice_scene():
 @action('等待进入考试场景')
 def until_exam_scene():
     """等待进入考试场景"""
-    while ocr.find(regex("合格条件|三位以上")) is None:
+    # NOTE: is_exam_scene() 通过 OCR 剩余回合数判断是否处于考试场景。
+    # 本来有可能会与练习场景混淆，
+    # 但是在确定后续只是考试场景的情况下应该不会
+    while ocr.find(regex("合格条件|三位以上")) is None and not is_exam_scene():
         until_acquisition_clear()
 
 @action('执行练习', screenshot_mode='manual')
@@ -403,6 +406,7 @@ def practice():
     # 循环打出推荐卡，直到练习结束
     wait = cycle([0.1, 0.3, 0.5]) # 见下方解释
     tries = 1
+    break_cd = Countdown(sec=3)
     while True:
         start_time = time.time()
         img = device.screenshot()
@@ -454,14 +458,20 @@ def practice():
                 delay = next(wait)
                 logger.info("Tries: %d, Delay: %.2f", tries, delay)
                 sleep(delay)
-        elif (
+        
+        if (
             card_count == 0
             and not image.find_multi([
                 R.InPurodyuusu.TextClearUntil,
                 R.InPurodyuusu.TextPerfectUntil
             ])
         ):
-            break
+            if not break_cd.started:
+                break_cd.start()
+            if break_cd.expired():
+                break
+        else:
+            break_cd.reset()
 
     # 结束动画
     logger.info("CLEAR/PERFECT not found. Practice finished.")
@@ -664,9 +674,9 @@ def produce_end():
         if image.find(R.Common.ButtonClose):
             logger.info("Activity award claim dialog found. Click to close.")
             device.click()
-        elif image.find(R.Common.ButtonNextNoIcon):
+        elif image.find(R.Common.ButtonNextNoIcon, colored=True):
             logger.debug("Click next")
-            device.click(image.expect_wait(R.Common.ButtonNextNoIcon))
+            device.click()
         elif image.find(R.InPurodyuusu.ButtonCancel):
             logger.info("Follow producer dialog found. Click to close.")
             if conf().produce.follow_producer:

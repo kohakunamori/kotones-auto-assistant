@@ -166,7 +166,7 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']):
         device.click(image.expect_wait(R.Produce.CheckboxIconSupportPtBoost))
     device.click(image.expect_wait(R.Produce.ButtonProduceStart))
     # 5. 相关设置弹窗 [screenshots/produce/skip_commu.png]
-    cd = Countdown(5)
+    cd = Countdown(5).start()
     while not cd.expired():
         device.screenshot()
         if image.find(R.Produce.RadioTextSkipCommu):

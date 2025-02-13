@@ -134,9 +134,9 @@ class DailyMoneyShopItems(IntEnum):
     RechallengeTicket = 12
     """再挑戦チケット 重新挑战券"""
     RecordKey = 13
+    """記録の鍵 解锁交流的物品"""
 
     # 碎片
-    """記録の鍵 解锁交流的物品"""
     IdolPiece_倉本千奈_WonderScale = 14
     """倉本千奈 WonderScale 碎片"""
     IdolPiece_篠泽广_光景 = 15
