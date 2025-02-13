@@ -93,8 +93,8 @@ def acquisitions() -> AcquisitionType | None:
     logger.info("Acquisition stuffs...")
 
     # 加载画面
-    logger.debug("Check loading screen...")
     if loading():
+        logger.info("Loading...")
         return "Loading"
 
     # P饮料领取
@@ -229,7 +229,7 @@ def commut_event():
         for button in buttons:
             # 冲刺课程，跳过处理
             if '重点' in button.title:
-                break
+                return False
         logger.info(f"Found commu event: {button.title}")
         logger.info("Select first choice")
         if buttons[0].selected:

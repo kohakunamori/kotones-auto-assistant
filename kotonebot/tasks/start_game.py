@@ -23,7 +23,7 @@ def start_game():
             logger.info("Not at home, going to home")
             goto_home()
         return
-    device.start_app('com.bandainamcoent.idolmaster_gakuen')
+    device.launch_app('com.bandainamcoent.idolmaster_gakuen')
     # [screenshots/startup/1.png]
     image.wait_for(R.Daily.ButonLinkData, timeout=30)
     sleep(2)

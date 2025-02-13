@@ -218,6 +218,22 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     logging.getLogger('kotonebot').setLevel(logging.DEBUG)
     logger.setLevel(logging.DEBUG)
-    do_produce(conf().produce.idols[0], 'pro')
+    import os
+    from datetime import datetime
+    os.makedirs('logs', exist_ok=True)
+    log_filename = datetime.now().strftime('logs/task-%y-%m-%d-%H-%M-%S.log')
+    file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s'))
+    logging.getLogger().addHandler(file_handler)
+    
+    from kotonebot.backend.context import init_context
+    from kotonebot.tasks.common import BaseConfig
+    init_context(config_type=BaseConfig)
+    from kotonebot.backend.util import Profiler
+    pf = Profiler('profiler')
+    pf.begin()
+    do_produce(conf().produce.idols[0], 'regular')
+    pf.end()
+    pf.snakeviz()
     # a()
     # select_idol(PIdol.藤田ことね_学園生活)

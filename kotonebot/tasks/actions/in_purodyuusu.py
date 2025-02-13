@@ -1,5 +1,8 @@
+import math
+import time
 import logging
 from typing_extensions import deprecated
+from itertools import cycle
 from typing import Generic, Iterable, Literal, NamedTuple, Callable, Generator, TypeVar, ParamSpec, cast
 
 import cv2
@@ -361,7 +364,7 @@ def until_action_scene(week_first: bool = False):
         logger.info("Action scene not detected. Retry...")
         if acquisitions():
             continue
-        if commut_event():
+        if week_first and commut_event():
             continue
         sleep(0.2)
     else:
@@ -397,29 +400,60 @@ def practice():
             # and len(list(filter(lambda x: x >= 0.01, border_scores))) >= 3
         )
 
-    # 循环打出推荐卡
+    # 循环打出推荐卡，直到练习结束
+    wait = cycle([0.1, 0.3, 0.5]) # 见下方解释
+    tries = 1
     while True:
+        start_time = time.time()
         img = device.screenshot()
         if image.find(R.Common.ButtonIconCheckMark):
             logger.info("Confirmation dialog detected")
             device.click()
-            sleep(3) # 等待卡片刷新
+            sleep(4) # 等待卡片刷新
             continue
 
         card_count = skill_card_count(img)
-        # cards = obtain_cards(img)
-        # card_count = len(cards)
-        # available_cards = [card for card in cards if card.available]
-        # if len(available_cards) == 1:
-        #     device.double_click(available_cards[0].rect)
-        #     sleep(3) # 等待卡片刷新
-        #     continue
-        if card_count > 0 and handle_recommended_card(
-            card_count=card_count,
-            threshold_predicate=threshold_predicate,
-            img=img
-        ) is not None:
-            sleep(3)
+        # TODO: 需要处理卡片数量为 0 的且当前回合未结束的情况
+        if card_count > 0:
+            inner_tries = 0
+            # 为什么要内层循环：
+            # 在 adb 截图模式下，如果把 skill_card_count 和 handle_recommended_card 
+            # 放在同一循环中执行，循环一次大约需要 1.4~1.6s，
+            # 游戏中推荐卡的发光周期约为 1s，也就是循环一次大约是 1.5 个发光周期。
+            #
+            # 假设发光强度符合规律 y=|sin t|（t=时间），
+            # 如果第一次循环恰巧处于发光强度较弱时，
+            # 那么经过 1.5T 后，依旧是处于发光强度较弱时，
+            # 这样会导致每次循环都正好是在发光强度较弱时检测，
+            # 每次都无法达到检测阈值。
+            # 
+            # 因此：
+            # 1. 每次循环都等待随机时间
+            # 2. 将 handle_recommended_card 单独放到内循环中执行，
+            #    提高检测速度
+            while True:
+                result = handle_recommended_card(
+                    card_count=card_count,
+                    threshold_predicate=threshold_predicate,
+                    img=img
+                )
+                if result:
+                    break
+                img = device.screenshot()
+                inner_tries += 1
+                if inner_tries >= 5:
+                    break
+            if result:
+                logger.info("Handle recommended card success with %d tries", tries)
+                sleep(4.5)
+                tries = 0
+            else:
+                tries += 1
+                end_time = time.time()
+                logger.debug("Handle recommended card time: %.2f", end_time - start_time)
+                delay = next(wait)
+                logger.info("Tries: %d, Delay: %.2f", tries, delay)
+                sleep(delay)
         elif (
             card_count == 0
             and not image.find_multi([
@@ -428,7 +462,6 @@ def practice():
             ])
         ):
             break
-        sleep(np.random.uniform(0.01, 0.2))
 
     # 结束动画
     logger.info("CLEAR/PERFECT not found. Practice finished.")
@@ -460,8 +493,9 @@ def exam(type: Literal['mid', 'final']):
         else:
             return result.score >= 0.10
         # 关于上面阈值的解释：
-        # 两个阈值均指卡片周围的“黄色度”，
-        # total_threshold 指卡片平均的黄色度阈值，border_thresholds 指卡片四边的黄色度阈值
+        # 所有阈值均指卡片周围的“黄色度”，
+        # score 指卡片四边的平均黄色度阈值，
+        # left_score、right_score、top_score、bottom_score 指卡片每边的黄色度阈值
 
         # 为什么期中和期末考试阈值不一样：
         # 期末考试的场景为黄昏，背景中含有大量黄色，
@@ -470,37 +504,53 @@ def exam(type: Literal['mid', 'final']):
         # 这样可以筛选出只有四边都包含黄色的发光卡片，
         # 而由夕阳背景造成的假发光卡片通常不会四边都包含黄色。
 
+    wait = cycle([0.1, 0.3, 0.5])
+    tries = 1
     while True:
+        start_time = time.time()
         img = device.screenshot()
         if image.find(R.Common.ButtonIconCheckMark):
             logger.info("Confirmation dialog detected")
             device.click()
-            sleep(3) # 等待卡片刷新
+            sleep(4) # 等待卡片刷新
             continue
 
         card_count = skill_card_count(img)
-        # cards = obtain_cards(img)
-        # card_count = len(cards)
-        # available_cards = [card for card in cards if card.available]
-        # if len(available_cards) == 1:
-        #     device.double_click(available_cards[0].rect)
-        #     sleep(3) # 等待卡片刷新
-        #     continue
-        if card_count > 0 and handle_recommended_card(
-            card_count=card_count,
-            threshold_predicate=threshold_predicate,
-            img=img
-        ) is not None:
-            sleep(3) # 等待卡片刷新
+        if card_count > 0:
+            inner_tries = 0
+            while True:
+                result = handle_recommended_card(
+                    card_count=card_count,
+                    threshold_predicate=threshold_predicate,
+                    img=img
+                )
+                if result:
+                    break
+                img = device.screenshot()
+                inner_tries += 1
+                if inner_tries >= 5:
+                    break
+            if result:
+                logger.info("Handle recommended card success with %d tries", tries)
+                sleep(4.5)
+                tries = 0
+            else:
+                tries += 1
+                end_time = time.time()
+                logger.debug("Handle recommended card time: %.2f", end_time - start_time)
+                delay = next(wait)
+                logger.info("Tries: %d, Delay: %.2f", tries, delay)
+                sleep(delay)
+        # 考试结束
         elif (
             card_count == 0
             and not ocr.find(contains('残りターン'), rect=R.InPurodyuusu.BoxExamTop)
+            and image.find(R.Common.ButtonNext)
         ):
+            # 点击“次へ”
+            device.click()
             break
-        sleep(np.random.uniform(0.01, 0.1))
 
-    # 点击“次へ”
-    device.click(image.expect_wait(R.Common.ButtonNext))
     if type == 'final':
         while ocr.wait_for(contains("メモリー"), timeout=7):
             device.click_center()
@@ -570,23 +620,41 @@ def produce_end():
         sleep(1)
     
     # 结算完毕
+    # logger.info("Finalize")
+    # # [screenshots/produce_end/end_next_1.jpg]
+    # logger.debug("Click next 1")
+    # device.click(image.expect_wait(R.InPurodyuusu.ButtonNextNoIcon))
+    # sleep(1.3)
+    # # [screenshots/produce_end/end_next_2.png]
+    # logger.debug("Click next 2")
+    # device.click(image.expect_wait(R.InPurodyuusu.ButtonNextNoIcon))
+    # sleep(1.3)
+    # # [screenshots/produce_end/end_next_3.png]
+    # logger.debug("Click next 3")
+    # device.click(image.expect_wait(R.InPurodyuusu.ButtonNextNoIcon))
+    # sleep(1.3)
+    # # [screenshots/produce_end/end_complete.png]
+    # logger.debug("Click complete")
+    # device.click(image.expect_wait(R.InPurodyuusu.ButtonComplete))
+    # sleep(1.3)
+
+    # 四个完成画面
     logger.info("Finalize")
-    # [screenshots/produce_end/end_next_1.jpg]
-    logger.debug("Click next 1")
-    device.click(image.expect_wait(R.InPurodyuusu.ButtonNextNoIcon))
-    sleep(1.3)
-    # [screenshots/produce_end/end_next_2.png]
-    logger.debug("Click next 2")
-    device.click(image.expect_wait(R.InPurodyuusu.ButtonNextNoIcon))
-    sleep(1.3)
-    # [screenshots/produce_end/end_next_3.png]
-    logger.debug("Click next 3")
-    device.click(image.expect_wait(R.InPurodyuusu.ButtonNextNoIcon))
-    sleep(1.3)
-    # [screenshots/produce_end/end_complete.png]
-    logger.debug("Click complete")
-    device.click(image.expect_wait(R.InPurodyuusu.ButtonComplete))
-    sleep(1.3)
+    while True:
+        # [screenshots/produce_end/end_next_1.jpg]
+        # [screenshots/produce_end/end_next_2.png]
+        # [screenshots/produce_end/end_next_3.png]
+        if image.find(R.InPurodyuusu.ButtonNextNoIcon):
+            logger.debug("Click next")
+            device.click()
+            sleep(0.2)
+        # [screenshots/produce_end/end_complete.png]
+        elif image.find(R.InPurodyuusu.ButtonComplete):
+            logger.debug("Click complete")
+            device.click(image.expect_wait(R.InPurodyuusu.ButtonComplete))
+            sleep(0.2)
+            break
+
     # 点击结束后可能还会弹出来：
     # 活动进度、关注提示
     # [screenshots/produce_end/end_activity.png]
@@ -612,8 +680,8 @@ def produce_end():
         sleep(1)
     logger.info("Produce completed.")
 
-def week_normal():
-    until_action_scene()
+def week_normal(week_first: bool = False):
+    until_action_scene(week_first)
     executed_action = handle_recommended_action()
     logger.info("Executed recommended action: %s", executed_action)
     # 推荐练习
@@ -636,6 +704,7 @@ def week_normal():
     until_action_scene()
 
 def week_final_lesson():
+    until_action_scene()
     if handle_recommended_action(final_week=True) != 'lesson':
         raise ValueError("Failed to enter recommended action on final week.")
     sleep(5)
@@ -674,7 +743,7 @@ def hajime_regular(week: int = -1, start_from: int = 1):
     :param start_from: 从第几周开始，从1开始。
     """
     weeks = [
-        week_normal, # 1: Vo.レッスン、Da.レッスン、Vi.レッスン
+        lambda: week_normal(True), # 1: Vo.レッスン、Da.レッスン、Vi.レッスン
         week_normal, # 2: 授業
         week_normal, # 3: Vo.レッスン、Da.レッスン、Vi.レッスン、授業
         week_normal, # 4: おでかけ、相談、活動支給
@@ -707,7 +776,7 @@ def hajime_pro(week: int = -1, start_from: int = 1):
     :param start_from: 从第几周开始，从1开始。
     """
     weeks = [
-        week_normal, # 1
+        lambda: week_normal(True), # 1
         week_normal, # 2
         week_normal, # 3
         week_normal, # 4
@@ -842,6 +911,28 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s')
     getLogger('kotonebot').setLevel(logging.DEBUG)
     getLogger(__name__).setLevel(logging.DEBUG)
+    import os
+    from datetime import datetime
+    os.makedirs('logs', exist_ok=True)
+    log_filename = datetime.now().strftime('logs/task-%y-%m-%d-%H-%M-%S.log')
+    file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s'))
+    logging.getLogger().addHandler(file_handler)
+
+    from kotonebot.backend.util import Profiler
+    from kotonebot.backend.context import init_context, manual_context
+    init_context()
+    manual_context().begin()
+
+    # hajime_regular(start_from=1)
+    
+    # pf = Profiler('profiler')
+    # pf.begin()
+    # # do_produce(conf().produce.idols[0], 'pro')
+    # practice()
+    # hajime_pro(start_from=16)
+    # pf.end()
+    # pf.snakeviz()
 
 
     # while True:

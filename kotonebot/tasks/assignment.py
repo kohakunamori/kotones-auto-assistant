@@ -12,7 +12,7 @@ from kotonebot import task, device, image, action, ocr, contains, cropped, rect_
 logger = logging.getLogger(__name__)
 
 @action('领取工作奖励')
-def acquire_assignment():
+def handle_claim_assignment():
     """
     领取工作奖励
 
@@ -20,9 +20,10 @@ def acquire_assignment():
     结束状态：分配工作页面
     """
     # 领取奖励 [screenshots/assignment/acquire.png]
-    while image.wait_for(R.Common.ButtonCompletion, timeout=5):
+    if image.find(R.Common.ButtonCompletion):
         device.click()
-        sleep(5)
+        return True
+    return False
 
 @action('重新分配工作')
 def assign(type: Literal['mini', 'online']) -> bool:
@@ -124,6 +125,18 @@ def get_remaining_time() -> timedelta | None:
     logger.info(f'お仕事 remaining time: {time}')
     return timedelta(hours=time.numbers()[0], minutes=time.numbers()[1], seconds=time.numbers()[2])
 
+@action('检测工作页面')
+def at_assignment():
+    """
+    判断是否在工作页面
+    """
+    # 不能以 R.Daily.IconTitleAssign 作为判断依据，
+    # 因为标题出现后还有一段动画
+    return image.find_multi([
+        R.Daily.ButtonAssignmentShortenTime,
+        R.Daily.IconAssignMiniLive,
+        R.Daily.IconAssignOnlineLive,
+    ]) is not None
 
 @task('工作')
 def assignment():
@@ -149,26 +162,24 @@ def assignment():
     # 点击工作按钮
     logger.debug('Clicking assignment icon.')
     device.click(btn_assignment)
-    # 加载页面等待
-    wait_loading_end()
-    if completed:
-        acquire_assignment()
-        logger.info('Assignment acquired.')
-    # 领取完后会自动进入分配页面
-    image.expect_wait(R.Daily.IconTitleAssign)
+    # 等待加载、领取奖励
+    while not at_assignment():
+        if completed and handle_claim_assignment():
+            logger.info('Assignment acquired.')
+    # 重新分配
     if conf().assignment.mini_live_reassign_enabled:
         if image.find(R.Daily.IconAssignMiniLive):
             assign('mini')
-            sleep(6) # 等待动画结束
-            # TODO: 更好的方法来等待动画结束。
     else:
         logger.info('MiniLive reassign is disabled.')
     if conf().assignment.online_live_reassign_enabled:
         if image.find(R.Daily.IconAssignOnlineLive):
             assign('online')
-            sleep(6) # 等待动画结束
     else:
         logger.info('OnlineLive reassign is disabled.')
+    # 等待动画结束
+    while not at_assignment():
+        pass
 
 if __name__ == '__main__':
     import logging

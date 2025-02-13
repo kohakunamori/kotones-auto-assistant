@@ -72,38 +72,31 @@ def enter_allowance():
     执行活動支給。
     
     前置条件：位于行动页面，且所有行动按钮清晰可见 \n
-    结束状态：无
+    结束状态：位于行动页面
     """
     logger.info("Executing 活動支給.")
     # 点击活動支給 [screenshots\allowance\step_1.png]
     logger.info("Double clicking on 活動支給.")
     device.double_click(image.expect(R.InPurodyuusu.ButtonTextAllowance), interval=1)
     # 等待进入页面
-    wait_loading_end()
-    # 处理可能会出现的支援卡奖励
     while not image.find(R.InPurodyuusu.IconTitleAllowance):
         logger.debug("Waiting for 活動支給 screen.")
         acquisitions()
-    # 第一个箱子 [screenshots\allowance\step_2.png]
-    logger.info("Clicking on the first lootbox.")
-    device.click(image.expect_wait_any([
-        R.InPurodyuusu.LootboxSliverLock
-    ]))
-    while acquisitions() is None:
-        logger.info("Waiting for acquisitions finished.")
-    # 第二个箱子
-    logger.info("Clicking on the second lootbox.")
-    device.click(image.expect_wait_any([
-        R.InPurodyuusu.LootboxSliverLock
-    ]))
-    while acquisitions() is None:
-        logger.info("Waiting for acquisitions finished.")
+    # 领取奖励
+    while True:
+        # TODO: 检测是否在行动页面应当单独一个函数
+        if image.find_multi([
+            R.InPurodyuusu.TextPDiary, # 普通周
+            R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
+        ]):
+            break
+        if image.find(R.InPurodyuusu.LootboxSliverLock):
+            logger.info("Click on lootbox.")
+            device.click()
+            continue
+        if acquisitions() is not None:
+            continue
     logger.info("活動支給 completed.")
-    # wait_loading_start() # 可能会因为加载太快，截图没截到，导致抛出异常
-    sleep(1)
-    wait_loading_end()
-    # 可能会出现的新动画
-    # 技能卡：[screenshots\allowance\step_4.png]
 
 @action('判断是否可以休息')
 def is_rest_available():

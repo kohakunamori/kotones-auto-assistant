@@ -144,6 +144,8 @@ class CommuEventButtonUI:
         """
         img = device.screenshot()
         rects = filter_rectangles(img, (WHITE_LOW, WHITE_HIGH), 7, 500, rect=self.rect)
+        if not rects:
+            return []
         selected = self.selected()
         result: list[EventButton] = []
         for rect in rects:
