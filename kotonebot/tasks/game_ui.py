@@ -181,14 +181,25 @@ class CommuEventButtonUI:
         rects.sort(key=lambda x: x[1])
         ocr_result = ocr.raw().ocr(img, rect=rects[0])
         return ocr_result.squash().text
-    
+
+def filter_white(img: MatLike):
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    lower_white = np.array([0, 0, 180])
+    upper_white = np.array([180, 50, 255])
+    return cv2.inRange(hsv, lower_white, upper_white)
+
+# TODO: image 对象加入自定义 hook，处理 post-process 和 pre-process
+@action('工具栏按钮.寻找首页', screenshot_mode='manual-inherit')
+def toolbar_home():
+    img = device.screenshot()
+    img = filter_white(img)
+    result = image.raw().find(img, R.Common.ButtonToolbarHomeBinary.binary())
+    return result
+
 
 if __name__ == '__main__':
     from pprint import pprint as print
     from kotonebot.backend.context import init_context, manual_context, device
     init_context()
     manual_context().begin()
-    btn = CommuEventButtonUI()
-    # print(btn.selected())
-    # print(btn.all())
-    print(btn.all())
+    print(toolbar_home())

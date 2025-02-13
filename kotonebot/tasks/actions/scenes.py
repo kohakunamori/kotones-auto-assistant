@@ -1,8 +1,10 @@
 import logging
 from typing import Callable
 
+
 from .. import R
 from .loading import loading
+from ..game_ui import toolbar_home
 from kotonebot import device, image, action, cropped, until, sleep
 from kotonebot.errors import UnrecoverableError
 
@@ -39,15 +41,10 @@ def goto_home():
     """
     logger.info("Going home.")
     with cropped(device, y1=0.7):
-        if image.find(
-            R.Common.ButtonToolbarHome,
-            transparent=True,
-            threshold=0.9999,
-            colored=True
-        ):
-            device.click()
+        if home := toolbar_home():
+            device.click(home)
             while loading():
-                sleep(0.5)
+                pass
         elif image.find(R.Common.ButtonHome):
             device.click()
         else:

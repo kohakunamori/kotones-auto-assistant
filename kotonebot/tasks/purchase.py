@@ -89,10 +89,12 @@ def dispatch_purchase_dialog(ctx: DispatcherContext):
     结束状态：对话框关闭后原来的界面
     """
     # 前置条件：[screenshots\shop\dialog.png]
+    device.screenshot()
     if image.find(R.Daily.ButtonShopCountAdd, colored=True):
         logger.debug('Adjusting quantity(+1)...')
         device.click()
     elif image.find(R.Common.ButtonConfirm):
+        sleep(0.1)
         logger.debug('Confirming purchase...')
         device.click()
         ctx.finish()
@@ -150,7 +152,6 @@ def purchase():
     if not at_daily_shop():
         goto_shop()
     # 进入每日商店 [screenshots\shop\shop.png]
-    # [ap1.png]
     device.click(image.expect(R.Daily.ButtonDailyShop)) # TODO: memoable
     sleep(1)
 
