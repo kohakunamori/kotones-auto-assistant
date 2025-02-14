@@ -172,6 +172,8 @@ def assignment():
             assign('mini')
     else:
         logger.info('MiniLive reassign is disabled.')
+    while not at_assignment():
+        pass
     if conf().assignment.online_live_reassign_enabled:
         if image.find(R.Daily.IconAssignOnlineLive):
             assign('online')

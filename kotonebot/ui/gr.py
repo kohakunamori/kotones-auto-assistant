@@ -182,6 +182,7 @@ class KotoneBotUI:
         
         try:
             save_config(self.config, "config.json")
+            gr.update(visible=True)
             return "设置已保存！"
         except Exception as e:
             return f"保存设置失败：{str(e)}"
@@ -528,9 +529,7 @@ class KotoneBotUI:
         self.current_config = self.config.user_configs[0]
 
     def create_ui(self) -> gr.Blocks:
-        # 每次创建 UI 时重新加载配置
         self._load_config()
-        
         with gr.Blocks(title="KotoneBot Assistant", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
             with gr.Column(elem_id="container"):
                 gr.Markdown("# KotoneBot Assistant")

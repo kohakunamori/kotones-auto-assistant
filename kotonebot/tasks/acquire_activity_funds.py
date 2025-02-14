@@ -24,6 +24,9 @@ def acquire_activity_funds():
         logger.info('Activity funds claimed.')
     else:
         logger.info('No activity funds to claim.')
+    
+    while not at_home():
+        pass
 
 if __name__ == '__main__':
     import logging

@@ -2,11 +2,13 @@
 import logging
 from gettext import gettext as _
 
+from kotonebot.backend.dispatch import SimpleDispatcher
+
 from . import R
 from .common import conf
 from .actions.scenes import at_home, goto_home
 from .actions.loading import wait_loading_end
-from kotonebot import device, image, ocr, color, action, task, user, rect_expand, sleep
+from kotonebot import device, image, ocr, color, action, task, user, rect_expand, sleep, contains
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +20,12 @@ def goto_contest() -> bool:
 
     :return: 是否存在未完成的挑战
     """
+    # TODO: 优化这一部分，加入区域检测，提高速度
     device.click(image.expect(R.Common.ButtonContest))
-    sleep(0.5)
-    btn_contest = image.expect_wait(R.Daily.TextContest, colored=True, transparent=True, threshold=0.9999)
-    sleep(0.2)
+    ocr.expect_wait(contains('CONTEST'))
+    btn_contest = ocr.expect_wait(contains('コンテスト'))
     has_ongoing_contest = image.find(R.Daily.TextContestLastOngoing) is not None
     device.click(btn_contest)
-    sleep(0.5)
-    wait_loading_end()
     if not has_ongoing_contest:
         while not image.find(R.Daily.ButtonContestRanking):
             # [screenshots/contest/acquire1.png]

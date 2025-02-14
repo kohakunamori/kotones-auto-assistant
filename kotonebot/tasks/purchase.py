@@ -7,7 +7,7 @@ from . import R
 from .common import conf, DailyMoneyShopItems
 from kotonebot.backend.util import cropped
 from kotonebot import task, device, image, ocr, action, sleep
-from kotonebot.backend.dispatch import DispatcherContext, dispatcher
+from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher, dispatcher
 from .actions.scenes import goto_home, goto_shop, at_daily_shop
 
 logger = logging.getLogger(__name__)
@@ -38,10 +38,10 @@ def money_items2(items: Optional[list[DailyMoneyShopItems]] = None):
     scroll = 0
     while items:
         for item in items:
-            if image.find(item.to_resource()):
+            if image.find(item.to_resource(), colored=True):
                 logger.info(f'Purchasing {item.to_ui_text(item)}...')
                 device.click()
-                dispatch_purchase_dialog()
+                handle_purchase_dialog()
                 finished.append(item)
         items = [item for item in items if item not in finished]
         # 全都买完了
@@ -57,10 +57,10 @@ def money_items2(items: Optional[list[DailyMoneyShopItems]] = None):
                 break
     logger.info(f'Purchasing money items completed. {len(finished)} item(s) purchased.')
     if items:
-        logger.info(f'{len(items)} item(s) not purchased: {", ".join([item.to_ui_text(item) for item in items])}')
+        logger.info(f'{len(items)} item(s) not purchased/already purchased: {", ".join([item.to_ui_text(item) for item in items])}')
 
-@action('购买推荐商品', dispatcher=True)
-def dispatch_recommended_items(ctx: DispatcherContext):
+@action('购买推荐商品', screenshot_mode='manual-inherit')
+def dispatch_recommended_items():
     """
     购买推荐商品
 
@@ -68,20 +68,19 @@ def dispatch_recommended_items(ctx: DispatcherContext):
     结束状态：-
     """
     # 前置条件：[screenshots\shop\money1.png]
-    if ctx.beginning:
-        logger.info(f'Start purchasing recommended items.')
-    
-    if image.find(R.Daily.TextShopRecommended):
-        logger.info(f'Clicking on recommended item.') # TODO: 计数
-        device.click()
-    elif ctx.expand(dispatch_purchase_dialog):
-        pass
-    elif image.find(R.Daily.IconTitleDailyShop) and not image.find(R.Daily.TextShopRecommended):
-        logger.info(f'No recommended item found. Finished.')
-        ctx.finish()
+    logger.info(f'Start purchasing recommended items.')
 
-@action('确认购买', dispatcher=True)
-def dispatch_purchase_dialog(ctx: DispatcherContext):
+    while True:
+        if image.find(R.Daily.TextShopRecommended):
+            logger.info(f'Clicking on recommended item.') # TODO: 计数
+            device.click()
+            handle_purchase_dialog()
+        elif image.find(R.Daily.IconTitleDailyShop) and not image.find(R.Daily.TextShopRecommended):
+            logger.info(f'No recommended item found. Finished.')
+            break
+
+@action('确认购买', screenshot_mode='manual-inherit')
+def handle_purchase_dialog():
     """
     确认购买
 
@@ -89,18 +88,28 @@ def dispatch_purchase_dialog(ctx: DispatcherContext):
     结束状态：对话框关闭后原来的界面
     """
     # 前置条件：[screenshots\shop\dialog.png]
-    device.screenshot()
-    if image.find(R.Daily.ButtonShopCountAdd, colored=True):
-        logger.debug('Adjusting quantity(+1)...')
-        device.click()
-    elif image.find(R.Common.ButtonConfirm):
-        sleep(0.1)
-        logger.debug('Confirming purchase...')
-        device.click()
-        ctx.finish()
-    elif image.find(R.Daily.TextShopPurchased):
+    # TODO: 需要有个更好的方式检测是否已购买
+    purchased = (SimpleDispatcher('dispatch_purchase_dialog')
+        .until(R.Common.ButtonConfirm, result=False)
+        .until(R.Daily.TextShopPurchased, result=True)
+        .timeout(timeout=3, result=True)
+    ).run()
+    
+    if purchased:
         logger.info('Item sold out.')
-        ctx.finish()
+        sleep(1) # 等待售罄提示消失
+        return
+    else:
+        device.screenshot()
+        while image.find(R.Daily.ButtonShopCountAdd, colored=True):
+            logger.debug('Adjusting quantity(+1)...')
+            device.click()
+            sleep(0.2)
+            device.screenshot()
+        logger.debug('Confirming purchase...')
+        device.click(image.expect_wait(R.Common.ButtonConfirm))
+    # 等待对话框动画结束
+    image.expect_wait(R.Daily.IconTitleDailyShop)
 
 @action('购买 AP 物品')
 def ap_items():
