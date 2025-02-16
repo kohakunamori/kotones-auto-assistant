@@ -71,6 +71,7 @@ def dispatch_recommended_items():
     logger.info(f'Start purchasing recommended items.')
 
     while True:
+        device.screenshot()
         if image.find(R.Daily.TextShopRecommended):
             logger.info(f'Clicking on recommended item.') # TODO: 计数
             device.click()

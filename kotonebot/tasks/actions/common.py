@@ -16,7 +16,7 @@ from kotonebot import (
 from ..game_ui import CommuEventButtonUI
 from .pdorinku import acquire_pdorinku
 from kotonebot.backend.dispatch import SimpleDispatcher
-from kotonebot.tasks.actions.commu import check_and_skip_commu
+from kotonebot.tasks.actions.commu import handle_unread_commu
 
 logger = getLogger(__name__)
 
@@ -109,11 +109,15 @@ def acquisitions() -> AcquisitionType | None:
     if image.find(R.InPurodyuusu.TextPDrinkMax):
         logger.info("PDrink max found")
         while True:
-            if image.find(R.InPurodyuusu.ButtonLeave, colored=True):
+            # TODO: 这里会因为截图速度过快，截图截到中间状态的弹窗。
+            # 然后又因为从截图、识别、发出点击到实际点击中间又延迟，
+            # 过了这段时间后，原来中间状态按钮所在的位置已经变成了其他
+            # 的东西，导致误点击
+            if image.find(R.InPurodyuusu.ButtonLeave, colored=True): # mark
                 device.click()
             elif image.find(R.Common.ButtonConfirm):
                 device.click()
-                break
+                break     
             device.screenshot()
         return "PDrinkMax"
     # 技能卡领取
@@ -134,7 +138,7 @@ def acquisitions() -> AcquisitionType | None:
         device.click_center()
         sleep(5)
         # TODO: 可能不存在 達成 NEXT
-        logger.debug("達成 NEXT: clicked")
+        logger.debug("達成 NEXT: clicked") # TODO: 需要截图
         device.click_center()
         return "Clear"
     # P物品领取
@@ -153,7 +157,7 @@ def acquisitions() -> AcquisitionType | None:
         return "NetworkError"
     # 跳过未读交流
     logger.debug("Check skip commu...")
-    if check_and_skip_commu(img):
+    if handle_unread_commu(img):
         return "SkipCommu"
 
     # === 需要 OCR 的放在最后执行 ===

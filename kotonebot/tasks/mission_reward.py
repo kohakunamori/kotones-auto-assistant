@@ -36,6 +36,7 @@ def check_and_goto_mission() -> bool:
 def claim_mission_reward(name: str):
     """领取任务奖励"""
     # [screenshots/mission/daily.png]
+    image.expect_wait(R.Common.ButtonIconArrowShort)
     if image.find(R.Common.ButtonIconArrowShort, colored=True):
         logger.info(f'Claiming {name} mission reward.')
         device.click()

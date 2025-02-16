@@ -5,6 +5,9 @@
 """
 from logging import getLogger
 
+from kotonebot.backend.dispatch import SimpleDispatcher
+from kotonebot.backend.util import Interval
+
 from .. import R
 from ..game_ui import CommuEventButtonUI, EventButton
 from .common import acquisitions, AcquisitionType
@@ -83,6 +86,7 @@ def enter_allowance():
         logger.debug("Waiting for 活動支給 screen.")
         acquisitions()
     # 领取奖励
+    it = Interval()
     while True:
         # TODO: 检测是否在行动页面应当单独一个函数
         if image.find_multi([
@@ -93,9 +97,11 @@ def enter_allowance():
         if image.find(R.InPurodyuusu.LootboxSliverLock):
             logger.info("Click on lootbox.")
             device.click()
+            sleep(0.5) # 防止点击了第一个箱子后立马点击了第二个
             continue
         if acquisitions() is not None:
             continue
+        it.wait()
     logger.info("活動支給 completed.")
 
 @action('判断是否可以休息')
@@ -110,10 +116,12 @@ def is_rest_available():
 def rest():
     """执行休息"""
     logger.info("Rest for this week.")
-    # 点击休息
-    device.click(image.expect_wait(R.InPurodyuusu.Rest))
-    # 确定
-    device.click(image.expect_wait(R.InPurodyuusu.RestConfirmBtn))
+    (SimpleDispatcher('in_produce.rest')
+        # 点击休息
+        .click(R.InPurodyuusu.Rest)
+        # 确定
+        .click(R.InPurodyuusu.RestConfirmBtn, finish=True)
+    ).run()
 
 if __name__ == '__main__':
     from kotonebot.backend.context import manual_context, init_context

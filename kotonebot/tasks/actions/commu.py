@@ -3,6 +3,8 @@ import logging
 
 from cv2.typing import MatLike
 
+from kotonebot.backend.util import Countdown, Interval
+
 from .. import R
 from kotonebot import device, image, color, user, rect_expand, until, action, sleep, use_screenshot
 
@@ -17,8 +19,8 @@ def is_at_commu():
 def skip_commu():
     device.click(image.expect_wait(R.Common.ButtonCommuSkip))
 
-@action('检查并跳过交流', screenshot_mode='manual')
-def check_and_skip_commu(img: MatLike | None = None) -> bool:
+@action('检查未读交流', screenshot_mode='manual')
+def handle_unread_commu(img: MatLike | None = None) -> bool:
     """
     检查当前是否处在未读交流，并自动跳过。
 
@@ -36,14 +38,39 @@ def check_and_skip_commu(img: MatLike | None = None) -> bool:
     ret = True
     logger.debug('Fast forward button found. Check commu')
     button_bg_rect = rect_expand(skip_btn.rect, 10, 10, 50, 10)
-    colors = color.raw().dominant_color(img, 2, rect=button_bg_rect)
-    RANGE = ((20, 65, 95), (180, 100, 100))
-    if not any(color.raw().in_range(c, RANGE) for c in colors):
+    def is_fastforwarding():
+        nonlocal img
+        assert img is not None
+        colors = color.raw().dominant_color(img, 2, rect=button_bg_rect)
+        RANGE = ((20, 65, 95), (180, 100, 100))
+        return any(color.raw().in_range(c, RANGE) for c in colors)
+    
+    # 防止截图速度过快时，截图到了未加载完全的画面
+    cd = Interval()
+    hit = 0
+    HIT_THRESHOLD = 2
+    while True:
+        if not is_fastforwarding():
+            logger.debug("Unread commu hit %d/%d", hit, HIT_THRESHOLD)
+            hit += 1
+        else:
+            hit = 0
+            break
+        if hit >= HIT_THRESHOLD:
+            break
+        cd.wait()
+        img = device.screenshot()
+    should_skip = hit >= HIT_THRESHOLD
+    if not should_skip:
+        logger.info('Fast forwarding. No action needed.')
+        return False
+
+    if should_skip:
         user.info('发现未读交流', [img])
         logger.debug('Not fast forwarding. Click fast forward button')
         device.click(skip_btn)
         sleep(0.7)
-        if image.find(R.Common.ButtonConfirm):
+        if image.wait_for(R.Common.ButtonConfirm, timeout=5):
             logger.debug('Click confirm button')
             device.click()
     else:

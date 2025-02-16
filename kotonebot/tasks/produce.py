@@ -2,6 +2,7 @@ import logging
 from itertools import cycle
 from typing import Optional, Literal
 
+from kotonebot.backend.context.context import wait
 from kotonebot.ui import user
 from kotonebot.backend.util import Countdown
 from kotonebot.backend.dispatch import SimpleDispatcher
@@ -9,7 +10,7 @@ from kotonebot.backend.dispatch import SimpleDispatcher
 from . import R
 from .common import conf, PIdol
 from .actions.scenes import at_home, goto_home
-from .actions.in_purodyuusu import hajime_pro, hajime_regular
+from .actions.in_purodyuusu import hajime_pro, hajime_regular, resume_regular_produce
 from kotonebot import device, image, ocr, task, action, sleep, equals, contains
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ def select_idol(target_titles: list[str] | PIdol):
         # 如果不是，就挨个选中，判断名称
         for r in results:
             device.click(r)
+            sleep(0.3)
             device.screenshot()
             if all(ocr.find_all(_target_titles, rect=R.Produce.KbIdolOverviewName)):
                 found = True
@@ -113,6 +115,8 @@ def resume_produce():
     # [res/sprites/jp/produce/produce_resume.png]
     logger.info('Click resume button.')
     device.click(image.expect_wait(R.Produce.ButtonResume))
+    # 继续流程
+    resume_regular_produce()
 
 @action('执行培育', screenshot_mode='manual-inherit')
 def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
@@ -154,11 +158,13 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
     # 2. 选择支援卡 自动编成 [screenshots/produce/select_support_card.png]
     ocr.expect_wait(contains('サポート'), rect=R.Produce.BoxStepIndicator)
     device.click(image.expect_wait(R.Produce.ButtonAutoSet))
+    wait(0.5, before='screenshot')
     device.click(image.expect_wait(R.Common.ButtonConfirm, colored=True))
-    device.click(image.expect_wait(R.Common.ButtonNextNoIcon))
+    device.click(image.expect_wait(R.Common.ButtonNextNoIcon, colored=True))
     # 3. 选择回忆 自动编成 [screenshots/produce/select_memory.png]
     ocr.expect_wait(contains('メモリー'), rect=R.Produce.BoxStepIndicator)
     device.click(image.expect_wait(R.Produce.ButtonAutoSet))
+    wait(0.5, before='screenshot')
     device.screenshot()
     (SimpleDispatcher('do_produce.step_3')
         .click(R.Common.ButtonNextNoIcon)
@@ -236,10 +242,13 @@ if __name__ == '__main__':
     file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s'))
     logging.getLogger().addHandler(file_handler)
     
-    from kotonebot.backend.context import init_context
+    import time
+    from kotonebot.backend.context import init_context, manual_context
     from kotonebot.tasks.common import BaseConfig
     init_context(config_type=BaseConfig)
     conf().produce.enabled = True
+    conf().produce.mode = 'regular'
+    conf().produce.idols = [PIdol.花海佑芽_学園生活]
     produce_task()
     # a()
     # select_idol(PIdol.藤田ことね_学園生活)

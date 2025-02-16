@@ -9,17 +9,17 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from kotonebot.backend.context.context import use_screenshot
 
 from .. import R
 from . import loading
 from ..common import conf
 from .scenes import at_home
-from .common import until_acquisition_clear, acquisitions, commut_event
 from kotonebot.errors import UnrecoverableError
+from kotonebot.backend.context.context import use_screenshot
+from .common import until_acquisition_clear, acquisitions, commut_event
 from kotonebot.backend.util import AdaptiveWait, Countdown, crop, cropped
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
-from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect
+from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect, wait
 from .non_lesson_actions import (
     enter_allowance, allowance_available, study_available, enter_study,
     is_rest_available, rest
@@ -516,6 +516,7 @@ def exam(type: Literal['mid', 'final']):
 
     wait = cycle([0.1, 0.3, 0.5])
     tries = 1
+    no_card_cd = Countdown(sec=4)
     while True:
         start_time = time.time()
         img = device.screenshot()
@@ -526,6 +527,17 @@ def exam(type: Literal['mid', 'final']):
             continue
 
         card_count = skill_card_count(img)
+        if card_count == 0:
+            # 处理本回合已无剩余手牌的情况
+            # TODO: 使用模板匹配而不是 OCR，提升速度
+            no_remaining_card = ocr.find(contains("0枚"), rect=R.InPurodyuusu.BoxNoSkillCard)
+            if no_remaining_card:
+                # TODO: HARD CODEDED
+                SKIP_POSITION = (621, 739, 85, 85)
+                device.click(SKIP_POSITION)
+                no_card_cd.reset()
+                continue
+    
         if card_count > 0:
             inner_tries = 0
             while True:
@@ -579,9 +591,9 @@ def produce_end():
     # 等待选择封面画面 [screenshots/produce_end/select_cover.jpg]
     # 次へ
     logger.info("Waiting for select cover screen...")
-    wait = AdaptiveWait(timeout=60 * 5, max_interval=20)
+    aw = AdaptiveWait(timeout=60 * 5, max_interval=20)
     while not image.find(R.InPurodyuusu.ButtonNextNoIcon):
-        wait()
+        aw()
         device.click(0, 0)
     # 选择封面
     logger.info("Use default cover.")
@@ -657,12 +669,12 @@ def produce_end():
         if image.find(R.InPurodyuusu.ButtonNextNoIcon):
             logger.debug("Click next")
             device.click()
-            sleep(0.2)
+            wait(0.5, before='screenshot')
         # [screenshots/produce_end/end_complete.png]
         elif image.find(R.InPurodyuusu.ButtonComplete):
             logger.debug("Click complete")
             device.click(image.expect_wait(R.InPurodyuusu.ButtonComplete))
-            sleep(0.2)
+            wait(0.5, before='screenshot')
             break
 
     # 点击结束后可能还会弹出来：
@@ -957,7 +969,7 @@ if __name__ == '__main__':
     # produce_end()
 
 
-    # hajime_pro(start_from=15)
+    # hajime_pro(start_from=16)
     # exam('mid')
     stage = (detect_regular_produce_scene())
     hajime_regular_from_stage(stage)
