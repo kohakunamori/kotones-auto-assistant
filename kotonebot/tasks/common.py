@@ -1,9 +1,12 @@
+from importlib import resources
+import os
 from typing import Literal, Dict
 from enum import IntEnum, Enum
 
 from pydantic import BaseModel, ConfigDict
 
-from kotonebot import config
+# TODO: from kotonebot import config (context) 会和 kotonebot.config 冲突
+from kotonebot.backend.context import config
 
 class Priority(IntEnum):
     START_GAME = 1
@@ -334,6 +337,13 @@ def conf() -> BaseConfig:
     """获取当前配置数据"""
     c = config.to(BaseConfig).current
     return c.options
+
+def sprite_path(path: str) -> str:
+    standalone = os.path.join('kotonebot/tasks/sprites', path)
+    if os.path.exists(standalone):
+        return standalone
+    return str(resources.files('kotonebot.tasks.sprites') / path)
+
 
 if __name__ == '__main__':
     print(PurchaseConfig.model_fields['money_refresh_on'].description)
