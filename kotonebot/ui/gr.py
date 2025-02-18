@@ -87,8 +87,13 @@ class KotoneBotUI:
     def start_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = True
         from kotonebot.run.run import initialize, start
+        from kotonebot.backend.debug.vars import debug
         initialize('kotonebot.tasks')
         self.run_status = start(config_type=BaseConfig)
+        if self.current_config.keep_screenshots:
+            debug.auto_save_to_folder = 'dumps'
+        else:
+            debug.auto_save_to_folder = None
         return "停止", self.update_task_status()
 
     def stop_run(self) -> Tuple[str, List[List[str]]]:
@@ -101,6 +106,7 @@ class KotoneBotUI:
         adb_ip: str,
         adb_port: int,
         screenshot_method: Literal['adb', 'adb_raw', 'uiautomator2'],
+        keep_screenshots: bool,
         purchase_enabled: bool,
         money_enabled: bool,
         ap_enabled: bool,
@@ -139,6 +145,7 @@ class KotoneBotUI:
         self.current_config.backend.adb_ip = adb_ip
         self.current_config.backend.adb_port = adb_port
         self.current_config.backend.screenshot_impl = screenshot_method
+        self.current_config.keep_screenshots = keep_screenshots
         
         options = BaseConfig(
             purchase=PurchaseConfig(
@@ -419,6 +426,12 @@ class KotoneBotUI:
                     info=BackendConfig.model_fields['screenshot_impl'].description,
                     interactive=True
                 )
+                keep_screenshots = gr.Checkbox(
+                    label="保留截图数据",
+                    value=self.current_config.keep_screenshots,
+                    info=UserConfig.model_fields['keep_screenshots'].description,
+                    interactive=True
+                )
             
             # 商店购买设置
             purchase_settings = self._create_purchase_settings()
@@ -470,7 +483,7 @@ class KotoneBotUI:
             
             # 收集所有设置组件
             all_settings = [
-                adb_ip, adb_port, screenshot_impl,
+                adb_ip, adb_port, screenshot_impl, keep_screenshots,
                 *purchase_settings,
                 activity_funds,
                 presents,

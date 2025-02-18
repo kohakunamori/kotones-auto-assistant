@@ -76,6 +76,7 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
     else:
         logger.info('Fast forwarding. No action needed.')
     logger.debug('Wait until not at commu')
+    # TODO: 这里改用 while 循环，避免点击未生效的情况
     until(lambda: not is_at_commu(), interval=0.3)
     logger.info('Fast forward done')
 
