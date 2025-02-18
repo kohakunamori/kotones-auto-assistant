@@ -216,14 +216,14 @@ def produce_task(
         mode = conf().produce.mode
     # 数据验证
     if count < 0:
-        user.warning('培育次数不能小于 0。将跳过本次培育。')
+        user.warning('配置有误', '培育次数不能小于 0。将跳过本次培育。')
         return
 
     idol_iterator = cycle(idols)
     for i in range(count):
         start_time = time.time()
         if not do_produce(next(idol_iterator), mode):
-            user.info(f'由于 AP 不足，跳过了 {count - i} 次培育。')
+            user.info('AP 不足', f'由于 AP 不足，跳过了 {count - i} 次培育。')
             logger.info('%d produce(s) skipped because of insufficient AP.', count - i)
             break
         end_time = time.time()
@@ -248,7 +248,7 @@ if __name__ == '__main__':
     init_context(config_type=BaseConfig)
     conf().produce.enabled = True
     conf().produce.mode = 'regular'
-    conf().produce.idols = [PIdol.花海佑芽_学園生活]
+    # conf().produce.idols = [PIdol.花海佑芽_学園生活]
     produce_task()
     # a()
     # select_idol(PIdol.藤田ことね_学園生活)

@@ -71,7 +71,7 @@ def pick_and_contest(has_ongoing_contest: bool = False) -> bool:
         # 记忆未编成 [screenshots/contest/no_memo.png]
         if image.find(R.Daily.TextContestNoMemory):
             logger.debug('Memory not set. Using auto-compilation.')
-            user.warning(_('记忆未编成。将使用自动编成。'), once=True)
+            user.warning('竞赛未编成', _('记忆未编成。将使用自动编成。'), once=True)
             device.click(image.expect(R.Daily.ButtonContestChallenge))
         logger.debug('Waiting for challenge start screen.')
     # 勾选跳过所有

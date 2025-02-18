@@ -66,7 +66,7 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
         return False
 
     if should_skip:
-        user.info('发现未读交流', [img])
+        user.info('发现未读交流', images=[img])
         logger.debug('Not fast forwarding. Click fast forward button')
         device.click(skip_btn)
         sleep(0.7)
