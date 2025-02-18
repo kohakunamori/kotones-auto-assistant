@@ -100,6 +100,7 @@ class KotoneBotUI:
         self,
         adb_ip: str,
         adb_port: int,
+        screenshot_method: Literal['adb', 'adb_raw', 'uiautomator2'],
         purchase_enabled: bool,
         money_enabled: bool,
         ap_enabled: bool,
@@ -137,6 +138,7 @@ class KotoneBotUI:
         
         self.current_config.backend.adb_ip = adb_ip
         self.current_config.backend.adb_port = adb_port
+        self.current_config.backend.screenshot_impl = screenshot_method
         
         options = BaseConfig(
             purchase=PurchaseConfig(
@@ -395,20 +397,28 @@ class KotoneBotUI:
             # 模拟器设置
             with gr.Column():
                 gr.Markdown("### 模拟器设置")
-                with gr.Row():
-                    adb_ip = gr.Textbox(
-                        value=self.current_config.backend.adb_ip,
-                        label="ADB IP 地址",
-                        interactive=True
-                    )
-                    adb_port = gr.Number(
-                        value=self.current_config.backend.adb_port,
-                        label="ADB 端口",
-                        minimum=1,
-                        maximum=65535,
-                        step=1,
-                        interactive=True
-                    )
+                adb_ip = gr.Textbox(
+                    value=self.current_config.backend.adb_ip,
+                    label="ADB IP 地址",
+                    info=BackendConfig.model_fields['adb_ip'].description,
+                    interactive=True
+                )
+                adb_port = gr.Number(
+                    value=self.current_config.backend.adb_port,
+                    label="ADB 端口",
+                    info=BackendConfig.model_fields['adb_port'].description,
+                    minimum=1,
+                    maximum=65535,
+                    step=1,
+                    interactive=True
+                )
+                screenshot_impl = gr.Dropdown(
+                    choices=['adb', 'adb_raw', 'uiautomator2'],
+                    value=self.current_config.backend.screenshot_impl,
+                    label="截图方法",
+                    info=BackendConfig.model_fields['screenshot_impl'].description,
+                    interactive=True
+                )
             
             # 商店购买设置
             purchase_settings = self._create_purchase_settings()
@@ -460,7 +470,7 @@ class KotoneBotUI:
             
             # 收集所有设置组件
             all_settings = [
-                adb_ip, adb_port,
+                adb_ip, adb_port, screenshot_impl,
                 *purchase_settings,
                 activity_funds,
                 presents,
@@ -530,9 +540,9 @@ class KotoneBotUI:
 
     def create_ui(self) -> gr.Blocks:
         self._load_config()
-        with gr.Blocks(title="KotoneBot Assistant", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
+        with gr.Blocks(title="琴音小助手", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
             with gr.Column(elem_id="container"):
-                gr.Markdown("# KotoneBot Assistant")
+                gr.Markdown("# 琴音小助手")
                 
                 with gr.Tabs():
                     self._create_status_tab()
