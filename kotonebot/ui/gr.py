@@ -13,6 +13,7 @@ from kotonebot.tasks.common import (
     MissionRewardConfig, PIdol, DailyMoneyShopItems
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
+from kotonebot.run.run import initialize, start, execute
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
 logging.getLogger("kotonebot").setLevel(logging.DEBUG)
@@ -23,7 +24,19 @@ class KotoneBotUI:
         self.log_queue: queue.Queue = queue.Queue()
         self.log_lock: Lock = Lock()
         self._setup_logger()
+        self._load_config()
+        self._setup_kaa()
         
+    def _setup_kaa(self) -> None:
+        initialize('kotonebot.tasks')
+        from kotonebot.backend.debug.vars import debug
+        if self.current_config.keep_screenshots:
+            debug.auto_save_to_folder = 'dumps'
+            debug.enabled = True
+        else:
+            debug.auto_save_to_folder = None
+            debug.enabled = False
+
     def _setup_logger(self) -> None:
         class QueueHandler(logging.Handler):
             def __init__(self, queue: queue.Queue) -> None:
@@ -86,14 +99,8 @@ class KotoneBotUI:
     
     def start_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = True
-        from kotonebot.run.run import initialize, start
-        from kotonebot.backend.debug.vars import debug
         initialize('kotonebot.tasks')
         self.run_status = start(config_type=BaseConfig)
-        if self.current_config.keep_screenshots:
-            debug.auto_save_to_folder = 'dumps'
-        else:
-            debug.auto_save_to_folder = None
         return "停止", self.update_task_status()
 
     def stop_run(self) -> Tuple[str, List[List[str]]]:
@@ -191,10 +198,11 @@ class KotoneBotUI:
         
         try:
             save_config(self.config, "config.json")
-            gr.update(visible=True)
-            return "设置已保存！"
+            gr.Success("设置已保存，请重启程序！")
+            return ""
         except Exception as e:
-            return f"保存设置失败：{str(e)}"
+            gr.Warning(f"保存设置失败：{str(e)}")
+            return ""
 
     def _create_status_tab(self) -> None:
         with gr.Tab("状态"):
@@ -227,6 +235,48 @@ class KotoneBotUI:
             gr.Timer(1.0).tick(
                 fn=self.update_task_status,
                 outputs=[task_status]
+            )
+
+    def _create_task_tab(self) -> None:
+        with gr.Tab("任务"):
+            gr.Markdown("## 执行任务")
+            
+            # 创建任务选择下拉框
+            task_choices = [task.name for task in task_registry.values()]
+            task_dropdown = gr.Dropdown(
+                choices=task_choices,
+                label="选择要执行的任务",
+                info="选择一个要单独执行的任务",
+                type="value",
+                value=None
+            )
+            
+            # 创建执行按钮
+            execute_btn = gr.Button("执行任务")
+            task_result = gr.Markdown("")
+            
+            # TODO: 实现任务执行逻辑
+            def execute_single_task(task_name: str) -> str:
+                if not task_name:
+                    gr.Warning("请先选择一个任务")
+                    return ""
+                task = None
+                for name, task in task_registry.items():
+                    if name == task_name:
+                        task = task
+                        break
+                if task is None:
+                    gr.Warning(f"任务 {task_name} 未找到")
+                    return ""
+                gr.Info(f"任务 {task_name} 开始执行。执行结束前，请勿重复点击执行。")
+                execute(task, config_type=BaseConfig)
+                gr.Success(f"任务 {task_name} 执行完毕")
+                return ""
+            
+            execute_btn.click(
+                fn=execute_single_task,
+                inputs=[task_dropdown],
+                outputs=[task_result]
             )
 
     def _create_purchase_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Dropdown, gr.Dropdown]:
@@ -552,13 +602,13 @@ class KotoneBotUI:
         self.current_config = self.config.user_configs[0]
 
     def create_ui(self) -> gr.Blocks:
-        self._load_config()
         with gr.Blocks(title="琴音小助手", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
             with gr.Column(elem_id="container"):
                 gr.Markdown("# 琴音小助手")
                 
                 with gr.Tabs():
                     self._create_status_tab()
+                    self._create_task_tab()
                     self._create_settings_tab()
                     self._create_log_tab()
             
