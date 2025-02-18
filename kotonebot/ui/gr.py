@@ -1,6 +1,7 @@
-import queue
+import os
+import zipfile
 import logging
-from threading import Lock
+from datetime import datetime
 from typing import List, Dict, Tuple, Literal
 
 import gradio as gr
@@ -15,15 +16,26 @@ from kotonebot.tasks.common import (
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.run.run import initialize, start, execute
 
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
+# 初始化日志
+os.makedirs('logs', exist_ok=True)
+log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
+log_filename = datetime.now().strftime('logs/%y-%m-%d-%H-%M-%S.log')
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+file_handler.setFormatter(log_formatter)
+
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(console_handler)
+root_logger.addHandler(file_handler)
+
 logging.getLogger("kotonebot").setLevel(logging.DEBUG)
 
 class KotoneBotUI:
     def __init__(self) -> None:
         self.is_running: bool = False
-        self.log_queue: queue.Queue = queue.Queue()
-        self.log_lock: Lock = Lock()
-        self._setup_logger()
         self._load_config()
         self._setup_kaa()
         
@@ -37,34 +49,40 @@ class KotoneBotUI:
             debug.auto_save_to_folder = None
             debug.enabled = False
 
-    def _setup_logger(self) -> None:
-        class QueueHandler(logging.Handler):
-            def __init__(self, queue: queue.Queue) -> None:
-                super().__init__()
-                self.queue = queue
-
-            def emit(self, record: logging.LogRecord) -> None:
-                self.queue.put(self.format(record))
-
-        # 创建日志处理器
-        queue_handler = QueueHandler(self.log_queue)
-        queue_handler.setFormatter(logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s'))
+    def export_dumps(self) -> str:
+        """导出 dumps 文件夹为 zip 文件"""
+        if not os.path.exists('dumps'):
+            return "dumps 文件夹不存在"
         
-        # 获取 kotonebot 的根日志记录器
-        logger = logging.getLogger("kotonebot")
-        logger.addHandler(queue_handler)
-        logger.setLevel(logging.DEBUG)
+        timestamp = datetime.now().strftime('%y-%m-%d-%H-%M-%S')
+        zip_filename = f'dumps-{timestamp}.zip'
+        
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
+            for root, dirs, files in os.walk('dumps'):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, 'dumps')
+                    zipf.write(file_path, arcname)
+        
+        return f"已导出到 {zip_filename}"
 
-    def get_logs(self, log_output: str) -> str:
-        logs: List[str] = []
-        while not self.log_queue.empty():
-            try:
-                log = self.log_queue.get_nowait()
-                logs.append(log)
-            except queue.Empty:
-                break
-        return log_output + "\n" + "\n".join(logs)
-    
+    def export_logs(self) -> str:
+        """导出 logs 文件夹为 zip 文件"""
+        if not os.path.exists('logs'):
+            return "logs 文件夹不存在"
+        
+        timestamp = datetime.now().strftime('%y-%m-%d-%H-%M-%S')
+        zip_filename = f'logs-{timestamp}.zip'
+        
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
+            for root, dirs, files in os.walk('logs'):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, 'logs')
+                    zipf.write(file_path, arcname)
+        
+        return f"已导出到 {zip_filename}"
+
     def get_button_status(self) -> str:
         if not hasattr(self, 'run_status'):
             return "启动"
@@ -553,36 +571,19 @@ class KotoneBotUI:
         with gr.Tab("日志"):
             gr.Markdown("## 日志")
             
-            # 创建日志文本区域
-            log_output = gr.TextArea(
-                label="日志输出",
-                value="",
-                lines=20,
-                max_lines=20,
-                interactive=False,
-                autoscroll=True
+            with gr.Column():
+                with gr.Row():
+                    export_dumps_btn = gr.Button("导出 dump")
+                    export_logs_btn = gr.Button("导出日志")
+                result_text = gr.Markdown("等待操作\n\n\n")
+            
+            export_dumps_btn.click(
+                fn=self.export_dumps,
+                outputs=[result_text]
             )
-            
-            with gr.Row():
-                export_btn = gr.Button("导出日志")
-                clear_btn = gr.Button("清除日志")
-            
-            def clear_logs() -> str:
-                with self.log_lock:
-                    while not self.log_queue.empty():
-                        self.log_queue.get_nowait()
-                return ""
-            
-            clear_btn.click(
-                fn=clear_logs,
-                outputs=[log_output]
-            )
-            
-            # 添加自动更新定时器
-            gr.Timer(1.0).tick(
-                fn=self.get_logs,
-                inputs=[log_output],
-                outputs=[log_output]
+            export_logs_btn.click(
+                fn=self.export_logs,
+                outputs=[result_text]
             )
 
     def _load_config(self) -> None:
