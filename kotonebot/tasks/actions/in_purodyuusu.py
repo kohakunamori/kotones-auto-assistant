@@ -682,8 +682,9 @@ def produce_end():
     # [screenshots/produce_end/end_activity.png]
     # [screenshots/produce_end/end_activity1.png]
     # [screenshots/produce_end/end_follow.png]
+    # [screenshots/produce_end/end_level_up.png]
     while not at_home():
-        if image.find(R.Common.ButtonClose):
+        if image.find(R.Common.ButtonIconClose):
             logger.info("Activity award claim dialog found. Click to close.")
             device.click()
         elif image.find(R.Common.ButtonNextNoIcon, colored=True):
