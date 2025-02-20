@@ -25,7 +25,7 @@ pip show ksaa
 
 echo =========== ÔËÐÐ KAA ===========
 :RUN
-ksaa
+kaa
 if errorlevel 1 (
     goto ERROR
 )
