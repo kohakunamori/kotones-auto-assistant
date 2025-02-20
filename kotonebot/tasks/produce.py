@@ -172,10 +172,15 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
         .until(contains('開始確認'), rect=R.Produce.BoxStepIndicator)
     ).run()
     # 4. 选择道具 [screenshots/produce/select_end.png]
+    # TODO: 如果道具不足，这里加入推送提醒
     if conf().produce.use_note_boost:
-        device.click(image.expect_wait(R.Produce.CheckboxIconNoteBoost))
+        if image.find(R.Produce.CheckboxIconNoteBoost):
+            device.click()
+            sleep(0.2)
     if conf().produce.use_pt_boost:
-        device.click(image.expect_wait(R.Produce.CheckboxIconSupportPtBoost))
+        if image.find(R.Produce.CheckboxIconSupportPtBoost):
+            device.click()
+            sleep(0.2)
     device.click(image.expect_wait(R.Produce.ButtonProduceStart))
     # 5. 相关设置弹窗 [screenshots/produce/skip_commu.png]
     cd = Countdown(5).start()
