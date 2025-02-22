@@ -1,6 +1,8 @@
 import logging
 from typing import Callable
 
+from kotonebot.backend.util import Interval
+
 
 from .. import R
 from .loading import loading
@@ -13,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 @action('检测是否位于首页')
 def at_home() -> bool:
-    with cropped(device, y1=0.7):
-        return image.find(R.Daily.ButtonHomeCurrent) is not None
+    return image.find(R.Daily.ButtonHomeCurrent) is not None
 
 @action('检测是否位于日常商店页面')
 def at_daily_shop() -> bool:
@@ -31,7 +32,7 @@ def at_daily_shop() -> bool:
         else:
             return False
 
-@action('返回首页')
+@action('返回首页', screenshot_mode='manual-inherit')
 def goto_home():
     """
     从其他场景返回首页。
@@ -40,16 +41,27 @@ def goto_home():
     结束状态：位于首页
     """
     logger.info("Going home.")
-    with cropped(device, y1=0.7):
-        if home := toolbar_home():
-            device.click(home)
-            while loading():
-                pass
-        elif image.find(R.Common.ButtonHome):
+    it = Interval()
+    while True:
+        device.screenshot()
+        if at_home():
+            logger.info("At home.")
+            break
+        if image.find(R.Common.ButtonHome):
             device.click()
-        else:
-            raise UnrecoverableError("Failed to go home.")
-    image.expect_wait(R.Daily.ButtonHomeCurrent, timeout=20)
+            logger.debug("Clicked home button.")
+            sleep(0.2)
+        elif home := toolbar_home():
+            device.click(home)
+            logger.debug("Clicked toolbar home button.")
+            sleep(0.2)
+        # 課題CLEAR [screenshots/go_home/quest_clear.png] 
+        elif image.find(R.Common.ButtonIconClose):
+            device.click()
+            logger.debug("Clicked close button.")
+            sleep(0.2)
+        
+        it.wait()
 
 @action('前往商店页面')
 def goto_shop():
@@ -65,14 +77,6 @@ def goto_shop():
     device.click(image.expect(R.Daily.ButtonShop))
     until(at_daily_shop, critical=True)
 
-
-@action('测试颜色')
-def test():
-    from kotonebot import color
-    while True:
-        print(color.find_rgb('#ffffff', threshold=0.9999))
-        print(image.find(R.Common.ButtonHome))
-
 if __name__ == "__main__":
     import time
-    test()
+    goto_home()
