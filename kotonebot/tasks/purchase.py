@@ -163,7 +163,8 @@ def purchase():
         goto_shop()
     # 进入每日商店 [screenshots\shop\shop.png]
     device.click(image.expect(R.Daily.ButtonDailyShop)) # TODO: memoable
-    sleep(1)
+    # 等待载入
+    ap_tab = image.expect_wait(R.Daily.TextTabShopAp)
 
     # 购买マニー物品
     if conf().purchase.money_enabled:
@@ -176,7 +177,7 @@ def purchase():
     # 购买 AP 物品
     if conf().purchase.ap_enabled:
         # 点击 AP 选项卡
-        device.click(image.expect_wait(R.Daily.TextTabShopAp, timeout=2)) # TODO: memoable
+        device.click(ap_tab)
         # 等待 AP 选项卡加载完成
         image.expect_wait(R.Daily.IconShopAp)
         ap_items()
