@@ -75,6 +75,7 @@ AcquisitionType = Literal[
     "PSkillCardChange", # 技能卡更换
     "PSkillCardSelect", # 技能卡选择
     "PSkillCardEnhance", # 技能卡强化
+    "PSkillCardRemove", # 技能卡移除
     "PItemClaim", # P物品领取
     "PItemSelect", # P物品选择
     "Clear", # 目标达成
@@ -202,6 +203,12 @@ def acquisitions() -> AcquisitionType | None:
             logger.info("Enhance skill card found")
             device.click(*bottom_pos)
             return "PSkillCardEnhance"
+        # 技能卡移除
+        # [screenshots\produce\in_produce\skill_card_removal.png]
+        if "削除" in result.text:
+            logger.info("Remove skill card found")
+            device.click(*bottom_pos)
+            return "PSkillCardRemove"
     
     # 技能卡获取
     # [res/sprites/jp/in_purodyuusu/screenshot_skill_card_acquired.png]
