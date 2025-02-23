@@ -3,6 +3,7 @@ import zipfile
 import logging
 from datetime import datetime
 from typing import List, Dict, Tuple, Literal
+import importlib.metadata
 
 import gradio as gr
 
@@ -605,7 +606,8 @@ class KotoneBotUI:
     def create_ui(self) -> gr.Blocks:
         with gr.Blocks(title="琴音小助手", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
             with gr.Column(elem_id="container"):
-                gr.Markdown("# 琴音小助手")
+                version = importlib.metadata.version('ksaa')
+                gr.Markdown(f"# 琴音小助手 v{version}")
                 
                 with gr.Tabs():
                     self._create_status_tab()
