@@ -107,20 +107,23 @@ def acquisitions() -> AcquisitionType | None:
         return "PDrinkAcquire"
     # P饮料到达上限
     logger.debug("Check PDrink max...")
+    # TODO: 需要封装一个更好的实现方式。比如 wait_stable？
     if image.find(R.InPurodyuusu.TextPDrinkMax):
-        logger.info("PDrink max found")
-        while True:
-            # TODO: 这里会因为截图速度过快，截图截到中间状态的弹窗。
-            # 然后又因为从截图、识别、发出点击到实际点击中间又延迟，
-            # 过了这段时间后，原来中间状态按钮所在的位置已经变成了其他
-            # 的东西，导致误点击
-            if image.find(R.InPurodyuusu.ButtonLeave, colored=True): # mark
-                device.click()
-            elif image.find(R.Common.ButtonConfirm):
-                device.click()
-                break     
-            device.screenshot()
-        return "PDrinkMax"
+        logger.debug("PDrink max found")
+        device.screenshot()
+        if image.find(R.InPurodyuusu.TextPDrinkMax):
+            if leave := image.find(R.InPurodyuusu.ButtonLeave, colored=True):
+                logger.info("Leave button found")
+                device.click(leave)
+                return "PDrinkMax"
+    if ocr.find(contains('報酬'), rect=R.InPurodyuusu.BoxPDrinkMaxConfirmTitle):
+        logger.debug("PDrink max confirm found")
+        device.screenshot()
+        if ocr.find(contains('報酬'), rect=R.InPurodyuusu.BoxPDrinkMaxConfirmTitle):
+            if confirm := image.find(R.Common.ButtonConfirm):
+                logger.info("Confirm button found")
+                device.click(confirm)
+                return "PDrinkMax"
     # 技能卡领取
     logger.debug("Check skill card acquisition...")
     if image.find_multi([
