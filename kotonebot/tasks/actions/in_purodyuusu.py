@@ -679,17 +679,21 @@ def produce_end():
 
     # 点击结束后可能还会弹出来：
     # 活动进度、关注提示
-    # [screenshots/produce_end/end_activity.png]
-    # [screenshots/produce_end/end_activity1.png]
-    # [screenshots/produce_end/end_follow.png]
-    # [screenshots/produce_end/end_level_up.png]
     while not at_home():
+        # 活动积分进度 奖励领取
+        # [screenshots/produce_end/end_activity1.png]
+        # 制作人 升级
+        # [screenshots/produce_end/end_level_up.png]
         if image.find(R.Common.ButtonIconClose):
             logger.info("Activity award claim dialog found. Click to close.")
             device.click()
+        # 活动积分进度
+        # [screenshots/produce_end/end_activity.png]
         elif image.find(R.Common.ButtonNextNoIcon, colored=True):
             logger.debug("Click next")
             device.click()
+        # 关注制作人
+        # [screenshots/produce_end/end_follow.png]
         elif image.find(R.InPurodyuusu.ButtonCancel):
             logger.info("Follow producer dialog found. Click to close.")
             if conf().produce.follow_producer:
@@ -698,6 +702,11 @@ def produce_end():
             else:
                 logger.info("Skip follow producer")
                 device.click()
+        # 偶像强化月 新纪录达成
+        # [kotonebot-resource/sprites/jp/in_purodyuusu/screenshot_new_record.png]
+        elif image.find(R.Common.ButtonOK):
+            logger.info("OK button found. Click to close.")
+            device.click()
         else:
             device.click_center()
         sleep(1)
