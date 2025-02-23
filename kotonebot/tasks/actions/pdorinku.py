@@ -42,10 +42,10 @@ def acquire_pdorinku(index: int):
     # 如果能不领取，就不领取
     if ocr.find(contains('受け取らない')):
         device.click()
-        sleep(0.5)
-        device.click(image.expect(R.InPurodyuusu.ButtonNotAcquire))
-        sleep(0.5)
-        device.click(image.expect(R.Common.ButtonConfirm))
+        sleep(0.3)
+        device.click(image.expect_wait(R.InPurodyuusu.ButtonNotAcquire))
+        sleep(0.3)
+        device.click(image.expect_wait(R.Common.ButtonConfirm))
     else:
         # 点击饮料
         drinks = list_pdorinku()
