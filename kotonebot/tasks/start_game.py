@@ -1,7 +1,8 @@
 """启动游戏，领取登录奖励，直到首页为止"""
 import logging
 
-from kotonebot import task, device, image, cropped, AdaptiveWait, sleep
+from kotonebot import task, device, image, cropped, AdaptiveWait, sleep, ocr
+from kotonebot.errors import GameUpdateNeededError
 from . import R
 from .common import Priority
 from .actions.loading import loading
@@ -38,6 +39,9 @@ def start_game():
             # [screenshots/startup/update.png]
             elif image.find(R.Common.TextGameUpdate):
                 device.click(image.expect(R.Common.ButtonConfirm))
+            # [kotonebot-resource/sprites/jp/daily/screenshot_apk_update.png]
+            elif ocr.find('アップデート', rect=R.Daily.BoxApkUpdateDialogTitle):
+                raise GameUpdateNeededError()
             # [screenshots/startup/announcement1.png]
             elif image.find(R.Common.ButtonIconClose):
                 device.click()
