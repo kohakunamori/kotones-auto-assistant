@@ -17,7 +17,7 @@ def acquire_activity_funds():
     if not at_home():
         goto_home()
     device.screenshot()
-    if color.find_rgb('#ff1249', rect=R.Daily.BoxHomeActivelyFunds):
+    if color.find('#ff1249', rect=R.Daily.BoxHomeActivelyFunds):
         logger.info('Claiming activity funds.')
         device.click(R.Daily.BoxHomeActivelyFunds)
         device.click(image.expect_wait(R.Common.ButtonClose))

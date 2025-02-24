@@ -20,7 +20,7 @@ def acquire_presents():
     rect = present.rect
     # 判断是否存在未领取礼物
     color_rect = rect_expand(rect, top=50, right=50)
-    if not color.find_rgb('#ff1249', rect=color_rect):
+    if not color.find('#ff1249', rect=color_rect):
         logger.info('No presents to claim.')
         return
     # 点击礼物图标

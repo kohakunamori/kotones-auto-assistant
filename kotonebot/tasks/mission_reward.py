@@ -21,7 +21,7 @@ def check_and_goto_mission() -> bool:
     rect = image.expect_wait(R.Daily.ButtonMission, timeout=1).rect
     # 向上、向右扩展 50px
     color_rect = rect_expand(rect, top=50, right=50)
-    if not color.find_rgb('#ff1249', rect=color_rect):
+    if not color.find('#ff1249', rect=color_rect):
         logger.info('No mission reward to claim.')
         return False
     # 点击任务奖励图标
@@ -54,21 +54,15 @@ def claim_mission_reward(name: str):
 def claim_mission_rewards():
     """领取任务奖励"""
     # [screenshots/mission/daily.png]
-    # デイリー Daily
-    claim_mission_reward('デイリー')
-    # ウィークリー Weekly
-    device.swipe_scaled(0.8, 0.5, 0.2, 0.5)
-    sleep(0.5)
-    claim_mission_reward('ウィークリー')
-    # ノーマル Normal
-    device.swipe_scaled(0.8, 0.5, 0.2, 0.5)
-    sleep(0.5)
-    claim_mission_reward('ノーマル')
-    # 期間限定
-    device.swipe_scaled(0.8, 0.5, 0.2, 0.5)
-    sleep(0.5)
-    claim_mission_reward('期間限定')
-    
+    logger.info('Claiming daily mission rewards.')
+    red_dots = color.find_all('#ff1249', rect=R.Daily.BoxMissonTabs)
+    logger.debug(f'Found {len(red_dots)} red dots.')
+    for i, dot in enumerate(red_dots, 1):
+        logger.debug(f'Red dot at {dot.position} with similarity {dot.confidence:.2f}.')
+        device.click(*dot.position)
+        sleep(0.2)
+        claim_mission_reward(f'#{i} {dot.position}')
+    logger.info('All daily mission rewards claimed.')
 
 @action('通行证奖励')
 def claim_pass_reward():
@@ -77,35 +71,31 @@ def claim_pass_reward():
     pass_rect = image.expect_wait(R.Daily.ButtonIconPass, timeout=1).rect
     # 向右扩展 150px，向上扩展 35px
     color_rect = (pass_rect[0], pass_rect[1] - 35, pass_rect[2] + 150, pass_rect[3] + 35)
-    if not color.find_rgb('#ff1249', rect=color_rect):
+    if not color.find('#ff1249', rect=color_rect):
         logger.info('No pass reward to claim.')
         return
     logger.info('Claiming pass reward.')
     logger.debug('Clicking パス button.')
     device.click()
-    sleep(0.5)
     # [screenshots/mission/pass.png]
     # 对话框 [screenshots/mission/pass_dialog.png]
     while not image.find(R.Daily.IconTitlePass):
         if image.find(R.Common.ButtonIconClose):
             logger.debug('Closing popup dialog.')
             device.click()
-            sleep(1)
-        sleep(0.5)
+        sleep(0.2)
     logger.debug('Pass screen loaded.')
-    while image.find(R.Daily.ButtonPassClaim, colored=True):
-        logger.debug('Clicking 受取 button.')
-        device.click()
-        sleep(1.5)
-        while not image.find(R.Daily.ButtonPassClaim):
-            if image.find(R.Common.ButtonIconClose):
-                logger.debug('Closing popup dialog.')
-                device.click()
-                sleep(1)
-            sleep(0.5)
-        sleep(1.5)
+    while True:
+        if image.find(R.Common.ButtonIconClose):
+            logger.debug('Closing popup dialog.')
+            device.click()
+        elif image.find(R.Daily.ButtonPassClaim, colored=True):
+            logger.debug('Clicking 受取 button.')
+            device.click()
+        elif not image.find(R.Daily.ButtonPassClaim, colored=True) and image.find(R.Daily.IconTitlePass):
+            break
+        sleep(0.2)
     logger.info('All pass rewards claimed.')
-
 
 @action('活动奖励')
 def claim_event_reward():
@@ -124,9 +114,11 @@ def mission_reward():
     logger.info('Claiming mission rewards.')
     if not at_home():
         goto_home()
+    # TODO: 这个 MISSION 按钮上的红点只会指示 MISSON 的领取
+    # PASS 的领取需要另外判断
     if not check_and_goto_mission():
         return
-    sleep(0.7)
+    image.expect_wait(R.Daily.ButtonIconPass)
     claim_mission_rewards()
     sleep(0.5)
     claim_pass_reward()
@@ -138,6 +130,8 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     logging.getLogger('kotonebot').setLevel(logging.DEBUG)
     logger.setLevel(logging.DEBUG)
+    from .common import conf
+    conf().mission_reward.enabled = True
     
     # if image.find(R.Common.CheckboxUnchecked):
     #     logger.debug('Checking skip all.')
@@ -146,3 +140,4 @@ if __name__ == '__main__':
     # device.click(image.expect(R.Daily.ButtonIconSkip, colored=True, transparent=True, threshold=0.999))
     # mission_reward()
     claim_pass_reward()
+    # claim_mission_rewards()

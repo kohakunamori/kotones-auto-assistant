@@ -348,7 +348,7 @@ def obtain_cards(img: MatLike | None = None):
     logger.info("Current cards: %s", len(cards_rects))
     cards = []
     for result in cards_rects:
-        available = color.find_rgb('#7a7d7d', rect=result.rect) is None
+        available = color.find('#7a7d7d', rect=result.rect) is None
         cards.append(SkillCard(available=available, rect=result.rect))
     return cards
 

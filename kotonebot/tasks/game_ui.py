@@ -30,9 +30,9 @@ def button_state(*, target: Image | None = None, rect: Rect | None = None) -> bo
         _rect = result.rect
     else:
         raise ValueError('Either rect or target must be provided.')
-    if color.find_rgb('#babcbd', rect=_rect):
+    if color.find('#babcbd', rect=_rect):
         return False
-    elif color.find_rgb('#ffffff', rect=_rect):
+    elif color.find('#ffffff', rect=_rect):
         return True
     else:
         raise ValueError(f'Unknown button state: {img}')

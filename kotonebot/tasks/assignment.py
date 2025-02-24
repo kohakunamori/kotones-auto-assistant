@@ -153,10 +153,10 @@ def assignment():
     notification_rect = rect_expand(btn_assignment.rect, top=40, right=40)
     complete_rect = rect_expand(btn_assignment.rect, right=40, bottom=60)
     with device.pinned():
-        completed = color.find_rgb('#ff6085', rect=complete_rect)
+        completed = color.find('#ff6085', rect=complete_rect)
         if completed:
             logger.info('Assignment completed. Acquiring...')
-        notification_dot = color.find_rgb('#ff134a', rect=notification_rect)
+        notification_dot = color.find('#ff134a', rect=notification_rect)
         if not notification_dot and not completed:
             logger.info('No action needed.')
             # TODO: 获取剩余时间，并根据时间更新调度

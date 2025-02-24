@@ -81,6 +81,7 @@ def pick_and_contest(has_ongoing_contest: bool = False) -> bool:
         sleep(0.5)
     # 点击 SKIP
     logger.debug('Clicking on SKIP.')
+    # TODO: 改为二值化图片
     device.click(image.expect(R.Daily.ButtonIconSkip, colored=True, transparent=True, threshold=0.999))
     while not image.wait_for(R.Common.ButtonNextNoIcon, timeout=2):
         device.click_center()
@@ -115,7 +116,7 @@ def contest():
     sleep(0.3)
     btn_contest = image.expect(R.Common.ButtonContest)
     notification_dot = rect_expand(btn_contest.rect, top=35, right=35)
-    if not color.find_rgb('#ff104a', rect=notification_dot):
+    if not color.find('#ff104a', rect=notification_dot):
         logger.info('No action needed.')
         return
     has_ongoing_contest = goto_contest()
