@@ -42,10 +42,11 @@ class KotoneBotUI:
         
     def _setup_kaa(self) -> None:
         initialize('kotonebot.tasks')
-        from kotonebot.backend.debug.vars import debug
+        from kotonebot.backend.debug.vars import debug, clear_saved
         if self.current_config.keep_screenshots:
             debug.auto_save_to_folder = 'dumps'
             debug.enabled = True
+            clear_saved()
         else:
             debug.auto_save_to_folder = None
             debug.enabled = False
