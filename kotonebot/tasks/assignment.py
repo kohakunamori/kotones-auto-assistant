@@ -56,6 +56,7 @@ def assign(type: Literal['mini', 'online']) -> bool:
         raise ValueError(f'Invalid type: {type}')
     # MiniLive/OnlineLive 页面 [screenshots/assignment/assign_mini_live.png]
     image.expect_wait(R.Common.ButtonSelect, timeout=5)
+    logger.info('Now at assignment idol selection scene.')
     # 选择好调偶像
     selected = False
     max_attempts = 4
@@ -63,10 +64,12 @@ def assign(type: Literal['mini', 'online']) -> bool:
     while not selected:
         # 寻找所有好调图标
         results = image.find_all(R.Daily.IconAssignKouchou, threshold=0.8)
-        results.sort(key=lambda r: tuple(r.position))
+        logger.debug(f'Found {len(results)} kouchou icons.')
+        results.sort(key=lambda r: r.position[1])
         results.pop(0) # 第一个是说明文字里的图标
         # 尝试点击所有目标
         for target in results:
+            logger.debug(f'Clicking idol #{target}...')
             with cropped(device, y2=0.3):
                 img1 = device.screenshot()
                 # 选择偶像并判断是否选择成功
@@ -188,4 +191,5 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     logger.setLevel(logging.DEBUG)
     # assignment()
-    print(get_remaining_time())
+    # print(get_remaining_time())
+    assign('online')
