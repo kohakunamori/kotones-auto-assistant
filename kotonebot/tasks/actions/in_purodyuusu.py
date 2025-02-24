@@ -302,6 +302,7 @@ def skill_card_count(img: MatLike | None = None):
     img = crop(img, y1=0.83, y2=0.90)
     count = image.raw().count(img, R.InPurodyuusu.A)
     count += image.raw().count(img, R.InPurodyuusu.M)
+    count += image.raw().count(img, R.InPurodyuusu.T)
     logger.info("Current skill card count: %d", count)
     return count
 
@@ -343,7 +344,8 @@ def obtain_cards(img: MatLike | None = None):
     img = use_screenshot(img)
     cards_rects = image.find_all_multi([
         R.InPurodyuusu.A,
-        R.InPurodyuusu.M
+        R.InPurodyuusu.M,
+        R.InPurodyuusu.T
     ])
     logger.info("Current cards: %s", len(cards_rects))
     cards = []
