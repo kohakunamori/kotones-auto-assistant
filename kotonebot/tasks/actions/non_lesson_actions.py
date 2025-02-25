@@ -1,19 +1,17 @@
 """
-此文件包含非练习周的行动。
+此文件包含非练习/考试的行动。
 
 具体包括：おでかけ、相談、活動支給、授業
 """
 from logging import getLogger
 
-from kotonebot.backend.dispatch import SimpleDispatcher
-from kotonebot.backend.util import Interval
-
 from .. import R
-from ..game_ui import CommuEventButtonUI, EventButton
-from .common import acquisitions, AcquisitionType
-from kotonebot import device, image, ocr, debug, action, sleep
+from .common import acquisitions
+from ..game_ui import CommuEventButtonUI
+from kotonebot.backend.util import Interval
 from kotonebot.errors import UnrecoverableError
-from ..actions.loading import wait_loading_end, wait_loading_start
+from kotonebot import device, image, action, sleep
+from kotonebot.backend.dispatch import SimpleDispatcher
 
 logger = getLogger(__name__)
 
@@ -123,6 +121,13 @@ def rest():
         .click(R.InPurodyuusu.RestConfirmBtn, finish=True)
     ).run()
 
+@action('判断是否处于行动页面')
+def at_action_scene():
+    return image.find_multi([
+        R.InPurodyuusu.TextPDiary, # 普通周
+        R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
+    ]) is not None
+
 if __name__ == '__main__':
     from kotonebot.backend.context import manual_context, init_context
     init_context()
@@ -146,3 +151,55 @@ if __name__ == '__main__':
     while acquisitions() is None:
         logger.info("Waiting for acquisitions finished.")
     logger.info("授業 completed.")
+
+@action('判断是否可以外出')
+def outing_available():
+    """
+    判断是否可以外出（おでかけ）。
+    """
+    return image.find(R.InPurodyuusu.ButtonIconOuting) is not None
+
+@action('执行外出')
+def enter_outing():
+    """
+    执行外出（おでかけ）。
+
+    前置条件：位于行动页面，且所有行动按钮清晰可见 \n
+    结束状态：位于行动页面
+    """
+    logger.info("Executing おでかけ.")
+    # 点击外出
+    logger.info("Double clicking on おでかけ.")
+    device.double_click(image.expect(R.InPurodyuusu.ButtonIconOuting))
+    # 等待进入页面
+    while not image.find(R.InPurodyuusu.TitleIconOuting):
+        logger.debug("Waiting for おでかけ screen.")
+        acquisitions()
+    # 固定选中第二个选项
+    # TODO: 可能需要二次处理外出事件
+    # [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_outing.png]
+    ui = CommuEventButtonUI()
+    buttons = ui.all()
+    if not buttons:
+        raise UnrecoverableError("Failed to find any buttons.")
+    target_btn = buttons[1]
+    logger.debug('Clicking "%s".', target_btn.description)
+    if target_btn.selected:
+        device.click(target_btn)
+    else:
+        device.double_click(target_btn)
+    it = Interval()
+    while True:
+        device.screenshot()
+        if at_action_scene():
+            break
+        elif acquisitions():
+            pass
+        # [screenshots\produce\outing_ap_confirm.png]
+        elif image.find(R.Common.ButtonSelect):
+            logger.info("AP max out dialog found. Click to continue.")
+            device.click()
+            sleep(0.1)
+        it.wait()
+
+    logger.info("おでかけ completed.")

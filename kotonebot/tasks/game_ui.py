@@ -107,7 +107,13 @@ class EventButton:
 
 # 参考图片：
 # [screenshots/produce/action_study3.png]
+# TODO: CommuEventButtonUI 需要能够识别不可用的按钮
 class CommuEventButtonUI:
+    """
+    此类用于识别培育中交流中出现的事件/效果里的按钮。
+
+    例如外出（おでかけ）、冲刺周课程选择这两个页面的选择按钮。
+    """
     def __init__(
         self,
         selected_colors: list[tuple[HsvColor, HsvColor]] = DEFAULT_COLORS,

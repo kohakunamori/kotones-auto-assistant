@@ -21,8 +21,10 @@ from kotonebot.backend.util import AdaptiveWait, Countdown, crop, cropped
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
 from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect, wait
 from .non_lesson_actions import (
-    enter_allowance, allowance_available, study_available, enter_study,
-    is_rest_available, rest
+    enter_allowance, allowance_available,
+    study_available, enter_study,
+    is_rest_available, rest,
+    outing_available, enter_outing
 )
 
 class SkillCard(NamedTuple):
@@ -480,6 +482,8 @@ def practice():
     (SimpleDispatcher('practice.end')
         .click(contains("上昇"), finish=True, log="Click to finish 上昇")
         .until(contains("審査基準"))
+        # 弹出 P 饮料溢出对话框时，背景模糊，导致上面两个都检测不到
+        .until(R.InPurodyuusu.TextPDrinkMax)
         .click('center')
     ).run()
 
@@ -727,7 +731,9 @@ def week_normal(week_first: bool = False):
         pass
     # 没有推荐行动
     elif executed_action is None:
-        if allowance_available():
+        if outing_available():
+            enter_outing()
+        elif allowance_available():
             enter_allowance()
         elif study_available():
             enter_study()

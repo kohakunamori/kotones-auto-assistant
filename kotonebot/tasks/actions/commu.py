@@ -46,11 +46,11 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
         return any(color.raw().in_range(c, RANGE) for c in colors)
     
     # 防止截图速度过快时，截图到了未加载完全的画面
-    cd = Interval()
+    cd = Interval(seconds=0.6)
     hit = 0
     HIT_THRESHOLD = 2
     while True:
-        if not is_fastforwarding():
+        if image.find(R.Common.ButtonCommuFastforward) and not is_fastforwarding():
             logger.debug("Unread commu hit %d/%d", hit, HIT_THRESHOLD)
             hit += 1
         else:
