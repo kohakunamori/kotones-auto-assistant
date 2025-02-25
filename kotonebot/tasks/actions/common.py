@@ -67,6 +67,36 @@ def select_p_item():
     sleep(0.5)
     device.click(ocr.expect_wait('受け取る'))
 
+@action('技能卡强化', screenshot_mode='manual-inherit')
+def hanlde_skill_card_enhance():
+    """
+    前置条件：技能卡强化对话框\n
+    结束条件：技能卡强化动画结束后瞬间
+
+    :return: 是否成功处理对话框
+    """
+    # 前置条件 [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_skill_card_enhane.png]
+    # 结束条件 [screenshots/produce/in_produce/skill_card_enhance.png]
+    cards = image.find_multi([
+        R.InPurodyuusu.A,
+        R.InPurodyuusu.M
+    ])
+    if cards is None:
+        logger.info("No skill cards found")
+        return False
+    logger.debug("Clicking first skill card.")
+    device.click(cards)
+    it = Interval()
+    while True:
+        device.screenshot()
+        if image.find(R.InPurodyuusu.ButtonEnhance, colored=True):
+            device.click()
+        elif '強化' in ocr.ocr(rect=R.InPurodyuusu.BoxSkillCardEnhaced).squash().text:
+            device.click_center()
+            break
+        it.wait()
+    logger.debug("Handle skill card enhance finished.")
+
 AcquisitionType = Literal[
     "PDrinkAcquire", # P饮料被动领取
     "PDrinkSelect", # P饮料主动领取
@@ -74,7 +104,8 @@ AcquisitionType = Literal[
     "PSkillCardAcquire", # 技能卡领取
     "PSkillCardChange", # 技能卡更换
     "PSkillCardSelect", # 技能卡选择
-    "PSkillCardEnhance", # 技能卡强化
+    "PSkillCardEnhanced", # 技能卡强化
+    "PSkillCardEnhanceSelect", # 技能卡强化选择
     "PSkillCardRemove", # 技能卡移除
     "PItemClaim", # P物品领取
     "PItemSelect", # P物品选择
@@ -133,6 +164,11 @@ def acquisitions() -> AcquisitionType | None:
         logger.info("Acquire skill card found")
         device.click_center()
         return "PSkillCardAcquire"
+
+    # 技能卡强化选择
+    if image.find(R.InPurodyuusu.IconTitleSkillCardEnhance):
+        if hanlde_skill_card_enhance():
+            return "PSkillCardEnhanceSelect"
 
     # 目标达成
     logger.debug("Check gloal clear...")
@@ -205,7 +241,7 @@ def acquisitions() -> AcquisitionType | None:
         if "強化" in result.text:
             logger.info("Enhance skill card found")
             device.click(*bottom_pos)
-            return "PSkillCardEnhance"
+            return "PSkillCardEnhanced"
         # 技能卡移除
         # [screenshots\produce\in_produce\skill_card_removal.png]
         if "削除" in result.text:
