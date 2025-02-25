@@ -4,7 +4,7 @@ from typing import Optional, Literal
 
 from kotonebot.backend.context.context import wait
 from kotonebot.ui import user
-from kotonebot.backend.util import Countdown
+from kotonebot.backend.util import Countdown, Interval
 from kotonebot.backend.dispatch import SimpleDispatcher
 
 from . import R
@@ -157,10 +157,17 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
     device.click(image.expect_wait(R.Common.ButtonNextNoIcon))
     # 2. 选择支援卡 自动编成 [screenshots/produce/select_support_card.png]
     ocr.expect_wait(contains('サポート'), rect=R.Produce.BoxStepIndicator)
-    device.click(image.expect_wait(R.Produce.ButtonAutoSet))
-    wait(0.5, before='screenshot')
-    device.click(image.expect_wait(R.Common.ButtonConfirm, colored=True))
-    device.click(image.expect_wait(R.Common.ButtonNextNoIcon, colored=True))
+    it = Interval()
+    while True:
+        if image.find(R.Common.ButtonNextNoIcon, colored=True):
+            device.click()
+            break
+        elif image.find(R.Produce.ButtonAutoSet):
+            device.click()
+        elif image.find(R.Common.ButtonConfirm, colored=True):
+            device.click()
+        device.screenshot()
+        it.wait()
     # 3. 选择回忆 自动编成 [screenshots/produce/select_memory.png]
     ocr.expect_wait(contains('メモリー'), rect=R.Produce.BoxStepIndicator)
     device.click(image.expect_wait(R.Produce.ButtonAutoSet))
@@ -252,7 +259,7 @@ if __name__ == '__main__':
     from kotonebot.tasks.common import BaseConfig
     init_context(config_type=BaseConfig)
     conf().produce.enabled = True
-    conf().produce.mode = 'regular'
+    conf().produce.mode = 'pro'
     # conf().produce.idols = [PIdol.花海佑芽_学園生活]
     produce_task()
     # a()
