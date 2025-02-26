@@ -1,10 +1,12 @@
 import os
 import zipfile
 import logging
-from datetime import datetime
-from typing import List, Dict, Tuple, Literal
+from functools import partial
+from datetime import datetime, timedelta
+from typing import List, Dict, Tuple, Literal, Generator
 import importlib.metadata
 
+import cv2
 import gradio as gr
 
 from kotonebot.backend.context import task_registry
@@ -33,6 +35,95 @@ root_logger.addHandler(console_handler)
 root_logger.addHandler(file_handler)
 
 logging.getLogger("kotonebot").setLevel(logging.DEBUG)
+
+def _save_bug_report(
+    path: str
+) -> Generator[str, None, str]:
+    """
+    保存错误报告
+
+    :param path: 保存的路径。若为 `None`，则保存到 `./reports/{YY-MM-DD HH-MM-SS}.zip`。
+    :return: 保存的路径
+    """
+    from kotonebot import device
+    from kotonebot.backend.context import ContextStackVars
+    
+    # 确保目录存在
+    os.makedirs('logs', exist_ok=True)
+    os.makedirs('reports', exist_ok=True)
+
+    error = ""
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
+        # 打包截图
+        yield "### 打包上次截图..."
+        try:
+            stack = ContextStackVars.current()
+            screenshot = None
+            if stack is not None:
+                screenshot = stack._screenshot
+                if screenshot is not None:
+                    img = cv2.imencode('.png', screenshot)[1].tobytes()
+                    zipf.writestr('last_screenshot.png', img)
+            if screenshot is None:
+                error += "无上次截图数据\n"
+        except Exception as e:
+            error += f"保存上次截图失败：{str(e)}\n"
+
+        # 打包当前截图
+        yield "### 打包当前截图..."
+        try:
+            screenshot = device.screenshot()
+            img = cv2.imencode('.png', screenshot)[1].tobytes()
+            zipf.writestr('current_screenshot.png', img)
+        except Exception as e:
+            error += f"保存当前截图失败：{str(e)}\n"
+
+        # 打包配置文件
+        yield "### 打包配置文件..."
+        try:
+            with open('config.json', 'r', encoding='utf-8') as f:
+                zipf.writestr('config.json', f.read())
+        except Exception as e:
+            error += f"保存配置文件失败：{str(e)}\n"
+
+        # 打包 logs 文件夹
+        if os.path.exists('logs'):
+            for root, dirs, files in os.walk('logs'):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.join('logs', os.path.relpath(file_path, 'logs'))
+                    zipf.write(file_path, arcname)
+                    yield f"### 打包 log 文件：{arcname}"
+
+        # 打包 reports 文件夹
+        if os.path.exists('reports'):
+            for root, dirs, files in os.walk('reports'):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.join('reports', os.path.relpath(file_path, 'reports'))
+                    zipf.write(file_path, arcname)
+                    yield f"### 打包 report 文件：{arcname}"
+    
+    # 上传报告
+    from .file_host.sensio import upload
+    yield "### 上传报告..."
+    url = ''
+    try:
+        url = upload(path)
+    except Exception as e:
+        yield f"### 上传报告失败：{str(e)}\n\n"
+        return ''
+
+    final_msg = f"### 报告导出成功：{url}\n\n"
+    expire_time = datetime.now() + timedelta(days=7)
+    if error:
+        final_msg += f"### 但发生了以下错误\n\n"
+        final_msg += '\n* '.join(error.strip().split('\n'))
+    final_msg += '\n'
+    final_msg += f"### 此链接将于 {expire_time.strftime('%Y-%m-%d %H:%M:%S')}（7 天后）过期\n\n"
+    final_msg += '### 复制以上文本并反馈给开发者'
+    yield final_msg
+    return path
 
 class KotoneBotUI:
     def __init__(self) -> None:
@@ -232,6 +323,7 @@ class KotoneBotUI:
             with gr.Row():
                 run_btn = gr.Button("启动", scale=1)
                 debug_btn = gr.Button("调试", scale=1)
+            gr.Markdown("脚本报错或者卡住？点击“日志”选项卡中的“一键导出报告”可以快速反馈！")
             
             task_status = gr.Dataframe(
                 headers=["任务", "状态"],
@@ -577,6 +669,8 @@ class KotoneBotUI:
                 with gr.Row():
                     export_dumps_btn = gr.Button("导出 dump")
                     export_logs_btn = gr.Button("导出日志")
+                with gr.Row():
+                    save_report_btn = gr.Button("一键导出报告")
                 result_text = gr.Markdown("等待操作\n\n\n")
             
             export_dumps_btn.click(
@@ -585,6 +679,10 @@ class KotoneBotUI:
             )
             export_logs_btn.click(
                 fn=self.export_logs,
+                outputs=[result_text]
+            )
+            save_report_btn.click(
+                fn=partial(_save_bug_report, path='report.zip'),
                 outputs=[result_text]
             )
 
