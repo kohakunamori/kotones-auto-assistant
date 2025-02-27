@@ -733,10 +733,10 @@ def week_normal(week_first: bool = False):
     elif executed_action is None:
         if outing_available():
             enter_outing()
-        elif allowance_available():
-            enter_allowance()
         elif study_available():
             enter_study()
+        elif allowance_available():
+            enter_allowance()
         elif is_rest_available():
             rest()
         else:
@@ -856,7 +856,7 @@ ProduceStage = Literal[
 ]
 
 @action('检测当前培育场景', dispatcher=True)
-def detect_regular_produce_scene(ctx: DispatcherContext) -> ProduceStage:
+def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
     """
     判断当前是培育的什么阶段，并开始 Regular 培育。
 
@@ -896,7 +896,7 @@ def detect_regular_produce_scene(ctx: DispatcherContext) -> ProduceStage:
         return 'unknown'
 
 @action('开始 Regular 培育')
-def hajime_regular_from_stage(stage: ProduceStage):
+def hajime_regular_from_stage(stage: ProduceStage, type: Literal['regular', 'pro']):
     """
     开始 Regular 培育。
     """
@@ -907,12 +907,15 @@ def hajime_regular_from_stage(stage: ProduceStage):
         if not remaining_week:
             raise UnrecoverableError("Failed to detect week.")
         # 判断阶段
+        MID_WEEK = 6 if type == 'regular' else 7
+        FINAL_WEEK = 13 if type == 'regular' else 16
+        function = hajime_regular if type == 'regular' else hajime_pro
         if texts.where(contains('中間')):
-            week = 6 - remaining_week[0]
-            hajime_regular(start_from=week)
+            week = MID_WEEK - remaining_week[0]
+            function(start_from=week)
         elif texts.where(contains('最終')):
-            week = 13 - remaining_week[0]
-            hajime_regular(start_from=week)
+            week = FINAL_WEEK - remaining_week[0]
+            function(start_from=week)
         else:
             raise UnrecoverableError("Failed to detect produce stage.")
     elif stage == 'exam-start':
@@ -925,7 +928,7 @@ def hajime_regular_from_stage(stage: ProduceStage):
         exam()
         result = ocr.expect_wait(contains('中間|最終'))
         if '中間' in result.text:
-            return hajime_regular_from_stage(detect_regular_produce_scene())
+            return hajime_regular_from_stage(detect_produce_scene(), type)
         elif '最終' in result.text:
             produce_end()
         else:
@@ -934,7 +937,7 @@ def hajime_regular_from_stage(stage: ProduceStage):
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Practice ongoing. Start practice.")
         practice()
-        return hajime_regular_from_stage(detect_regular_produce_scene())
+        return hajime_regular_from_stage(detect_produce_scene(), type)
     else:
         raise UnrecoverableError(f'Cannot resume produce REGULAR from stage "{stage}".')
 
@@ -943,7 +946,14 @@ def resume_regular_produce():
     """
     继续 Regular 培育。
     """
-    hajime_regular_from_stage(detect_regular_produce_scene())
+    hajime_regular_from_stage(detect_produce_scene(), 'regular')
+
+@action('继续 PRO 培育')
+def resume_pro_produce():
+    """
+    继续 PRO 培育。
+    """
+    hajime_regular_from_stage(detect_produce_scene(), 'pro')
 
 if __name__ == '__main__':
     from logging import getLogger
@@ -989,8 +999,8 @@ if __name__ == '__main__':
 
     # hajime_pro(start_from=16)
     # exam('mid')
-    stage = (detect_regular_produce_scene())
-    hajime_regular_from_stage(stage)
+    stage = (detect_produce_scene())
+    hajime_regular_from_stage(stage, 'pro')
 
     # click_recommended_card(card_count=skill_card_count())
     # exam('mid')

@@ -196,7 +196,7 @@ def enter_outing():
         elif acquisitions():
             pass
         # [screenshots\produce\outing_ap_confirm.png]
-        elif image.find(R.Common.ButtonSelect):
+        elif image.find(R.Common.ButtonSelect2):
             logger.info("AP max out dialog found. Click to continue.")
             device.click()
             sleep(0.1)

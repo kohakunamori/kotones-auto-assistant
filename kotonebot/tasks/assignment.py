@@ -31,7 +31,7 @@ def assign(type: Literal['mini', 'online']) -> bool:
     分配工作
 
     前置条件：分配工作页面 \n
-    结束状态：工作开始动画
+    结束状态：分配工作页面
 
     :param type: 工作类型。mini=ミニライブ 或 online=ライブ配信。
     """
@@ -103,10 +103,13 @@ def assign(type: Literal['mini', 'online']) -> bool:
     else:
         logger.warning(f'{target_duration}時間 not found. Using default duration.')
     sleep(0.5)
-    # 点击 决定する
-    device.click(confirm)
-    # 点击 開始する [screenshots/assignment/assign_mini_live3.png]
-    device.click(image.expect_wait(R.Common.ButtonStart, timeout=5))
+    while not at_assignment():
+        # 点击 决定する
+        if image.find(R.Common.ButtonConfirmNoIcon):
+            device.click()
+        elif image.find(R.Common.ButtonStart):
+            # 点击 開始する [screenshots/assignment/assign_mini_live3.png]
+            device.click()
     return True
 
 @action('获取剩余时间')

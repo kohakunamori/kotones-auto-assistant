@@ -164,6 +164,7 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
             break
         elif image.find(R.Produce.ButtonAutoSet):
             device.click()
+            sleep(1)
         elif image.find(R.Common.ButtonConfirm, colored=True):
             device.click()
         device.screenshot()

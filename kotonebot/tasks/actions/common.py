@@ -9,6 +9,7 @@ from kotonebot import (
     device,
     contains,
     image,
+    regex,
     action,
     sleep,
     Interval,
@@ -110,6 +111,7 @@ AcquisitionType = Literal[
     "PItemClaim", # P物品领取
     "PItemSelect", # P物品选择
     "Clear", # 目标达成
+    "ClearNext", # 目标达成 NEXT
     "NetworkError", # 网络中断弹窗
     "SkipCommu", # 跳过交流
     "Loading", # 加载画面
@@ -143,6 +145,13 @@ def acquisitions() -> AcquisitionType | None:
         logger.debug("PDrink max found")
         device.screenshot()
         if image.find(R.InPurodyuusu.TextPDrinkMax):
+            # 有对话框标题，但是没找到确认按钮
+            # 可能是需要勾选一个饮料
+            if not image.find(R.InPurodyuusu.ButtonLeave, colored=True):
+                logger.info("No leave button found, click checkbox")
+                device.click(image.expect(R.Common.CheckboxUnchecked, colored=True))
+                sleep(0.2)
+                device.screenshot()
             if leave := image.find(R.InPurodyuusu.ButtonLeave, colored=True):
                 logger.info("Leave button found")
                 device.click(leave)
@@ -171,16 +180,19 @@ def acquisitions() -> AcquisitionType | None:
             return "PSkillCardEnhanceSelect"
 
     # 目标达成
-    logger.debug("Check gloal clear...")
+    logger.debug("Check gloal clear (達成)...")
     if image.find(R.InPurodyuusu.IconClearBlue):
         logger.info("Clear found")
-        logger.debug("達成: clicked")
+        logger.debug("Goal clear (達成): clicked")
         device.click_center()
-        sleep(5)
-        # TODO: 可能不存在 達成 NEXT
-        logger.debug("達成 NEXT: clicked") # TODO: 需要截图
-        device.click_center()
+        sleep(1)
         return "Clear"
+    # 目标达成 NEXT
+    if ocr.find(regex('NEXT|next'), rect=R.InPurodyuusu.BoxGoalClearNext):
+        logger.info("Goal clear (達成) next found")
+        device.click_center()
+        sleep(1)
+        return "ClearNext"
     # P物品领取
     logger.debug("Check PItem claim...")
     if image.find(R.InPurodyuusu.PItemIconColorful):

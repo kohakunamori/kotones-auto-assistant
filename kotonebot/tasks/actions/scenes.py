@@ -54,13 +54,13 @@ def goto_home():
         elif home := toolbar_home():
             device.click(home)
             logger.debug("Clicked toolbar home button.")
-            sleep(0.2)
+            sleep(1)
         # 課題CLEAR [screenshots/go_home/quest_clear.png] 
         elif image.find(R.Common.ButtonIconClose):
             device.click()
             logger.debug("Clicked close button.")
             sleep(0.2)
-        
+        logger.debug(f"Trying to go home...")
         it.wait()
 
 @action('前往商店页面')

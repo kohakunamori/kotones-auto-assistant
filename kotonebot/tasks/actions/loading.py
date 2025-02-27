@@ -17,8 +17,8 @@ def loading() -> bool:
     original_img = img.copy()
     # 二值化图片
     _, img = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
-    # 裁剪上面 20%
-    img = img[:int(img.shape[0] * 0.2), :]
+    # 裁剪上面 35%
+    img = img[:int(img.shape[0] * 0.35), :]
     # 判断图片中颜色数量是否 <= 2
     # https://stackoverflow.com/questions/56606294/count-number-of-unique-colours-in-image
     b,g,r = cv2.split(img)
