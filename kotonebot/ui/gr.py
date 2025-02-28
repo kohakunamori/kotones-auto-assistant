@@ -242,6 +242,7 @@ class KotoneBotUI:
         produce_mode: Literal["regular"],
         produce_count: int,
         produce_idols: List[str],
+        memory_sets: List[str],
         auto_set_memory: bool,
         auto_set_support: bool,
         use_pt_boost: bool,
@@ -294,6 +295,7 @@ class KotoneBotUI:
                 mode=produce_mode,
                 produce_count=produce_count,
                 idols=[PIdol[idol] for idol in produce_idols],
+                memory_sets=[int(i) for i in memory_sets],
                 auto_set_memory=auto_set_memory,
                 auto_set_support_card=auto_set_support,
                 use_pt_boost=use_pt_boost,
@@ -323,7 +325,7 @@ class KotoneBotUI:
             with gr.Row():
                 run_btn = gr.Button("启动", scale=1)
                 debug_btn = gr.Button("调试", scale=1)
-            gr.Markdown("脚本报错或者卡住？点击“日志”选项卡中的“一键导出报告”可以快速反馈！")
+            gr.Markdown('脚本报错或者卡住？点击"日志"选项卡中的"一键导出报告"可以快速反馈！')
             
             task_status = gr.Dataframe(
                 headers=["任务", "状态"],
@@ -493,7 +495,7 @@ class KotoneBotUI:
             )
         return assignment_enabled, mini_live_reassign, mini_live_duration, online_live_reassign, online_live_duration
 
-    def _create_produce_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown, gr.Number, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox]:
+    def _create_produce_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown, gr.Number, gr.Dropdown, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox]:
         with gr.Column():
             gr.Markdown("### 培育设置")
             produce_enabled = gr.Checkbox(
@@ -531,6 +533,16 @@ class KotoneBotUI:
                     value=self.current_config.options.produce.auto_set_memory,
                     info=ProduceConfig.model_fields['auto_set_memory'].description
                 )
+                # 添加回忆编成选择
+                with gr.Group(visible=not self.current_config.options.produce.auto_set_memory) as memory_sets_group:
+                    memory_sets = gr.Dropdown(
+                        choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
+                        value=[str(i) for i in self.current_config.options.produce.memory_sets],
+                        label="回忆编成编号",
+                        multiselect=True,
+                        interactive=True,
+                        info=ProduceConfig.model_fields['memory_sets'].description
+                    )
                 auto_set_support = gr.Checkbox(
                     label="自动编成支援卡",
                     value=self.current_config.options.produce.auto_set_support_card,
@@ -557,7 +569,13 @@ class KotoneBotUI:
                 inputs=[produce_enabled],
                 outputs=[produce_group]
             )
-        return produce_enabled, produce_mode, produce_count, produce_idols, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer
+            
+            auto_set_memory.change(
+                fn=lambda x: gr.Group(visible=not x),
+                inputs=[auto_set_memory],
+                outputs=[memory_sets_group]
+            )
+        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer
 
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):

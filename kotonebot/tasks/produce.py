@@ -99,6 +99,56 @@ def select_idol(target_titles: list[str] | PIdol):
     device.click(image.expect(R.Common.ButtonConfirmNoIcon))
     return found
 
+@action('培育开始.编成翻页', screenshot_mode='manual-inherit')
+def select_set(index: int):
+    """
+    选择指定编号的支援卡/回忆编成。
+
+    前置条件：STEP 2/3 页面
+    结束状态：STEP 2/3 页面
+
+    :param index: 支援卡/回忆编成的编号，从 1 开始。
+    """
+    def _current():
+        numbers = []
+        while not numbers:
+            device.screenshot()
+            numbers = ocr.ocr(rect=R.Produce.BoxSetCountIndicator).squash().numbers()
+            if not numbers:
+                logger.warning('Failed to get current set number. Retrying...')
+                sleep(0.2)
+        return numbers[0]
+    
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        current = _current()
+        logger.info(f'Navigate to set #{index}. Now at set #{current}.')
+        
+        # 计算需要点击的次数
+        click_count = abs(index - current)
+        if click_count == 0:
+            logger.info(f'Already at set #{current}.')
+            return
+        click_target = R.Produce.PointProduceNextSet if current < index else R.Produce.PointProducePrevSet
+        
+        # 点击
+        for _ in range(click_count):
+            device.click(click_target)
+            sleep(0.1)
+        
+        # 确认
+        final_current = _current()
+        if final_current == index:
+            logger.info(f'Arrived at set #{final_current}.')
+            return
+        else:
+            retry_count += 1
+            logger.warning(f'Failed to navigate to set #{index}. Current set is #{final_current}. Retrying... ({retry_count}/{max_retries})')
+    
+    logger.error(f'Failed to navigate to set #{index} after {max_retries} retries.')
+    
 @action('继续当前培育')
 def resume_produce():
     """
@@ -119,7 +169,11 @@ def resume_produce():
     resume_regular_produce()
 
 @action('执行培育', screenshot_mode='manual-inherit')
-def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
+def do_produce(
+    idol: PIdol,
+    mode: Literal['regular', 'pro'],
+    memory_set_index: Optional[int] = None
+) -> bool:
     """
     进行培育流程
 
@@ -171,24 +225,32 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
         it.wait()
     # 3. 选择回忆 自动编成 [screenshots/produce/select_memory.png]
     ocr.expect_wait(contains('メモリー'), rect=R.Produce.BoxStepIndicator)
-    device.click(image.expect_wait(R.Produce.ButtonAutoSet))
-    wait(0.5, before='screenshot')
-    device.screenshot()
+    # 自动编成
+    if memory_set_index is not None and not 1 <= memory_set_index <= 10:
+        raise ValueError('`memory_set_index` must be in range [1, 10].')
+    if memory_set_index is None:
+        device.click(image.expect_wait(R.Produce.ButtonAutoSet))
+        wait(0.5, before='screenshot')
+        device.screenshot()
+    # 指定编号
+    else:
+        select_set(memory_set_index)
     (SimpleDispatcher('do_produce.step_3')
         .click(R.Common.ButtonNextNoIcon)
         .click(R.Common.ButtonConfirm)
         .until(contains('開始確認'), rect=R.Produce.BoxStepIndicator)
     ).run()
+
     # 4. 选择道具 [screenshots/produce/select_end.png]
     # TODO: 如果道具不足，这里加入推送提醒
     if conf().produce.use_note_boost:
         if image.find(R.Produce.CheckboxIconNoteBoost):
             device.click()
-            sleep(0.2)
+            sleep(0.1)
     if conf().produce.use_pt_boost:
         if image.find(R.Produce.CheckboxIconSupportPtBoost):
             device.click()
-            sleep(0.2)
+            sleep(0.1)
     device.click(image.expect_wait(R.Produce.ButtonProduceStart))
     # 5. 相关设置弹窗 [screenshots/produce/skip_commu.png]
     cd = Countdown(5).start()
@@ -206,9 +268,10 @@ def do_produce(idol: PIdol, mode: Literal['regular', 'pro']) -> bool:
 
 @task('培育')
 def produce_task(
-    mode: Literal['regular', 'pro'] | None = None,
+    mode: Optional[Literal['regular', 'pro']] = None,
     count: Optional[int] = None,
-    idols: Optional[list[PIdol]] = None
+    idols: Optional[list[PIdol]] = None,
+    memory_sets: Optional[list[int]] = None
 ):
     """
     培育任务
@@ -225,6 +288,8 @@ def produce_task(
         count = conf().produce.produce_count
     if idols is None:
         idols = conf().produce.idols
+    if memory_sets is None:
+        memory_sets = conf().produce.memory_sets
     if mode is None:
         mode = conf().produce.mode
     # 数据验证
@@ -233,9 +298,19 @@ def produce_task(
         return
 
     idol_iterator = cycle(idols)
+    memory_set_iterator = cycle(memory_sets)
     for i in range(count):
         start_time = time.time()
-        if not do_produce(next(idol_iterator), mode):
+        idol = next(idol_iterator)
+        if conf().produce.auto_set_memory:
+            memory_set = None
+        else:
+            memory_set = next(memory_set_iterator, None)
+        logger.info(
+            f'Produce start with: '
+            f'idol: {idol.value}, mode: {mode}, memory_set: #{memory_set}'
+        )
+        if not do_produce(idol, mode, memory_set):
             user.info('AP 不足', f'由于 AP 不足，跳过了 {count - i} 次培育。')
             logger.info('%d produce(s) skipped because of insufficient AP.', count - i)
             break
@@ -261,7 +336,14 @@ if __name__ == '__main__':
     init_context(config_type=BaseConfig)
     conf().produce.enabled = True
     conf().produce.mode = 'pro'
-    # conf().produce.idols = [PIdol.花海佑芽_学園生活]
+    conf().produce.produce_count = 1
+    conf().produce.idols = [PIdol.月村手毬_アイヴイ]
+    conf().produce.memory_sets = [5]
+    conf().produce.auto_set_memory = False
+    # do_produce(PIdol.月村手毬_初声, 'pro', 5)
     produce_task()
     # a()
     # select_idol(PIdol.藤田ことね_学園生活)
+    # select_set(10)
+    # manual_context().begin()
+    # print(ocr.ocr(rect=R.Produce.BoxSetCountIndicator).squash().numbers())

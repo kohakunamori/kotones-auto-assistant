@@ -185,6 +185,7 @@ class CommuEventButtonUI:
         img = device.screenshot()
         rects = filter_rectangles(img, (WHITE_LOW, WHITE_HIGH), 3, 1000, rect=self.rect)
         rects.sort(key=lambda x: x[1])
+        # TODO: 这里 rects 可能为空，需要加入判断重试
         ocr_result = ocr.raw().ocr(img, rect=rects[0])
         return ocr_result.squash().text
 

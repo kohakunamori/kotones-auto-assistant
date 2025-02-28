@@ -320,7 +320,6 @@ class ProduceConfig(ConfigBaseModel):
     memory_sets: list[int] = []
     """要使用的回忆编成编号，从 1 开始。将会按顺序循环选择使用。"""
     support_card_sets: list[int] = []
-
     """要使用的支援卡编成编号，从 1 开始。将会按顺序循环选择使用。"""
     auto_set_memory: bool = False
     """是否自动编成回忆。此选项优先级高于回忆编成编号。"""
