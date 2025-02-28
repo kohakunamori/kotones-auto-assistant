@@ -199,6 +199,30 @@ def detect_recommended_card(
     SKIP_POSITION = (621, 739, 85, 85, 10)
     GLOW_EXTENSION = 15
 
+    if card_count == 4:
+        logger.info("4 cards detected. Currently not supported. Use 1st card.")
+        return CardDetectResult(
+            type=0,
+            score=1,
+            left_score=1,
+            right_score=1,
+            top_score=1,
+            bottom_score=1,
+            rect=(17, 883, 192, 252)
+        )
+    
+    if card_count == 5:
+        logger.info("5 cards detected. Currently not supported. Use 1st card.")
+        return CardDetectResult(
+            type=0,
+            score=1,
+            left_score=1,
+            right_score=1,
+            top_score=1,
+            bottom_score=1,
+            rect=R.InPurodyuusu.BoxLessonCards5_1
+        )
+
     if card_count == 1:
         cards = CARD_POSITIONS_1
     elif card_count == 2:
