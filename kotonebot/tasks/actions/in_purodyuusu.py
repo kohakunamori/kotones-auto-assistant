@@ -435,6 +435,7 @@ def practice():
     wait = cycle([0.1, 0.3, 0.5]) # 见下方解释
     tries = 1
     break_cd = Countdown(sec=3)
+    no_card_cd = Countdown(sec=4)
     while True:
         start_time = time.time()
         img = device.screenshot()
@@ -445,7 +446,16 @@ def practice():
             continue
 
         card_count = skill_card_count(img)
-        # TODO: 需要处理卡片数量为 0 的且当前回合未结束的情况
+        if card_count == 0:
+            # 处理本回合已无剩余手牌的情况
+            # TODO: 使用模板匹配而不是 OCR，提升速度
+            no_remaining_card = ocr.find(contains("0枚"), rect=R.InPurodyuusu.BoxNoSkillCard)
+            if no_remaining_card:
+                # TODO: HARD CODEDED
+                SKIP_POSITION = (621, 739, 85, 85)
+                device.click(SKIP_POSITION)
+                no_card_cd.reset()
+                continue
         if card_count > 0:
             inner_tries = 0
             # 为什么要内层循环：
