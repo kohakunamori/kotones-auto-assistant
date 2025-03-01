@@ -1,10 +1,12 @@
 import os
 import zipfile
 import logging
+import traceback
+import importlib.metadata
 from functools import partial
+from importlib import resources
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Literal, Generator
-import importlib.metadata
 
 import cv2
 import gradio as gr
@@ -704,6 +706,12 @@ class KotoneBotUI:
                 outputs=[result_text]
             )
 
+    def _create_whats_new_tab(self) -> None:
+        """创建更新日志标签页，并显示最新版本更新内容"""
+        with gr.Tab("更新日志"):
+            from ..tasks.metadata import WHATS_NEW
+            gr.Markdown(WHATS_NEW)
+
     def _load_config(self) -> None:
         # 加载配置文件
         config_path = "config.json"
@@ -731,6 +739,7 @@ class KotoneBotUI:
                     self._create_task_tab()
                     self._create_settings_tab()
                     self._create_log_tab()
+                    self._create_whats_new_tab()
             
         return app
 
