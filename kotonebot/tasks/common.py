@@ -331,6 +331,8 @@ class ProduceConfig(ConfigBaseModel):
     """是否使用笔记数提升。"""
     follow_producer: bool = False
     """是否关注租借了支援卡的制作人。"""
+    self_study_lesson: Literal['dance', 'visual', 'vocal'] = 'dance'
+    """自习课类型。"""
 
 
 class MissionRewardConfig(ConfigBaseModel):

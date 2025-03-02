@@ -250,7 +250,8 @@ class KotoneBotUI:
         use_pt_boost: bool,
         use_note_boost: bool,
         follow_producer: bool,
-        mission_reward_enabled: bool
+        self_study_lesson: Literal['dance', 'visual', 'vocal'],
+        mission_reward_enabled: bool,
     ) -> str:
         ap_items_enum: List[Literal[0, 1, 2, 3]] = []
         ap_items_map: Dict[str, APShopItems] = {
@@ -302,7 +303,8 @@ class KotoneBotUI:
                 auto_set_support_card=auto_set_support,
                 use_pt_boost=use_pt_boost,
                 use_note_boost=use_note_boost,
-                follow_producer=follow_producer
+                follow_producer=follow_producer,
+                self_study_lesson=self_study_lesson
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
@@ -497,7 +499,7 @@ class KotoneBotUI:
             )
         return assignment_enabled, mini_live_reassign, mini_live_duration, online_live_reassign, online_live_duration
 
-    def _create_produce_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown, gr.Number, gr.Dropdown, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox]:
+    def _create_produce_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown, gr.Number, gr.Dropdown, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Dropdown]:
         with gr.Column():
             gr.Markdown("### 培育设置")
             produce_enabled = gr.Checkbox(
@@ -565,6 +567,12 @@ class KotoneBotUI:
                     value=self.current_config.options.produce.follow_producer,
                     info=ProduceConfig.model_fields['follow_producer'].description
                 )
+                self_study_lesson = gr.Dropdown(
+                    choices=['dance', 'visual', 'vocal'],
+                    value=self.current_config.options.produce.self_study_lesson,
+                    label='文化课自习时选项',
+                    info='选择自习课类型'
+                )
             
             produce_enabled.change(
                 fn=lambda x: gr.Group(visible=x),
@@ -577,7 +585,7 @@ class KotoneBotUI:
                 inputs=[auto_set_memory],
                 outputs=[memory_sets_group]
             )
-        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer
+        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson
 
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
@@ -672,7 +680,7 @@ class KotoneBotUI:
                 *work_settings,
                 contest,
                 *produce_settings,
-                mission_reward
+                mission_reward,
             ]
             
             save_btn.click(
