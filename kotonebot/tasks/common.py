@@ -333,7 +333,13 @@ class ProduceConfig(ConfigBaseModel):
     """是否关注租借了支援卡的制作人。"""
     self_study_lesson: Literal['dance', 'visual', 'vocal'] = 'dance'
     """自习课类型。"""
-
+    prefer_lesson_ap: bool = False
+    """
+    优先 SP 课程。
+    
+    启用后，若出现 SP 课程，则会优先执行 SP 课程，而不是推荐课程。
+    若出现多个 SP 课程，随机选择一个。
+    """
 
 class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False

@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-
 from .. import R
 from . import loading
 from ..common import conf
@@ -79,6 +78,20 @@ def enter_recommended_action_ocr(final_week: bool = False) -> ActionType:
         logger.debug("Try clicking lesson...")
         device.double_click(image.expect_wait(template))
         return 'lesson'
+
+@action('执行 SP 课程')
+def handle_sp_lesson():
+    """
+    执行 SP 课程
+
+    前置条件：行动页面\n
+    结束状态：练习场景，以及中间可能出现的加载、支援卡奖励、交流等
+    """
+    if image.find(R.InPurodyuusu.IconSp) is not None:
+        device.double_click(image.expect(R.InPurodyuusu.IconSp))
+        return True
+    else:
+        return False
 
 @action('执行推荐行动')
 def handle_recommended_action(final_week: bool = False) -> ActionType:
@@ -754,7 +767,14 @@ def produce_end():
 
 def week_normal(week_first: bool = False):
     until_action_scene(week_first)
-    executed_action = handle_recommended_action()
+    # SP 课程
+    if (
+        conf().produce.prefer_lesson_ap
+        and handle_sp_lesson()
+    ):
+        executed_action = 'lesson'
+    else:
+        executed_action = handle_recommended_action()
     logger.info("Executed recommended action: %s", executed_action)
     # 推荐练习
     if executed_action == 'lesson':
