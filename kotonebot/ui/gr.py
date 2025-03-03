@@ -19,7 +19,7 @@ from kotonebot.tasks.common import (
     MissionRewardConfig, PIdol, DailyMoneyShopItems
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
-from kotonebot.run.run import initialize, start, execute
+from kotonebot.backend.bot import KotoneBot
 
 # 初始化日志
 os.makedirs('logs', exist_ok=True)
@@ -130,12 +130,13 @@ def _save_bug_report(
 class KotoneBotUI:
     def __init__(self) -> None:
         self.is_running: bool = False
+        self.kaa: KotoneBot = KotoneBot(module='kotonebot.tasks', config_type=BaseConfig)
         self._load_config()
         self._setup_kaa()
         
     def _setup_kaa(self) -> None:
-        initialize('kotonebot.tasks')
         from kotonebot.backend.debug.vars import debug, clear_saved
+        self.kaa.initialize()
         if self.current_config.keep_screenshots:
             debug.auto_save_to_folder = 'dumps'
             debug.enabled = True
@@ -212,13 +213,13 @@ class KotoneBotUI:
     
     def start_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = True
-        initialize('kotonebot.tasks')
-        self.run_status = start(config_type=BaseConfig)
+        self.run_status = self.kaa.start_all()  # 启动所有任务
         return "停止", self.update_task_status()
 
     def stop_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = False
-        self.run_status.interrupt()
+        if self.kaa:
+            self.run_status.interrupt()  # 中断运行
         return "启动", self.update_task_status()
 
     def save_settings(
@@ -389,7 +390,7 @@ class KotoneBotUI:
                     gr.Warning(f"任务 {task_name} 未找到")
                     return ""
                 gr.Info(f"任务 {task_name} 开始执行。执行结束前，请勿重复点击执行。")
-                execute(task, config_type=BaseConfig)
+                self.kaa.run([task])
                 gr.Success(f"任务 {task_name} 执行完毕")
                 return ""
             
