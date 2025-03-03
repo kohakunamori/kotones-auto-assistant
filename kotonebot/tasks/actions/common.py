@@ -18,6 +18,7 @@ from ..game_ui import CommuEventButtonUI
 from .pdorinku import acquire_pdorinku
 from kotonebot.backend.dispatch import SimpleDispatcher
 from kotonebot.tasks.actions.commu import handle_unread_commu
+from kotonebot.backend.util import measure_time
 
 logger = getLogger(__name__)
 
@@ -117,6 +118,7 @@ AcquisitionType = Literal[
     "Loading", # 加载画面
 ]
 
+@measure_time(file_path='logs/acquisition.time.log')
 @action('处理培育事件', screenshot_mode='manual')
 def acquisitions() -> AcquisitionType | None:
     """处理行动开始前和结束后可能需要处理的事件，直到到行动页面为止"""
