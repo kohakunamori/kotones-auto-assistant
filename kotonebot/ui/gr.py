@@ -11,7 +11,7 @@ from typing import List, Dict, Tuple, Literal, Generator
 import cv2
 import gradio as gr
 
-from kotonebot.backend.context import task_registry
+from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
@@ -728,6 +728,29 @@ class KotoneBotUI:
             from ..tasks.metadata import WHATS_NEW
             gr.Markdown(WHATS_NEW)
 
+    def _create_screen_tab(self) -> None:
+        with gr.Tab("画面"):
+            gr.Markdown("## 当前设备画面")
+            WIDTH = 720 // 3
+            HEIGHT = 1280 // 3
+            last_update_text = gr.Markdown("上次更新时间：无数据")
+            screenshot_display = gr.Image(type="numpy", width=WIDTH, height=HEIGHT)
+
+            def update_screenshot():
+                ctx = ContextStackVars.current()
+                if ctx is None:
+                    return [None, last_update_text.value]
+                screenshot = ctx._screenshot
+                if screenshot is None:
+                    return [None, last_update_text.value]
+                screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGR2RGB)
+                return screenshot, f"上次更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+            gr.Timer(0.3).tick(
+                fn=update_screenshot,
+                outputs=[screenshot_display, last_update_text]
+            )
+
     def _load_config(self) -> None:
         # 加载配置文件
         config_path = "config.json"
@@ -756,6 +779,7 @@ class KotoneBotUI:
                     self._create_settings_tab()
                     self._create_log_tab()
                     self._create_whats_new_tab()
+                    self._create_screen_tab()
             
         return app
 
