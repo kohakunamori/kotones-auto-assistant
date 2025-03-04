@@ -9,10 +9,12 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
+
 from .. import R
 from . import loading
 from ..common import conf
 from .scenes import at_home
+from .commu import handle_unread_commu
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.context.context import use_screenshot
 from .common import until_acquisition_clear, acquisitions, commut_event
@@ -633,7 +635,6 @@ def exam(type: Literal['mid', 'final']):
 @action('考试结束流程')
 def produce_end():
     """执行考试结束流程"""
-    bottom = (int(device.screen_size[0] / 2), int(device.screen_size[1] * 0.9))
     # 1. 考试结束交流 [screenshots/produce/in_produce/final_exam_end_commu.png]
     # 2. 然后是，考试结束对话 [screenshots\produce_end\step2.jpg]
     # 3. MV
@@ -646,6 +647,9 @@ def produce_end():
     logger.info("Waiting for select cover screen...")
     aw = AdaptiveWait(timeout=60 * 5, max_interval=20)
     while not image.find(R.InPurodyuusu.ButtonNextNoIcon):
+        if handle_unread_commu():
+            logger.info("Skipping unread commu")
+            continue
         aw()
         device.click(0, 0)
     # 选择封面
