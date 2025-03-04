@@ -80,3 +80,4 @@ def goto_shop():
 if __name__ == "__main__":
     import time
     goto_home()
+
