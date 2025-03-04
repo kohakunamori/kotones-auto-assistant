@@ -5,7 +5,7 @@ from typing_extensions import deprecated
 
 from . import R
 from .common import conf, DailyMoneyShopItems
-from kotonebot.backend.util import cropped
+from kotonebot.util import cropped
 from kotonebot import task, device, image, ocr, action, sleep
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher, dispatcher
 from .actions.scenes import goto_home, goto_shop, at_daily_shop

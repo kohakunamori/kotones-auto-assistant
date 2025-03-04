@@ -4,7 +4,7 @@ from typing import Optional, Literal
 
 from kotonebot.backend.context.context import wait
 from kotonebot.ui import user
-from kotonebot.backend.util import Countdown, Interval
+from kotonebot.util import Countdown, Interval
 from kotonebot.backend.dispatch import SimpleDispatcher
 
 from . import R
@@ -333,6 +333,7 @@ if __name__ == '__main__':
     import time
     from kotonebot.backend.context import init_context, manual_context
     from kotonebot.tasks.common import BaseConfig
+    from kotonebot.util import Profiler
     init_context(config_type=BaseConfig)
     conf().produce.enabled = True
     conf().produce.mode = 'pro'

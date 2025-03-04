@@ -3,9 +3,9 @@ import logging
 
 from cv2.typing import MatLike
 
-from kotonebot.backend.util import Countdown, Interval
 
 from .. import R
+from kotonebot.util import Countdown, Interval
 from kotonebot import device, image, color, user, rect_expand, until, action, sleep, use_screenshot
 
 logger = logging.getLogger(__name__)

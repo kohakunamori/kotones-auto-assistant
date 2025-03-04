@@ -16,7 +16,7 @@ from .scenes import at_home
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.context.context import use_screenshot
 from .common import until_acquisition_clear, acquisitions, commut_event
-from kotonebot.backend.util import AdaptiveWait, Countdown, crop, cropped
+from kotonebot.util import AdaptiveWait, Countdown, crop, cropped
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
 from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect, wait
 from .non_lesson_actions import (
@@ -1023,7 +1023,7 @@ if __name__ == '__main__':
     file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s'))
     logging.getLogger().addHandler(file_handler)
 
-    from kotonebot.backend.util import Profiler
+    from kotonebot.util import Profiler
     from kotonebot.backend.context import init_context, manual_context
     init_context()
     manual_context().begin()

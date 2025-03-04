@@ -10,7 +10,7 @@ from kotonebot.tasks.common import conf
 from .. import R
 from .common import acquisitions
 from ..game_ui import CommuEventButtonUI
-from kotonebot.backend.util import Interval
+from kotonebot.util import Interval
 from kotonebot.errors import UnrecoverableError
 from kotonebot import device, image, action, sleep
 from kotonebot.backend.dispatch import SimpleDispatcher

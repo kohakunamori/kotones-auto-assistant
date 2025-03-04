@@ -18,7 +18,7 @@ from ..game_ui import CommuEventButtonUI
 from .pdorinku import acquire_pdorinku
 from kotonebot.backend.dispatch import SimpleDispatcher
 from kotonebot.tasks.actions.commu import handle_unread_commu
-from kotonebot.backend.util import measure_time
+from kotonebot.util import measure_time
 
 logger = getLogger(__name__)
 

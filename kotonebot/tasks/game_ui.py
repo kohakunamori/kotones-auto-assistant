@@ -6,7 +6,7 @@ import numpy as np
 from . import R
 from kotonebot import action, device, color, image, ocr, sleep
 from kotonebot.backend.color import HsvColor
-from kotonebot.backend.util import Rect
+from kotonebot.util import Rect
 from kotonebot.backend.core import HintBox, Image
 
 import cv2
