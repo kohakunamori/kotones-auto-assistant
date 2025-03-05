@@ -65,6 +65,9 @@ def assign(type: Literal['mini', 'online']) -> bool:
         # 寻找所有好调图标
         results = image.find_all(R.Daily.IconAssignKouchou, threshold=0.8)
         logger.debug(f'Found {len(results)} kouchou icons.')
+        if not results:
+            logger.warning('No kouchou icons found. Trying again...')
+            continue
         results.sort(key=lambda r: r.position[1])
         results.pop(0) # 第一个是说明文字里的图标
         # 尝试点击所有目标
