@@ -228,6 +228,8 @@ class KotoneBotUI:
         adb_port: int,
         screenshot_method: Literal['adb', 'adb_raw', 'uiautomator2'],
         keep_screenshots: bool,
+        check_emulator: bool,
+        emulator_path: str,
         purchase_enabled: bool,
         money_enabled: bool,
         ap_enabled: bool,
@@ -270,6 +272,8 @@ class KotoneBotUI:
         self.current_config.backend.adb_port = adb_port
         self.current_config.backend.screenshot_impl = screenshot_method
         self.current_config.keep_screenshots = keep_screenshots
+        self.current_config.backend.check_emulator = check_emulator
+        self.current_config.backend.emulator_path = emulator_path
         
         options = BaseConfig(
             purchase=PurchaseConfig(
@@ -630,6 +634,19 @@ class KotoneBotUI:
                     info=UserConfig.model_fields['keep_screenshots'].description,
                     interactive=True
                 )
+                # 添加新的设置项
+                check_emulator = gr.Checkbox(
+                    label="检查并启动模拟器",
+                    value=self.current_config.backend.check_emulator,
+                    info=BackendConfig.model_fields['check_emulator'].description,
+                    interactive=True
+                )
+                emulator_path = gr.Textbox(
+                    value=self.current_config.backend.emulator_path,
+                    label="模拟器 exe 文件路径",
+                    info=BackendConfig.model_fields['emulator_path'].description,
+                    interactive=True
+                )
             
             # 商店购买设置
             purchase_settings = self._create_purchase_settings()
@@ -682,6 +699,7 @@ class KotoneBotUI:
             # 收集所有设置组件
             all_settings = [
                 adb_ip, adb_port, screenshot_impl, keep_screenshots,
+                check_emulator, emulator_path,
                 *purchase_settings,
                 activity_funds,
                 presents,
