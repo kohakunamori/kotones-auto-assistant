@@ -1,7 +1,7 @@
 import math
 import time
 import logging
-from typing_extensions import deprecated
+from typing_extensions import deprecated, assert_never
 from itertools import cycle
 from typing import Generic, Iterable, Literal, NamedTuple, Callable, Generator, TypeVar, ParamSpec, cast
 
@@ -12,7 +12,7 @@ from cv2.typing import MatLike
 
 from .. import R
 from . import loading
-from ..common import conf
+from ..common import ProduceAction, conf
 from .scenes import at_home
 from .commu import handle_unread_commu
 from kotonebot.errors import UnrecoverableError
@@ -96,7 +96,7 @@ def handle_sp_lesson():
         return False
 
 @action('执行推荐行动')
-def handle_recommended_action(final_week: bool = False) -> ActionType:
+def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
     """
     在行动选择页面，执行推荐行动
 
@@ -121,16 +121,20 @@ def handle_recommended_action(final_week: bool = False) -> ActionType:
     if result is None:
         logger.debug("No recommended lesson found")
         return None
+    recommended = None
     if not final_week:
         if result.index == 0:
             lesson_text = regex("Da")
+            recommended = ProduceAction.DANCE
         elif result.index == 1:
             lesson_text = regex("Vo|V0|VO")
+            recommended = ProduceAction.VOCAL
         elif result.index == 2:
             lesson_text = regex("Vi|V1|VI")
+            recommended = ProduceAction.VISUAL
         elif result.index == 3:
             rest()
-            return 'rest'
+            return ProduceAction.REST
         else:
             return None
         logger.info("Rec. lesson: %s", lesson_text)
@@ -138,19 +142,22 @@ def handle_recommended_action(final_week: bool = False) -> ActionType:
         logger.debug("Try clicking lesson...")
         lesson_ret = ocr.expect(lesson_text)
         device.double_click(lesson_ret.rect)
-        return 'lesson'
+        return recommended
     else:
         if result.index == 0:
             template = R.InPurodyuusu.ButtonFinalPracticeDance
+            recommended = ProduceAction.DANCE
         elif result.index == 1:
             template = R.InPurodyuusu.ButtonFinalPracticeVocal
+            recommended = ProduceAction.VOCAL
         elif result.index == 2:
             template = R.InPurodyuusu.ButtonFinalPracticeVisual
+            recommended = ProduceAction.VISUAL
         else:
             return None
         logger.debug("Try clicking lesson...")
         device.double_click(image.expect_wait(template))
-        return 'lesson'
+        return recommended
 
 class CardDetectResult(NamedTuple):
     type: int
@@ -769,43 +776,128 @@ def produce_end():
         sleep(1)
     logger.info("Produce completed.")
 
+@action('执行行动')
+def handle_action(action: ProduceAction, final_week: bool = False) -> ProduceAction | None:
+    """
+    执行行动
+
+    前置条件：位于行动选择页面\n
+    结束状态：若返回 True，取决于执行的行动。若返回 False，则仍然位于行动选择页面。
+
+    :param action: 行动类型
+    :param final_week: 是否为冲刺周
+    :return: 执行的行动
+    """
+    match action:
+        case ProduceAction.RECOMMENDED:
+            return handle_recommended_action(final_week)
+        case ProduceAction.DANCE:
+            # TODO: 这两个模板的名称要统一一下
+            templ = R.InPurodyuusu.TextActionVisual if not final_week else R.InPurodyuusu.ButtonFinalPracticeVisual
+            if button := image.find(templ):
+                device.double_click(button)
+                return ProduceAction.DANCE
+            else:
+                return None
+        case ProduceAction.VOCAL:
+            templ = R.InPurodyuusu.TextActionVocal if not final_week else R.InPurodyuusu.ButtonFinalPracticeVocal
+            if button := image.find(templ):
+                device.double_click(button)
+                return ProduceAction.VOCAL
+            else:
+                return None
+        case ProduceAction.VISUAL:
+            templ = R.InPurodyuusu.TextActionDance if not final_week else R.InPurodyuusu.ButtonFinalPracticeDance
+            if button := image.find(templ):
+                device.double_click(button)
+                return ProduceAction.VISUAL
+            else:
+                return None
+        case ProduceAction.REST:
+            if is_rest_available():
+                rest()
+                return ProduceAction.REST
+        case ProduceAction.OUTING:
+            if outing_available():
+                enter_outing()
+                return ProduceAction.OUTING
+        case ProduceAction.STUDY:
+            if study_available():
+                enter_study()
+                return ProduceAction.STUDY
+        case ProduceAction.ALLOWANCE:
+            if allowance_available():
+                enter_allowance()
+                return ProduceAction.ALLOWANCE
+        case _:
+            logger.warning("Unknown action: %s", action)
+            return None
+
 def week_normal(week_first: bool = False):
     until_action_scene(week_first)
+    logger.info("Handling actions...")
+    action: ProduceAction | None = None
     # SP 课程
     if (
         conf().produce.prefer_lesson_ap
         and handle_sp_lesson()
     ):
-        executed_action = 'lesson'
+        action = ProduceAction.DANCE
     else:
-        executed_action = handle_recommended_action()
-    logger.info("Executed recommended action: %s", executed_action)
-    # 推荐练习
-    if executed_action == 'lesson':
-        until_practice_scene()
-        practice()
-    # 推荐休息
-    elif executed_action == 'rest':
-        pass
-    # 没有推荐行动
-    elif executed_action is None:
-        if outing_available():
-            enter_outing()
-        elif study_available():
-            enter_study()
-        elif allowance_available():
-            enter_allowance()
-        elif is_rest_available():
-            rest()
-        else:
-            raise ValueError("No action available.")
+        actions = conf().produce.actions_order
+        for action in actions:
+            logger.debug("Checking action: %s", action)
+            if action := handle_action(action):
+                logger.info("Action %s hit.", action)
+                break
+    match action:
+        case (
+            ProduceAction.REST |
+            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE
+        ):
+            # 什么都不需要做
+            pass
+        case ProduceAction.DANCE | ProduceAction.VOCAL | ProduceAction.VISUAL:
+            until_practice_scene()
+            practice()
+        case ProduceAction.RECOMMENDED:
+            # RECOMMENDED 应当被 handle_recommended_action 转换为具体的行动
+            raise ValueError("Recommended action should not be handled here.")
+        case None:
+            raise ValueError("Action is None.")
+        case _:
+            assert_never(action)
     until_action_scene()
 
 def week_final_lesson():
     until_action_scene()
-    if handle_recommended_action(final_week=True) != 'lesson':
-        raise ValueError("Failed to enter recommended action on final week.")
-    sleep(5)
+    # if handle_recommended_action(final_week=True) != 'lesson':
+    #     raise ValueError("Failed to enter recommended action on final week.")
+    # sleep(5)
+    action: ProduceAction | None = None
+    actions = conf().produce.actions_order
+    for action in actions:
+        logger.debug("Checking action: %s", action)
+        if action := handle_action(action, True):
+            logger.info("Action %s hit.", action)
+            break
+    match action:
+        case (
+            ProduceAction.REST |
+            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE
+        ):
+            # 什么都不需要做
+            pass
+        case ProduceAction.DANCE | ProduceAction.VOCAL | ProduceAction.VISUAL:
+            until_practice_scene()
+            practice()
+        case ProduceAction.RECOMMENDED:
+            # RECOMMENDED 应当被 handle_recommended_action 转换为具体的行动
+            raise ValueError("Recommended action should not be handled here.")
+        case None:
+            raise ValueError("Action is None.")
+        case _:
+            assert_never(action)
     until_practice_scene()
     practice()
 
@@ -1050,6 +1142,7 @@ if __name__ == '__main__':
 
 
     # practice()
+    week_mid_exam()
     # week_final_exam()
     # exam('final')
     # produce_end()
@@ -1058,7 +1151,7 @@ if __name__ == '__main__':
     # hajime_pro(start_from=16)
     # exam('mid')
     stage = (detect_produce_scene())
-    hajime_regular_from_stage(stage, 'pro')
+    hajime_regular_from_stage(stage, 'regular')
 
     # click_recommended_card(card_count=skill_card_count())
     # exam('mid')

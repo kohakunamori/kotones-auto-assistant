@@ -1,12 +1,17 @@
-from importlib import resources
 import os
-from typing import Literal, Dict
+from importlib import resources
+from typing import Literal, Dict, NamedTuple, Tuple, TypeVar, Generic
 from enum import IntEnum, Enum
 
 from pydantic import BaseModel, ConfigDict
 
 # TODO: from kotonebot import config (context) 会和 kotonebot.config 冲突
 from kotonebot.backend.context import config
+
+T = TypeVar('T')
+class ConfigEnum(Enum):
+    def display(self) -> str:
+        return self.value[1]
 
 class Priority(IntEnum):
     START_GAME = 1
@@ -302,6 +307,33 @@ class ContestConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用竞赛"""
 
+class ProduceAction(Enum):
+    RECOMMENDED = 'recommended'
+    VISUAL = 'visual'
+    VOCAL = 'vocal'
+    DANCE = 'dance'
+    # VISUAL_SP = 'visual_sp'
+    # VOCAL_SP = 'vocal_sp'
+    # DANCE_SP = 'dance_sp'
+    OUTING = 'outing'
+    STUDY = 'study'
+    ALLOWANCE = 'allowance'
+    REST = 'rest'
+
+    @property
+    def display_name(self):
+        MAP = {
+            ProduceAction.RECOMMENDED: '推荐行动',
+            ProduceAction.VISUAL: '形象课程',
+            ProduceAction.VOCAL: '声乐课程',
+            ProduceAction.DANCE: '舞蹈课程',
+            ProduceAction.OUTING: '外出（おでかけ）',
+            ProduceAction.STUDY: '自习（授業）',
+            ProduceAction.ALLOWANCE: '活动支给（活動支給）',
+            ProduceAction.REST: '休息',
+        }
+        return MAP[self]
+
 class ProduceConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用培育"""
@@ -339,6 +371,21 @@ class ProduceConfig(ConfigBaseModel):
     
     启用后，若出现 SP 课程，则会优先执行 SP 课程，而不是推荐课程。
     若出现多个 SP 课程，随机选择一个。
+    """
+    actions_order: list[ProduceAction] = [
+        ProduceAction.RECOMMENDED,
+        ProduceAction.VISUAL,
+        ProduceAction.VOCAL,
+        ProduceAction.DANCE,
+        ProduceAction.ALLOWANCE,
+        ProduceAction.OUTING,
+        ProduceAction.STUDY,
+        ProduceAction.REST,
+    ]
+    """
+    行动优先级
+    
+    每一周的行动将会按这里设置的优先级执行。
     """
 
 class MissionRewardConfig(ConfigBaseModel):

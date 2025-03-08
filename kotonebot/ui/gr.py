@@ -16,7 +16,7 @@ from kotonebot.config.manager import load_config, save_config
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
-    MissionRewardConfig, PIdol, DailyMoneyShopItems
+    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.bot import KotoneBot
@@ -255,6 +255,7 @@ class KotoneBotUI:
         follow_producer: bool,
         self_study_lesson: Literal['dance', 'visual', 'vocal'],
         prefer_lesson_ap: bool,
+        actions_order: List[str],
         mission_reward_enabled: bool,
     ) -> str:
         ap_items_enum: List[Literal[0, 1, 2, 3]] = []
@@ -311,7 +312,8 @@ class KotoneBotUI:
                 use_note_boost=use_note_boost,
                 follow_producer=follow_producer,
                 self_study_lesson=self_study_lesson,
-                prefer_lesson_ap=prefer_lesson_ap
+                prefer_lesson_ap=prefer_lesson_ap,
+                actions_order=[ProduceAction(action) for action in actions_order]
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
@@ -585,7 +587,14 @@ class KotoneBotUI:
                     value=self.current_config.options.produce.prefer_lesson_ap,
                     info=ProduceConfig.model_fields['prefer_lesson_ap'].description
                 )
-            
+                actions_order = gr.Dropdown(
+                    choices=[(action.display_name, action.value) for action in ProduceAction],
+                    value=[action.value for action in self.current_config.options.produce.actions_order],
+                    label="行动优先级",
+                    info="设置每周行动的优先级顺序",
+                    multiselect=True
+                )
+
             produce_enabled.change(
                 fn=lambda x: gr.Group(visible=x),
                 inputs=[produce_enabled],
@@ -597,7 +606,7 @@ class KotoneBotUI:
                 inputs=[auto_set_memory],
                 outputs=[memory_sets_group]
             )
-        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap
+        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order
 
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
