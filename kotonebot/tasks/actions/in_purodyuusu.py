@@ -1121,8 +1121,12 @@ if __name__ == '__main__':
 
     from kotonebot.util import Profiler
     from kotonebot.backend.context import init_context, manual_context
-    init_context()
+    from ..common import BaseConfig
+    from kotonebot.backend.debug import debug
+    init_context(config_type=BaseConfig)
     manual_context().begin()
+    debug.auto_save_to_folder = 'dumps'
+    debug.enabled = True
 
     # hajime_regular(start_from=1)
     
@@ -1142,7 +1146,7 @@ if __name__ == '__main__':
 
 
     # practice()
-    week_mid_exam()
+    # week_mid_exam()
     # week_final_exam()
     # exam('final')
     # produce_end()
