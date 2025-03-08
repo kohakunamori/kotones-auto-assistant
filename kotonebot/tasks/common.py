@@ -328,7 +328,7 @@ class ProduceAction(Enum):
             ProduceAction.VOCAL: '声乐课程',
             ProduceAction.DANCE: '舞蹈课程',
             ProduceAction.OUTING: '外出（おでかけ）',
-            ProduceAction.STUDY: '自习（授業）',
+            ProduceAction.STUDY: '文化课（授業）',
             ProduceAction.ALLOWANCE: '活动支给（活動支給）',
             ProduceAction.REST: '休息',
         }
