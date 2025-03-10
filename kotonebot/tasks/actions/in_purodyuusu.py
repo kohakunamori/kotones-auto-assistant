@@ -9,12 +9,12 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-
 from .. import R
 from . import loading
-from ..common import ProduceAction, conf
 from .scenes import at_home
+from ..util.trace import trace
 from .commu import handle_unread_commu
+from ..common import ProduceAction, conf
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.context.context import use_screenshot
 from .common import until_acquisition_clear, acquisitions, commut_event
@@ -257,8 +257,8 @@ def detect_recommended_card(
         raise ValueError(f"Unsupported card count: {card_count}")
     cards.append(SKIP_POSITION)
 
-    
     image = use_screenshot(img)
+    original_image = image.copy()
     results: list[CardDetectResult] = []
     for x, y, w, h, return_value in cards:
         outer = (max(0, x - GLOW_EXTENSION), max(0, y - GLOW_EXTENSION))
@@ -318,6 +318,17 @@ def detect_recommended_card(
         filtered_results[0].top_score,
         filtered_results[0].bottom_score
     )
+    trace('rec-card', original_image, {
+        'card_count': card_count,
+        'type': filtered_results[0].type,
+        'score': filtered_results[0].score,
+        'borders': (
+            filtered_results[0].left_score,
+            filtered_results[0].right_score,
+            filtered_results[0].top_score,
+            filtered_results[0].bottom_score
+        )
+    })
     return filtered_results[0]
 
 def handle_recommended_card(
@@ -326,15 +337,6 @@ def handle_recommended_card(
         *,
         img: MatLike | None = None,
     ):
-    # cd = Countdown(seconds=timeout)
-    # while not cd.expired():
-    #     result = detect_recommended_card(card_count, threshold_predicate, img=img)
-    #     if result is not None:
-    #         device.double_click(result)
-    #         return result
-    #     sleep(np.random.uniform(0.01, 0.1))
-    # return None
-
     result = detect_recommended_card(card_count, threshold_predicate, img=img)
     if result is not None:
         device.double_click(result)
