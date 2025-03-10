@@ -1,6 +1,14 @@
 # 更新日志
 ## kaa
-### v2025.3.9
+### v2025.3.9.3
+其他：
+* 降级 numpy<2.0，修复“A module that was compiled using NumPy 1.x cannot be run in NumPy 2.0.0 as it may crash.”问题
+
+### v2025.3.9.1、v2025.3.9.2
+其他：
+* 降级 onnxruntime==1.14.0，修复“ImportError: DLL load failed while importing onnxruntime_pybind11_state”问题
+
+### v2025.3.9.0
 脚本：
 * [修复] 修复部分情况下工作分配偶像选择页面报错（#a35e6c3）
 * [修复] 修复培育中强化技能卡时有几率卡在确认按钮上（#221721a）
