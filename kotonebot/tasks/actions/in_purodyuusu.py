@@ -898,8 +898,6 @@ def week_final_lesson():
             raise ValueError("Action is None.")
         case _:
             assert_never(action)
-    until_practice_scene()
-    practice()
 
 def week_mid_exam():
     logger.info("Week mid exam started.")
