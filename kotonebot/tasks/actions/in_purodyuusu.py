@@ -14,7 +14,7 @@ from . import loading
 from .scenes import at_home
 from ..util.trace import trace
 from .commu import handle_unread_commu
-from ..common import ProduceAction, conf
+from ..common import ProduceAction, RecommendCardDetectionMode, conf
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.context.context import use_screenshot
 from .common import until_acquisition_clear, acquisitions, commut_event
@@ -318,6 +318,9 @@ def detect_recommended_card(
         filtered_results[0].top_score,
         filtered_results[0].bottom_score
     )
+    # 跟踪检测结果
+    x, y, w, h = filtered_results[0].rect
+    cv2.rectangle(original_image, (x, y), (x+w, y+h), (0, 0, 255), 3)
     trace('rec-card', original_image, {
         'card_count': card_count,
         'type': filtered_results[0].type,
@@ -347,7 +350,6 @@ def handle_recommended_card(
 @action('获取当前卡片数量', screenshot_mode='manual-inherit')
 def skill_card_count(img: MatLike | None = None):
     """获取当前持有的技能卡数量"""
-    device.click(0, 0)
     img = use_screenshot(img)
     img = crop(img, y1=0.83, y2=0.90)
     count = image.raw().count(img, R.InPurodyuusu.A)
@@ -450,10 +452,17 @@ def practice():
 
     def threshold_predicate(result: CardDetectResult):
         border_scores = (result.left_score, result.right_score, result.top_score, result.bottom_score)
-        return (
-            result.score >= 0.03
-            # and len(list(filter(lambda x: x >= 0.01, border_scores))) >= 3
-        )
+        is_strict_mode = conf().produce.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
+        if is_strict_mode:
+            return (
+                result.score >= 0.05
+                and len(list(filter(lambda x: x >= 0.05, border_scores))) >= 3
+            )
+        else:
+            return result.score >= 0.03
+        # is_strict_mode 见下方 exam() 中解释
+        # 严格模式下区别：
+        # 提高平均阈值，且同时要求至少有 3 边达到阈值。
 
     # 循环打出推荐卡，直到练习结束
     wait = cycle([0.1, 0.3, 0.5]) # 见下方解释
@@ -462,6 +471,7 @@ def practice():
     no_card_cd = Countdown(sec=4)
     while True:
         start_time = time.time()
+        device.click(0, 0)
         img = device.screenshot()
         if image.find(R.Common.ButtonIconCheckMark):
             logger.info("Confirmation dialog detected")
@@ -556,16 +566,35 @@ def exam(type: Literal['mid', 'final']):
     logger.info("Exam started")
 
     def threshold_predicate(result: CardDetectResult):
-        if type == 'final':
-            return (
-                result.score >= 0.4
-                and result.left_score >= 0.2
-                and result.right_score >= 0.2
-                and result.top_score >= 0.2
-                and result.bottom_score >= 0.2
-            )
+        is_strict_mode = conf().produce.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
+        if is_strict_mode:
+            if type == 'final':
+                return (
+                    result.score >= 0.4
+                    and result.left_score >= 0.2
+                    and result.right_score >= 0.2
+                    and result.top_score >= 0.2
+                    and result.bottom_score >= 0.2
+                )
+            else:
+                return (
+                    result.score >= 0.10
+                    and result.left_score >= 0.01
+                    and result.right_score >= 0.01
+                    and result.top_score >= 0.01
+                    and result.bottom_score >= 0.01
+                )
         else:
-            return result.score >= 0.10
+            if type == 'final':
+                return (
+                    result.score >= 0.4
+                    and result.left_score >= 0.2
+                    and result.right_score >= 0.2
+                    and result.top_score >= 0.2
+                    and result.bottom_score >= 0.2
+                )
+            else:
+                return result.score >= 0.10
         # 关于上面阈值的解释：
         # 所有阈值均指卡片周围的“黄色度”，
         # score 指卡片四边的平均黄色度阈值，
@@ -577,12 +606,18 @@ def exam(type: Literal['mid', 'final']):
         # 解决方法是提高平均阈值的同时，为每一边都设置阈值。
         # 这样可以筛选出只有四边都包含黄色的发光卡片，
         # 而由夕阳背景造成的假发光卡片通常不会四边都包含黄色。
+        
+        # 为什么需要严格模式：
+        # 严格模式主要用于琴音。琴音的服饰上有大量黄色元素，
+        # 很容易干扰检测，因此需要针对琴音专门调整阈值。
+        # 主要变化是给每一边都设置了阈值。
 
     wait = cycle([0.1, 0.3, 0.5])
     tries = 1
     no_card_cd = Countdown(sec=4)
     while True:
         start_time = time.time()
+        device.click(0, 0)
         img = device.screenshot()
         if image.find(R.Common.ButtonIconCheckMark):
             logger.info("Confirmation dialog detected")
@@ -778,7 +813,7 @@ def produce_end():
         sleep(1)
     logger.info("Produce completed.")
 
-@action('执行行动')
+@action('执行行动', screenshot_mode='manual-inherit')
 def handle_action(action: ProduceAction, final_week: bool = False) -> ProduceAction | None:
     """
     执行行动
@@ -790,6 +825,7 @@ def handle_action(action: ProduceAction, final_week: bool = False) -> ProduceAct
     :param final_week: 是否为冲刺周
     :return: 执行的行动
     """
+    device.screenshot()
     match action:
         case ProduceAction.RECOMMENDED:
             return handle_recommended_action(final_week)
