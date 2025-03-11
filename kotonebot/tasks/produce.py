@@ -57,7 +57,7 @@ def select_idol(target_titles: list[str] | PIdol):
 
     if isinstance(target_titles, PIdol):
         target_titles = target_titles.value
-    _target_titles = [equals(t, remove_space=True) for t in target_titles]
+    _target_titles = [contains(t) for t in target_titles]
     device.screenshot()
     # 定位滑动基准
     results = image.find_all(R.Produce.IconPIdolLevel)
@@ -81,7 +81,7 @@ def select_idol(target_titles: list[str] | PIdol):
         for r in results:
             device.click(r)
             sleep(0.3)
-            device.screenshot()
+            device.screenshot(force=True)
             if all(ocr.find_all(_target_titles, rect=R.Produce.KbIdolOverviewName)):
                 found = True
                 break
