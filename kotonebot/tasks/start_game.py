@@ -2,29 +2,17 @@
 import logging
 
 from kotonebot import task, device, image, cropped, AdaptiveWait, sleep, ocr
+from kotonebot.backend.context.task_action import action
 from kotonebot.errors import GameUpdateNeededError
 from . import R
-from .common import Priority
+from .common import Priority, conf
 from .actions.loading import loading
 from .actions.scenes import at_home, goto_home
 from .actions.commu import is_at_commu, handle_unread_commu
 logger = logging.getLogger(__name__)
 
-@task('启动游戏', priority=Priority.START_GAME)
-def start_game():
-    """
-    启动游戏，直到游戏进入首页为止。
-    
-    执行前游戏必须处于未启动状态。
-    """
-    # TODO: 包名放到配置文件里
-    if device.current_package() == 'com.bandainamcoent.idolmaster_gakuen':
-        logger.info("Game already started")
-        if not at_home():
-            logger.info("Not at home, going to home")
-            goto_home()
-        return
-    device.launch_app('com.bandainamcoent.idolmaster_gakuen')
+@action('启动游戏公共部分')
+def start_game_common():
     # [screenshots/startup/1.png]
     image.wait_for(R.Daily.ButonLinkData, timeout=30)
     sleep(2)
@@ -51,6 +39,26 @@ def start_game():
             else:
                 device.click_center()
             wait()
+
+@task('启动游戏', priority=Priority.START_GAME)
+def start_game():
+    """
+    启动游戏，直到游戏进入首页为止。
+    
+    执行前游戏必须处于未启动状态。
+    """
+    if not conf().start_game.enabled:
+        logger.info('"Start game" is disabled.')
+        return
+    # TODO: 包名放到配置文件里
+    if device.current_package() == 'com.bandainamcoent.idolmaster_gakuen':
+        logger.info("Game already started")
+        if not at_home():
+            logger.info("Not at home, going to home")
+            goto_home()
+        return
+    device.launch_app('com.bandainamcoent.idolmaster_gakuen')
+    start_game_common()
 
 if __name__ == '__main__':
     import logging

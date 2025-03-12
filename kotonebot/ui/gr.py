@@ -13,10 +13,11 @@ import gradio as gr
 
 from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.config.manager import load_config, save_config
+from kotonebot.tasks import start_game
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
-    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction
+    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction, StartGameConfig, StartKuyoAndGameConfig
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.bot import KotoneBot
@@ -243,6 +244,7 @@ class KotoneBotUI:
         online_live_reassign: bool,
         online_live_duration: Literal[4, 6, 12],
         contest_enabled: bool,
+        select_which_contestant: Literal[1, 2, 3],
         produce_enabled: bool,
         produce_mode: Literal["regular"],
         produce_count: int,
@@ -257,6 +259,8 @@ class KotoneBotUI:
         prefer_lesson_ap: bool,
         actions_order: List[str],
         mission_reward_enabled: bool,
+        start_game_enabled: bool,
+        start_kuyo_and_game_enabled: bool
     ) -> str:
         ap_items_enum: List[Literal[0, 1, 2, 3]] = []
         ap_items_map: Dict[str, APShopItems] = {
@@ -298,7 +302,8 @@ class KotoneBotUI:
                 online_live_duration=online_live_duration
             ),
             contest=ContestConfig(
-                enabled=contest_enabled
+                enabled=contest_enabled,
+                select_which_contestant=select_which_contestant
             ),
             produce=ProduceConfig(
                 enabled=produce_enabled,
@@ -317,6 +322,12 @@ class KotoneBotUI:
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
+            ),
+            start_game=StartGameConfig(
+                enabled=start_game_enabled
+            ),
+            start_kuyo_and_game=StartKuyoAndGameConfig(
+                enabled=start_kuyo_and_game_enabled
             )
         )
         
@@ -507,6 +518,29 @@ class KotoneBotUI:
                 outputs=[work_group]
             )
         return assignment_enabled, mini_live_reassign, mini_live_duration, online_live_reassign, online_live_duration
+    
+    def _create_contest_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown]:
+        with gr.Column():
+            gr.Markdown("### 竞赛设置")
+            contest_enabled = gr.Checkbox(
+                label="启用竞赛",
+                value=self.current_config.options.contest.enabled,
+                info=ContestConfig.model_fields['enabled'].description
+            )
+            with gr.Group(visible=self.current_config.options.contest.enabled) as contest_group:
+                select_which_contestant = gr.Dropdown(
+                    choices=[1, 2, 3],
+                    value=self.current_config.options.contest.select_which_contestant,
+                    label="选择第几位竞赛目标",
+                    interactive=True,
+                    info=ContestConfig.model_fields['select_which_contestant'].description
+                )
+            contest_enabled.change(
+                fn=lambda x: gr.Group(visible=x),
+                inputs=[contest_enabled],
+                outputs=[contest_group]
+            )
+        return contest_enabled, select_which_contestant
 
     def _create_produce_settings(self):
         with gr.Column():
@@ -682,13 +716,7 @@ class KotoneBotUI:
             work_settings = self._create_work_settings()
             
             # 竞赛设置
-            with gr.Column():
-                gr.Markdown("### 竞赛设置")
-                contest = gr.Checkbox(
-                    label="启用竞赛",
-                    value=self.current_config.options.contest.enabled,
-                    info=ContestConfig.model_fields['enabled'].description
-                )
+            contest_settings = self._create_contest_settings()
             
             # 培育设置
             produce_settings = self._create_produce_settings()
@@ -702,6 +730,24 @@ class KotoneBotUI:
                     info=MissionRewardConfig.model_fields['enabled'].description
                 )
             
+            # 启动游戏设置
+            with gr.Column():
+                gr.Markdown("### 启动游戏设置")
+                start_game_enabled = gr.Checkbox(
+                    label="是否启用 自动启动游戏",
+                    value=self.current_config.options.start_game.enabled,
+                    info=StartGameConfig.model_fields['enabled'].description
+                )
+            
+            # 启动Kuyo与游戏设置
+            with gr.Column():
+                gr.Markdown("### 启动Kuyo与游戏设置")
+                start_kuyo_and_game_enabled = gr.Checkbox(
+                    label="是否启用 自动启动Kuyo与游戏",
+                    value=self.current_config.options.start_kuyo_and_game.enabled,
+                    info=StartKuyoAndGameConfig.model_fields['enabled'].description
+                )
+            
             save_btn = gr.Button("保存设置")
             result = gr.Markdown()
             
@@ -713,9 +759,11 @@ class KotoneBotUI:
                 activity_funds,
                 presents,
                 *work_settings,
-                contest,
+                *contest_settings,
                 *produce_settings,
                 mission_reward,
+                start_game_enabled,
+                start_kuyo_and_game_enabled,
             ]
             
             save_btn.click(
@@ -752,7 +800,7 @@ class KotoneBotUI:
     def _create_whats_new_tab(self) -> None:
         """创建更新日志标签页，并显示最新版本更新内容"""
         with gr.Tab("更新日志"):
-            from ..tasks.metadata import WHATS_NEW
+            from kotonebot.tasks.metadata import WHATS_NEW
             gr.Markdown(WHATS_NEW)
 
     def _create_screen_tab(self) -> None:

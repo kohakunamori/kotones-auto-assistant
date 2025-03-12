@@ -307,6 +307,9 @@ class ContestConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用竞赛"""
 
+    select_which_contestant: Literal[1, 2, 3] = 1
+    """选择第几个挑战者"""
+
 class ProduceAction(Enum):
     RECOMMENDED = 'recommended'
     VISUAL = 'visual'
@@ -392,6 +395,15 @@ class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用领取任务奖励"""
 
+class StartGameConfig(ConfigBaseModel):
+    enabled: bool = True
+    """
+    是否启用自动启动游戏。默认为True
+    """
+
+class StartKuyoAndGameConfig(ConfigBaseModel):
+    enabled: bool = False
+    """是否启用自动启动Kuyo与游戏"""
 
 class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
@@ -415,6 +427,11 @@ class BaseConfig(ConfigBaseModel):
     mission_reward: MissionRewardConfig = MissionRewardConfig()
     """领取任务奖励配置"""
 
+    start_game: StartGameConfig = StartGameConfig()
+    """启动游戏配置"""
+
+    start_kuyo_and_game: StartKuyoAndGameConfig = StartKuyoAndGameConfig()
+    """启动Kuyo与游戏配置"""
 
 
 def conf() -> BaseConfig:

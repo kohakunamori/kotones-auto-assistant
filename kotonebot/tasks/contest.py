@@ -52,19 +52,30 @@ def pick_and_contest(has_ongoing_contest: bool = False) -> bool:
     # [screenshots/contest/ongoing.png]
     if not has_ongoing_contest:
         image.expect_wait(R.Daily.ButtonContestRanking)
-        sleep(1) # 等待动画
+        sleep(3) # 等待动画
         logger.info('Randomly pick a contestant and start challenge.')
         # 随机选一个对手 [screenshots/contest/main.png]
         logger.debug('Clicking on contestant.')
-        contestant = image.wait_for(R.Daily.TextContestOverallStats, timeout=2)
-        if contestant is None:
+        contestant_list = image.find_all(R.Daily.TextContestOverallStats)
+        if contestant_list is None or len(contestant_list) == 0:
             logger.info('No contestant found. Today\'s challenge points used up.')
             return False
+        # 按照y坐标从上到下排序对手列表
+        contestant_list.sort(key=lambda x: x.position[1])
+        if len(contestant_list) != 3:
+            logger.warning('Cannot find all 3 contestants.')
+        # 选择配置文件中对应的对手顺序（1最强，3最弱）
+        target = conf().contest.select_which_contestant
+        if target >= 1 and target <= 3 and target <= len(contestant_list):
+            target -= 1 # [1, 3]映射至[0, 2]
+        else:
+            target = 0 # 出错则默认选择第一个
+        contestant = contestant_list[target]
         device.click(contestant)
         # 挑战开始 [screenshots/contest/start1.png]
         logger.debug('Clicking on start button.')
         device.click(image.expect_wait(R.Daily.ButtonContestStart))
-    sleep(1)
+    sleep(3) # 多延迟一点
     # 进入挑战页面 [screenshots/contest/contest1.png]
     # [screenshots/contest/contest2.png]
     while not image.find(R.Daily.ButtonContestChallengeStart):
@@ -80,6 +91,7 @@ def pick_and_contest(has_ongoing_contest: bool = False) -> bool:
         device.click()
         sleep(0.5)
     # 点击 SKIP
+    sleep(3)
     logger.debug('Clicking on SKIP.')
     # TODO: 改为二值化图片
     device.click(image.expect(R.Daily.ButtonIconSkip, colored=True, transparent=True, threshold=0.999))
