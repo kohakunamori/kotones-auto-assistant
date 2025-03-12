@@ -319,19 +319,20 @@ def detect_recommended_card(
         filtered_results[0].bottom_score
     )
     # 跟踪检测结果
-    x, y, w, h = filtered_results[0].rect
-    cv2.rectangle(original_image, (x, y), (x+w, y+h), (0, 0, 255), 3)
-    trace('rec-card', original_image, {
-        'card_count': card_count,
-        'type': filtered_results[0].type,
-        'score': filtered_results[0].score,
-        'borders': (
-            filtered_results[0].left_score,
-            filtered_results[0].right_score,
-            filtered_results[0].top_score,
-            filtered_results[0].bottom_score
-        )
-    })
+    if conf().trace.recommend_card_detection:
+        x, y, w, h = filtered_results[0].rect
+        cv2.rectangle(original_image, (x, y), (x+w, y+h), (0, 0, 255), 3)
+        trace('rec-card', original_image, {
+            'card_count': card_count,
+            'type': filtered_results[0].type,
+            'score': filtered_results[0].score,
+            'borders': (
+                filtered_results[0].left_score,
+                filtered_results[0].right_score,
+                filtered_results[0].top_score,
+                filtered_results[0].bottom_score
+            )
+        })
     return filtered_results[0]
 
 def handle_recommended_card(
@@ -1191,7 +1192,7 @@ if __name__ == '__main__':
     # hajime_pro(start_from=16)
     # exam('mid')
     stage = (detect_produce_scene())
-    hajime_regular_from_stage(stage, 'regular')
+    hajime_regular_from_stage(stage, 'pro')
 
     # click_recommended_card(card_count=skill_card_count())
     # exam('mid')

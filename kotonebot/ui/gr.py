@@ -17,7 +17,7 @@ from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
-    RecommendCardDetectionMode
+    RecommendCardDetectionMode, TraceConfig
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.bot import KotoneBot
@@ -231,6 +231,7 @@ class KotoneBotUI:
         keep_screenshots: bool,
         check_emulator: bool,
         emulator_path: str,
+        trace_recommend_card_detection: bool,
         purchase_enabled: bool,
         money_enabled: bool,
         ap_enabled: bool,
@@ -320,6 +321,9 @@ class KotoneBotUI:
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
+            ),
+            trace=TraceConfig(
+                recommend_card_detection=trace_recommend_card_detection
             )
         )
         
@@ -679,7 +683,6 @@ class KotoneBotUI:
                     info=UserConfig.model_fields['keep_screenshots'].description,
                     interactive=True
                 )
-                # 添加新的设置项
                 check_emulator = gr.Checkbox(
                     label="检查并启动模拟器",
                     value=self.current_config.backend.check_emulator,
@@ -738,6 +741,17 @@ class KotoneBotUI:
                     info=MissionRewardConfig.model_fields['enabled'].description
                 )
             
+            # 跟踪设置
+            with gr.Column():
+                gr.Markdown("### 跟踪设置")
+                gr.Markdown("跟踪功能会记录指定模块的运行情况，并保存截图。")
+                trace_recommend_card_detection = gr.Checkbox(
+                    label="跟踪推荐卡检测",
+                    value=self.current_config.options.trace.recommend_card_detection,
+                    info=TraceConfig.model_fields['recommend_card_detection'].description,
+                    interactive=True
+                )
+
             save_btn = gr.Button("保存设置")
             result = gr.Markdown()
             
@@ -745,6 +759,7 @@ class KotoneBotUI:
             all_settings = [
                 adb_ip, adb_port, screenshot_impl, keep_screenshots,
                 check_emulator, emulator_path,
+                trace_recommend_card_detection,
                 *purchase_settings,
                 activity_funds,
                 presents,

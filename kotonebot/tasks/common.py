@@ -410,6 +410,9 @@ class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用领取任务奖励"""
 
+class TraceConfig(ConfigBaseModel):
+    recommend_card_detection: bool = False
+    """跟踪推荐卡检测"""
 
 class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
@@ -433,6 +436,8 @@ class BaseConfig(ConfigBaseModel):
     mission_reward: MissionRewardConfig = MissionRewardConfig()
     """领取任务奖励配置"""
 
+    trace: TraceConfig = TraceConfig()
+    """跟踪配置"""
 
 
 def conf() -> BaseConfig:
