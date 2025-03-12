@@ -13,10 +13,11 @@ import gradio as gr
 
 from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.config.manager import load_config, save_config
+from kotonebot.tasks import start_game
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
-    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction
+    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction, StartGameConfig, StartKuyoAndGameConfig
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.bot import KotoneBot
@@ -257,6 +258,8 @@ class KotoneBotUI:
         prefer_lesson_ap: bool,
         actions_order: List[str],
         mission_reward_enabled: bool,
+        start_game_enabled: bool,
+        start_kuyo_and_game_enabled: bool
     ) -> str:
         ap_items_enum: List[Literal[0, 1, 2, 3]] = []
         ap_items_map: Dict[str, APShopItems] = {
@@ -317,6 +320,12 @@ class KotoneBotUI:
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
+            ),
+            start_game=StartGameConfig(
+                enabled=start_game_enabled
+            ),
+            start_kuyo_and_game=StartKuyoAndGameConfig(
+                enabled=start_kuyo_and_game_enabled
             )
         )
         
@@ -702,6 +711,24 @@ class KotoneBotUI:
                     info=MissionRewardConfig.model_fields['enabled'].description
                 )
             
+            # 启动游戏设置
+            with gr.Column():
+                gr.Markdown("### 启动游戏设置")
+                start_game_enabled = gr.Checkbox(
+                    label="是否启动自动启动游戏",
+                    value=self.current_config.options.start_game.enabled,
+                    info=StartGameConfig.model_fields['enabled'].description
+                )
+            
+            # 启动Kuyo与游戏设置
+            with gr.Column():
+                gr.Markdown("### 启动Kuyo与游戏设置")
+                start_kuyo_and_game_enabled = gr.Checkbox(
+                    label="是否启动自动启动Kuyo与游戏",
+                    value=self.current_config.options.start_kuyo_and_game.enabled,
+                    info=StartKuyoAndGameConfig.model_fields['enabled'].description
+                )
+            
             save_btn = gr.Button("保存设置")
             result = gr.Markdown()
             
@@ -716,6 +743,8 @@ class KotoneBotUI:
                 contest,
                 *produce_settings,
                 mission_reward,
+                start_game_enabled,
+                start_kuyo_and_game_enabled,
             ]
             
             save_btn.click(
@@ -752,7 +781,7 @@ class KotoneBotUI:
     def _create_whats_new_tab(self) -> None:
         """创建更新日志标签页，并显示最新版本更新内容"""
         with gr.Tab("更新日志"):
-            from ..tasks.metadata import WHATS_NEW
+            from kotonebot.tasks.metadata import WHATS_NEW
             gr.Markdown(WHATS_NEW)
 
     def _create_screen_tab(self) -> None:
