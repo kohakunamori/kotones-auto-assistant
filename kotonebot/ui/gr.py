@@ -38,13 +38,15 @@ root_logger.addHandler(file_handler)
 
 logging.getLogger("kotonebot").setLevel(logging.DEBUG)
 
+logger = logging.getLogger(__name__)
+
 def _save_bug_report(
-    path: str
+    path: str | None = None
 ) -> Generator[str, None, str]:
     """
-    保存错误报告
+    保存报告
 
-    :param path: 保存的路径。若为 `None`，则保存到 `./reports/{YY-MM-DD HH-MM-SS}.zip`。
+    :param path: 保存的路径。若为 `None`，则保存到 `./reports/bug-{YY-MM-DD HH-MM-SS}.zip`。
     :return: 保存的路径
     """
     from kotonebot import device
@@ -55,6 +57,8 @@ def _save_bug_report(
     os.makedirs('reports', exist_ok=True)
 
     error = ""
+    if path is None:
+        path = f'./reports/bug-{datetime.now().strftime("%y-%m-%d %H-%M-%S")}.zip'
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
         # 打包截图
         yield "### 打包上次截图..."
@@ -97,14 +101,8 @@ def _save_bug_report(
                     zipf.write(file_path, arcname)
                     yield f"### 打包 log 文件：{arcname}"
 
-        # 打包 reports 文件夹
-        if os.path.exists('reports'):
-            for root, dirs, files in os.walk('reports'):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.join('reports', os.path.relpath(file_path, 'reports'))
-                    zipf.write(file_path, arcname)
-                    yield f"### 打包 report 文件：{arcname}"
+        # 写出版本号
+        zipf.writestr('version.txt', version)
     
     # 上传报告
     from .file_host.sensio import upload
@@ -127,6 +125,7 @@ def _save_bug_report(
     yield final_msg
     return path
 
+version = importlib.metadata.version('ksaa')
 class KotoneBotUI:
     def __init__(self) -> None:
         self.is_running: bool = False
@@ -136,6 +135,8 @@ class KotoneBotUI:
         
     def _setup_kaa(self) -> None:
         from kotonebot.backend.debug.vars import debug, clear_saved
+        logger.info('Version: %s', version)
+
         self.kaa.initialize()
         if self.current_config.keep_screenshots:
             debug.auto_save_to_folder = 'dumps'
@@ -213,13 +214,13 @@ class KotoneBotUI:
     
     def start_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = True
-        self.run_status = self.kaa.start_all()  # 启动所有任务
+        self.run_status = self.kaa.start_all()
         return "停止", self.update_task_status()
 
     def stop_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = False
         if self.kaa:
-            self.run_status.interrupt()  # 中断运行
+            self.run_status.interrupt()
         return "启动", self.update_task_status()
 
     def save_settings(
@@ -792,7 +793,7 @@ class KotoneBotUI:
                 outputs=[result_text]
             )
             save_report_btn.click(
-                fn=partial(_save_bug_report, path='report.zip'),
+                fn=partial(_save_bug_report),
                 outputs=[result_text]
             )
 
@@ -844,7 +845,6 @@ class KotoneBotUI:
     def create_ui(self) -> gr.Blocks:
         with gr.Blocks(title="琴音小助手", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
             with gr.Column(elem_id="container"):
-                version = importlib.metadata.version('ksaa')
                 gr.Markdown(f"# 琴音小助手 v{version}")
                 
                 with gr.Tabs():
