@@ -307,6 +307,9 @@ class ContestConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用竞赛"""
 
+    select_which_contestant: Literal[1, 2, 3] = 1
+    """选择第几个挑战者"""
+
 class ProduceAction(Enum):
     RECOMMENDED = 'recommended'
     VISUAL = 'visual'
