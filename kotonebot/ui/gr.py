@@ -13,7 +13,6 @@ import gradio as gr
 
 from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.config.manager import load_config, save_config
-from kotonebot.tasks import start_game
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
