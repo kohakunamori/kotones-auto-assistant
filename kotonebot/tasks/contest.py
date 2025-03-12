@@ -30,7 +30,7 @@ def goto_contest() -> bool:
         while not image.find(R.Daily.ButtonContestRanking):
             # [screenshots/contest/acquire1.png]
             # [screenshots/contest/acquire2.png]
-            device.click_center()
+            device.click(0, 0)
             sleep(1)
         # [screenshots/contest/main.png]
     else:
@@ -53,7 +53,6 @@ def pick_and_contest(has_ongoing_contest: bool = False) -> bool:
     if not has_ongoing_contest:
         image.expect_wait(R.Daily.ButtonContestRanking)
         sleep(3) # 等待动画
-        logger.info('Randomly pick a contestant and start challenge.')
         # 随机选一个对手 [screenshots/contest/main.png]
         logger.debug('Clicking on contestant.')
         contestant_list = image.find_all(R.Daily.TextContestOverallStats)
@@ -71,6 +70,7 @@ def pick_and_contest(has_ongoing_contest: bool = False) -> bool:
         else:
             target = 0 # 出错则默认选择第一个
         contestant = contestant_list[target]
+        logger.info('Picking up contestant #%d.', target + 1)
         device.click(contestant)
         # 挑战开始 [screenshots/contest/start1.png]
         logger.debug('Clicking on start button.')
