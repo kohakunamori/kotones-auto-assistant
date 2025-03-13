@@ -1,14 +1,10 @@
 """领取社团奖励，并尽可能地给其他人送礼物"""
 import logging
-from math import log
 
-from kotonebot import task, device, image, AdaptiveWait, sleep, ocr
-from kotonebot.errors import GameUpdateNeededError
+from kotonebot import task, device, image, sleep
 from . import R
-from .common import DailyMoneyShopItems, conf
-from .actions.loading import loading
+from .common import conf
 from .actions.scenes import at_home, goto_home
-from .actions.commu import handle_unread_commu
 
 logger = logging.getLogger(__name__)
 
