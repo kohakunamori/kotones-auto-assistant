@@ -430,6 +430,10 @@ class ClubRewardConfig(ConfigBaseModel):
     selected_note: DailyMoneyShopItems = DailyMoneyShopItems.AnomalyNoteVisual
     """想在社团奖励中获取到的笔记"""
 
+class UpgradeSupportCardConfig(ConfigBaseModel):
+    enabled: bool = False
+    """是否启用支援卡升级"""
+
 class TraceConfig(ConfigBaseModel):
     recommend_card_detection: bool = False
     """跟踪推荐卡检测"""
@@ -471,6 +475,9 @@ class BaseConfig(ConfigBaseModel):
 
     club_reward: ClubRewardConfig = ClubRewardConfig()
     """领取社团奖励配置"""
+
+    upgrade_support_card: UpgradeSupportCardConfig = UpgradeSupportCardConfig()
+    """支援卡升级配置"""
 
     trace: TraceConfig = TraceConfig()
     """跟踪配置"""

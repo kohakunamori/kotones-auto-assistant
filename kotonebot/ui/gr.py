@@ -13,11 +13,12 @@ import gradio as gr
 
 from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.config.manager import load_config, save_config
+from kotonebot.tasks import upgrade_support_card
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
-    RecommendCardDetectionMode, TraceConfig, StartGameConfig
+    RecommendCardDetectionMode, TraceConfig, StartGameConfig, UpgradeSupportCardConfig
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.bot import KotoneBot
@@ -265,6 +266,8 @@ class KotoneBotUI:
         # club reward
         club_reward_enabled: bool,
         selected_note: DailyMoneyShopItems,
+        # upgrade support card
+        upgrade_support_card_enabled: bool,
         # start game
         start_game_enabled: bool,
         start_through_kuyo: bool,
@@ -336,6 +339,9 @@ class KotoneBotUI:
             club_reward=ClubRewardConfig(
                 enabled=club_reward_enabled,
                 selected_note=selected_note
+            ),
+            upgrade_support_card=UpgradeSupportCardConfig(
+                enabled=upgrade_support_card_enabled
             ),
             start_game=StartGameConfig(
                 enabled=start_game_enabled,
@@ -836,6 +842,15 @@ class KotoneBotUI:
             
             # 社团奖励设置
             club_reward_settings = self._create_club_reward_settings()
+
+            # 升级支援卡设置
+            with gr.Column():
+                gr.Markdown("### 升级支援卡设置")
+                upgrade_support_card_enabled = gr.Checkbox(
+                    label="启用升级支援卡",
+                    value=self.current_config.options.upgrade_support_card.enabled,
+                    info=UpgradeSupportCardConfig.model_fields['enabled'].description
+                )
             
             # 跟踪设置
             with gr.Column():
@@ -867,6 +882,7 @@ class KotoneBotUI:
                 *produce_settings,
                 mission_reward,
                 *club_reward_settings,
+                upgrade_support_card_enabled,
                 *start_game_settings
             ]
             
