@@ -416,15 +416,19 @@ class MissionRewardConfig(ConfigBaseModel):
 class TraceConfig(ConfigBaseModel):
     recommend_card_detection: bool = False
     """跟踪推荐卡检测"""
+
 class StartGameConfig(ConfigBaseModel):
     enabled: bool = True
-    """
-    是否启用自动启动游戏。默认为True
-    """
+    """是否启用自动启动游戏。默认为True"""
 
-class StartKuyoAndGameConfig(ConfigBaseModel):
-    enabled: bool = False
-    """是否启用自动启动Kuyo与游戏"""
+    start_through_kuyo: bool = False
+    """是否通过Kuyo来启动游戏"""
+
+    game_package_name: str = 'com.bandinamcoent.idolmaster_gakuen'
+    """游戏包名"""
+
+    kuyo_package_name: str = 'org.kuyo.game'
+    """Kuyo包名"""
 
 class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
@@ -450,11 +454,9 @@ class BaseConfig(ConfigBaseModel):
 
     trace: TraceConfig = TraceConfig()
     """跟踪配置"""
+
     start_game: StartGameConfig = StartGameConfig()
     """启动游戏配置"""
-
-    start_kuyo_and_game: StartKuyoAndGameConfig = StartKuyoAndGameConfig()
-    """启动Kuyo与游戏配置"""
 
 
 def conf() -> BaseConfig:

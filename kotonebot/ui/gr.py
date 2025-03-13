@@ -17,7 +17,7 @@ from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
-    RecommendCardDetectionMode, TraceConfig, StartGameConfig, StartKuyoAndGameConfig
+    RecommendCardDetectionMode, TraceConfig, StartGameConfig
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.bot import KotoneBot
@@ -263,7 +263,9 @@ class KotoneBotUI:
         recommend_card_detection_mode: str,
         mission_reward_enabled: bool,
         start_game_enabled: bool,
-        start_kuyo_and_game_enabled: bool,
+        start_through_kuyo: bool,
+        game_package_name: str,
+        kuyo_package_name: str,
     ) -> str:
         ap_items_enum: List[Literal[0, 1, 2, 3]] = []
         ap_items_map: Dict[str, APShopItems] = {
@@ -328,10 +330,10 @@ class KotoneBotUI:
                 enabled=mission_reward_enabled
             ),
             start_game=StartGameConfig(
-                enabled=start_game_enabled
-            ),
-            start_kuyo_and_game=StartKuyoAndGameConfig(
-                enabled=start_kuyo_and_game_enabled
+                enabled=start_game_enabled,
+                start_through_kuyo=start_through_kuyo,
+                game_package_name=game_package_name,
+                kuyo_package_name=kuyo_package_name
             ),
             trace=TraceConfig(
                 recommend_card_detection=trace_recommend_card_detection
@@ -682,6 +684,37 @@ class KotoneBotUI:
             )
         return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode
 
+    def _create_start_game_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Textbox, gr.Textbox]:
+        with gr.Column():
+            gr.Markdown("### 启动游戏设置")
+            start_game_enabled = gr.Checkbox(
+                label="是否启用 自动启动游戏",
+                value=self.current_config.options.start_game.enabled,
+                info=StartGameConfig.model_fields['enabled'].description
+            )
+            with gr.Group(visible=self.current_config.options.start_game.enabled) as start_game_group:
+                start_through_kuyo = gr.Checkbox(
+                    label="是否通过Kuyo启动游戏",
+                    value=self.current_config.options.start_game.start_through_kuyo,
+                    info=StartGameConfig.model_fields['start_through_kuyo'].description
+                )
+                game_package_name = gr.Textbox(
+                    value=self.current_config.options.start_game.game_package_name,
+                    label="游戏包名",
+                    info=StartGameConfig.model_fields['game_package_name'].description
+                )
+                kuyo_package_name = gr.Textbox(
+                    value=self.current_config.options.start_game.kuyo_package_name,
+                    label="Kuyo包名",
+                    info=StartGameConfig.model_fields['kuyo_package_name'].description
+                )
+            start_game_enabled.change(
+                fn=lambda x: gr.Group(visible=x),
+                inputs=[start_game_enabled],
+                outputs=[start_game_group]
+            )
+        return start_game_enabled, start_through_kuyo, game_package_name, kuyo_package_name
+
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
             gr.Markdown("## 设置")
@@ -781,22 +814,7 @@ class KotoneBotUI:
                 )
 
             # 启动游戏设置
-            with gr.Column():
-                gr.Markdown("### 启动游戏设置")
-                start_game_enabled = gr.Checkbox(
-                    label="是否启用 自动启动游戏",
-                    value=self.current_config.options.start_game.enabled,
-                    info=StartGameConfig.model_fields['enabled'].description
-                )
-            
-            # 启动Kuyo与游戏设置
-            with gr.Column():
-                gr.Markdown("### 启动Kuyo与游戏设置")
-                start_kuyo_and_game_enabled = gr.Checkbox(
-                    label="是否启用 自动启动Kuyo与游戏",
-                    value=self.current_config.options.start_kuyo_and_game.enabled,
-                    info=StartKuyoAndGameConfig.model_fields['enabled'].description
-                )
+            start_game_settings = self._create_start_game_settings()
             
             save_btn = gr.Button("保存设置")
             result = gr.Markdown()
@@ -813,8 +831,7 @@ class KotoneBotUI:
                 *contest_settings,
                 *produce_settings,
                 mission_reward,
-                start_game_enabled,
-                start_kuyo_and_game_enabled
+                *start_game_settings
             ]
             
             save_btn.click(
