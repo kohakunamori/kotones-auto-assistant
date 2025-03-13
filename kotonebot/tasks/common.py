@@ -32,28 +32,28 @@ class APShopItems(IntEnum):
 
 class PIdol(Enum):
     """P偶像"""
-    倉本千奈_Campusmode = ["倉本千奈", "Campus mode!!"]
-    倉本千奈_WonderScale = ["倉本千奈", "Wonder Scale"]
+    倉本千奈_Campusmode = ["倉本千奈", "Campus", "mode", "!!"]
+    倉本千奈_WonderScale = ["倉本千奈", "Wonder", "Scale"]
     倉本千奈_ようこそ初星温泉 = ["倉本千奈", "ようこそ初星温泉"]
     倉本千奈_仮装狂騒曲 = ["倉本千奈", "仮装狂騒曲"]
     倉本千奈_初心 = ["倉本千奈", "初心"]
     倉本千奈_学園生活 = ["倉本千奈", "学園生活"]
     倉本千奈_日々_発見的ステップ = ["倉本千奈", "日々、発見的ステップ！"]
     倉本千奈_胸を張って一歩ずつ = ["倉本千奈", "胸を張って一歩ずつ"]
-    十王星南_Campusmode = ["十王星南", "Campus mode!!"]
+    十王星南_Campusmode = ["十王星南", "Campus", "mode", "!!"]
     十王星南_一番星 = ["十王星南", "一番星"]
     十王星南_学園生活 = ["十王星南", "学園生活"]
     十王星南_小さな野望 = ["十王星南", "小さな野望"]
-    姫崎莉波_clumsytrick = ["姫崎莉波", "clumsy trick"]
+    姫崎莉波_clumsytrick = ["姫崎莉波", "clumsy", "trick"]
     姫崎莉波_私らしさのはじまり = ["姫崎莉波", "『私らしさ』のはじまり"]
     姫崎莉波_キミとセミブルー = ["姫崎莉波", "キミとセミブルー"]
-    姫崎莉波_Campusmode = ["姫崎莉波", "Campus mode!!"]
+    姫崎莉波_Campusmode = ["姫崎莉波", "Campus", "mode", "!!"]
     姫崎莉波_LUV = ["姫崎莉波", "L.U.V"]
     姫崎莉波_ようこそ初星温泉 = ["姫崎莉波", "ようこそ初星温泉"]
     姫崎莉波_ハッピーミルフィーユ = ["姫崎莉波", "ハッピーミルフィーユ"]
     姫崎莉波_初心 = ["姫崎莉波", "初心"]
     姫崎莉波_学園生活 = ["姫崎莉波", "学園生活"]
-    月村手毬_Lunasaymaybe = ["月村手毬", "Luna say maybe"]
+    月村手毬_Lunasaymaybe = ["月村手毬", "Luna", "say", "maybe"]
     月村手毬_一匹狼 = ["月村手毬", "一匹狼"]
     月村手毬_Campusmode = ["月村手毬", "Campus mode!!"]
     月村手毬_アイヴイ = ["月村手毬", "アイヴイ"]
@@ -62,34 +62,34 @@ class PIdol(Enum):
     月村手毬_仮装狂騒曲 = ["月村手毬", "仮装狂騒曲"]
     有村麻央_Fluorite = ["有村麻央", "Fluorite"]
     有村麻央_はじまりはカッコよく = ["有村麻央", "はじまりはカッコよく"]
-    有村麻央_Campusmode = ["有村麻央", "Campus mode!!"]
-    有村麻央_FeelJewelDream = ["有村麻央", "Feel Jewel Dream"]
+    有村麻央_Campusmode = ["有村麻央", "Campus", "mode", "!!"]
+    有村麻央_FeelJewelDream = ["有村麻央", "Feel", "Jewel", "Dream"]
     有村麻央_キミとセミブルー = ["有村麻央", "キミとセミブルー"]
     有村麻央_初恋 = ["有村麻央", "初恋"]
     有村麻央_学園生活 = ["有村麻央", "学園生活"]
     篠泽广_コントラスト = ["篠泽广", "コントラスト"]
     篠泽广_一番向いていないこと = ["篠泽广", "一番向いていないこと"]
     篠泽广_光景 = ["篠泽广", "光景"]
-    篠泽广_Campusmode = ["篠泽广", "Campus mode!!"]
+    篠泽广_Campusmode = ["篠泽广", "Campus", "mode", "!!"]
     篠泽广_仮装狂騒曲 = ["篠泽广", "仮装狂騒曲"]
     篠泽广_ハッピーミルフィーユ = ["篠泽广", "ハッピーミルフィーユ"]
     篠泽广_初恋 = ["篠泽广", "初恋"]
     篠泽广_学園生活 = ["篠泽广", "学園生活"]
-    紫云清夏_TameLieOneStep = ["紫云清夏", "Tame-Lie-One-Step"]
+    紫云清夏_TameLieOneStep = ["紫云清夏", "Tame", "Lie", "One", "Step"]
     紫云清夏_カクシタワタシ = ["紫云清夏", "カクシタワタシ"]
     紫云清夏_夢へのリスタート = ["紫云清夏", "夢へのリスタート"]
-    紫云清夏_Campusmode = ["紫云清夏", "Campus mode!!"]
+    紫云清夏_Campusmode = ["紫云清夏", "Campus", "mode", "!!"]
     紫云清夏_キミとセミブルー = ["紫云清夏", "キミとセミブルー"]
     紫云清夏_初恋 = ["紫云清夏", "初恋"]
     紫云清夏_学園生活 = ["紫云清夏", "学園生活"]
-    花海佑芽_WhiteNightWhiteWish = ["花海佑芽", "White Night! White Wish!"]
+    花海佑芽_WhiteNightWhiteWish = ["花海佑芽", "White", "Night", "Wish", "!"]
     花海佑芽_学園生活 = ["花海佑芽", "学園生活"]
-    花海佑芽_Campusmode = ["花海佑芽", "Campus mode!!"]
-    花海佑芽_TheRollingRiceball = ["花海佑芽", "The Rolling Riceball"]
+    花海佑芽_Campusmode = ["花海佑芽", "Campus", "mode", "!!"]
+    花海佑芽_TheRollingRiceball = ["花海佑芽", "The", "Rolling", "Riceball"]
     花海佑芽_アイドル_はじめっ = ["花海佑芽", "アイドル、はじめっ！"]
-    花海咲季_BoomBoomPow = ["花海咲季", "Boom Boom Pow"]
-    花海咲季_Campusmode = ["花海咲季", "Campus mode!!"]
-    花海咲季_FightingMyWay = ["花海咲季", "Fighting My Way"]
+    花海咲季_BoomBoomPow = ["花海咲季", "Boom", "Boom", "Pow"]
+    花海咲季_Campusmode = ["花海咲季", "Campus", "mode", "!!"]
+    花海咲季_FightingMyWay = ["花海咲季", "Fighting", "My", "Way"]
     花海咲季_わたしが一番 = ["花海咲季", "わたしが一番！"]
     花海咲季_冠菊 = ["花海咲季", "冠菊"]
     花海咲季_初声 = ["花海咲季", "初声"]
@@ -97,16 +97,16 @@ class PIdol(Enum):
     花海咲季_学園生活 = ["花海咲季", "学園生活"]
     葛城リーリヤ_一つ踏み出した先に = ["葛城リーリヤ", "一つ踏み出した先に"]
     葛城リーリヤ_白線 = ["葛城リーリヤ", "白線"]
-    葛城リーリヤ_Campusmode = ["葛城リーリヤ", "Campus mode!!"]
-    葛城リーリヤ_WhiteNightWhiteWish = ["葛城リーリヤ", "White Night! White Wish!"]
+    葛城リーリヤ_Campusmode = ["葛城リーリヤ", "Campus", "mode", "!!"]
+    葛城リーリヤ_WhiteNightWhiteWish = ["葛城リーリヤ", "White", "Night", "Wish", "!"]
     葛城リーリヤ_冠菊 = ["葛城リーリヤ", "冠菊"]
     葛城リーリヤ_初心 = ["葛城リーリヤ", "初心"]
     葛城リーリヤ_学園生活 = ["葛城リーリヤ", "学園生活"]
     藤田ことね_カワイイ_はじめました = ["藤田ことね", "カワイイ", "はじめました"]
     藤田ことね_世界一可愛い私 = ["藤田ことね", "世界一可愛い私"]
-    藤田ことね_Campusmode = ["藤田ことね", "Campus mode!!"]
-    藤田ことね_YellowBigBang = ["藤田ことね", "Yellow Big Bang！"]
-    藤田ことね_WhiteNightWhiteWish = ["藤田ことね", "White Night! White Wish!"]
+    藤田ことね_Campusmode = ["藤田ことね", "Campus", "mode", "!!"]
+    藤田ことね_YellowBigBang = ["藤田ことね", "Yellow", "Big", "Bang", "!"]
+    藤田ことね_WhiteNightWhiteWish = ["藤田ことね", "White", "Night", "Wish", "!"]
     藤田ことね_冠菊 = ["藤田ことね", "冠菊"]
     藤田ことね_初声 = ["藤田ことね", "初声"]
     藤田ことね_学園生活 = ["藤田ことね", "学園生活"]
@@ -337,6 +337,18 @@ class ProduceAction(Enum):
         }
         return MAP[self]
 
+class RecommendCardDetectionMode(Enum):
+    NORMAL = 'normal'
+    STRICT = 'strict'
+
+    @property
+    def display_name(self):
+        MAP = {
+            RecommendCardDetectionMode.NORMAL: '正常模式',
+            RecommendCardDetectionMode.STRICT: '严格模式',
+        }
+        return MAP[self]
+
 class ProduceConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用培育"""
@@ -390,11 +402,20 @@ class ProduceConfig(ConfigBaseModel):
     
     每一周的行动将会按这里设置的优先级执行。
     """
+    recommend_card_detection_mode: RecommendCardDetectionMode = RecommendCardDetectionMode.NORMAL
+    """
+    推荐卡检测模式
+    
+    严格模式下，识别速度会降低，但识别准确率会提高。
+    """
 
 class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用领取任务奖励"""
 
+class TraceConfig(ConfigBaseModel):
+    recommend_card_detection: bool = False
+    """跟踪推荐卡检测"""
 class StartGameConfig(ConfigBaseModel):
     enabled: bool = True
     """
@@ -427,6 +448,8 @@ class BaseConfig(ConfigBaseModel):
     mission_reward: MissionRewardConfig = MissionRewardConfig()
     """领取任务奖励配置"""
 
+    trace: TraceConfig = TraceConfig()
+    """跟踪配置"""
     start_game: StartGameConfig = StartGameConfig()
     """启动游戏配置"""
 

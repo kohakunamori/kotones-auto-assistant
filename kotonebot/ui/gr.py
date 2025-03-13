@@ -16,7 +16,8 @@ from kotonebot.config.manager import load_config, save_config
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
-    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction, StartGameConfig, StartKuyoAndGameConfig
+    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
+    RecommendCardDetectionMode, TraceConfig, StartGameConfig, StartKuyoAndGameConfig
 )
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.bot import KotoneBot
@@ -231,6 +232,7 @@ class KotoneBotUI:
         keep_screenshots: bool,
         check_emulator: bool,
         emulator_path: str,
+        trace_recommend_card_detection: bool,
         purchase_enabled: bool,
         money_enabled: bool,
         ap_enabled: bool,
@@ -258,9 +260,10 @@ class KotoneBotUI:
         self_study_lesson: Literal['dance', 'visual', 'vocal'],
         prefer_lesson_ap: bool,
         actions_order: List[str],
+        recommend_card_detection_mode: str,
         mission_reward_enabled: bool,
         start_game_enabled: bool,
-        start_kuyo_and_game_enabled: bool
+        start_kuyo_and_game_enabled: bool,
     ) -> str:
         ap_items_enum: List[Literal[0, 1, 2, 3]] = []
         ap_items_map: Dict[str, APShopItems] = {
@@ -318,7 +321,8 @@ class KotoneBotUI:
                 follow_producer=follow_producer,
                 self_study_lesson=self_study_lesson,
                 prefer_lesson_ap=prefer_lesson_ap,
-                actions_order=[ProduceAction(action) for action in actions_order]
+                actions_order=[ProduceAction(action) for action in actions_order],
+                recommend_card_detection_mode=RecommendCardDetectionMode(recommend_card_detection_mode)
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
@@ -328,6 +332,9 @@ class KotoneBotUI:
             ),
             start_kuyo_and_game=StartKuyoAndGameConfig(
                 enabled=start_kuyo_and_game_enabled
+            ),
+            trace=TraceConfig(
+                recommend_card_detection=trace_recommend_card_detection
             )
         )
         
@@ -575,12 +582,17 @@ class KotoneBotUI:
                     interactive=True,
                     info=ProduceConfig.model_fields['idols'].description
                 )
+                has_kotone = any("藤田ことね" in idol for idol in selected_idols)
+                is_strict_mode = self.current_config.options.produce.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
+                kotone_warning = gr.Markdown(
+                    visible=has_kotone and not is_strict_mode,
+                    value="使用「藤田ことね」进行培育时，确保将「推荐卡检测模式」设置为「严格模式」"
+                )
                 auto_set_memory = gr.Checkbox(
                     label="自动编成回忆",
                     value=self.current_config.options.produce.auto_set_memory,
                     info=ProduceConfig.model_fields['auto_set_memory'].description
                 )
-                # 添加回忆编成选择
                 with gr.Group(visible=not self.current_config.options.produce.auto_set_memory) as memory_sets_group:
                     memory_sets = gr.Dropdown(
                         choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
@@ -590,6 +602,13 @@ class KotoneBotUI:
                         interactive=True,
                         info=ProduceConfig.model_fields['memory_sets'].description
                     )
+                
+                # 添加偶像选择变化时的回调
+                def update_kotone_warning(selected_idols, recommend_card_detection_mode):
+                    has_kotone = any("藤田ことね" in idol for idol in selected_idols)
+                    is_strict_mode = recommend_card_detection_mode == RecommendCardDetectionMode.STRICT.value
+                    return gr.Markdown(visible=has_kotone and not is_strict_mode)
+                
                 auto_set_support = gr.Checkbox(
                     label="自动编成支援卡",
                     value=self.current_config.options.produce.auto_set_support_card,
@@ -629,6 +648,27 @@ class KotoneBotUI:
                     multiselect=True
                 )
 
+                # 添加推荐卡检测模式设置
+                recommend_card_detection_mode = gr.Dropdown(
+                    choices=[
+                        (RecommendCardDetectionMode.NORMAL.display_name, RecommendCardDetectionMode.NORMAL.value),
+                        (RecommendCardDetectionMode.STRICT.display_name, RecommendCardDetectionMode.STRICT.value)
+                    ],
+                    value=self.current_config.options.produce.recommend_card_detection_mode.value,
+                    label="推荐卡检测模式",
+                    info=ProduceConfig.model_fields['recommend_card_detection_mode'].description
+                )
+                recommend_card_detection_mode.change(
+                    fn=update_kotone_warning,
+                    inputs=[produce_idols, recommend_card_detection_mode],
+                    outputs=kotone_warning
+                )
+                produce_idols.change(
+                    fn=update_kotone_warning,
+                    inputs=[produce_idols, recommend_card_detection_mode],
+                    outputs=kotone_warning
+                )
+
             produce_enabled.change(
                 fn=lambda x: gr.Group(visible=x),
                 inputs=[produce_enabled],
@@ -640,7 +680,7 @@ class KotoneBotUI:
                 inputs=[auto_set_memory],
                 outputs=[memory_sets_group]
             )
-        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order
+        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode
 
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
@@ -677,7 +717,6 @@ class KotoneBotUI:
                     info=UserConfig.model_fields['keep_screenshots'].description,
                     interactive=True
                 )
-                # 添加新的设置项
                 check_emulator = gr.Checkbox(
                     label="检查并启动模拟器",
                     value=self.current_config.backend.check_emulator,
@@ -730,6 +769,17 @@ class KotoneBotUI:
                     info=MissionRewardConfig.model_fields['enabled'].description
                 )
             
+            # 跟踪设置
+            with gr.Column():
+                gr.Markdown("### 跟踪设置")
+                gr.Markdown("跟踪功能会记录指定模块的运行情况，并保存截图。")
+                trace_recommend_card_detection = gr.Checkbox(
+                    label="跟踪推荐卡检测",
+                    value=self.current_config.options.trace.recommend_card_detection,
+                    info=TraceConfig.model_fields['recommend_card_detection'].description,
+                    interactive=True
+                )
+
             # 启动游戏设置
             with gr.Column():
                 gr.Markdown("### 启动游戏设置")
@@ -755,6 +805,7 @@ class KotoneBotUI:
             all_settings = [
                 adb_ip, adb_port, screenshot_impl, keep_screenshots,
                 check_emulator, emulator_path,
+                trace_recommend_card_detection,
                 *purchase_settings,
                 activity_funds,
                 presents,
@@ -763,7 +814,7 @@ class KotoneBotUI:
                 *produce_settings,
                 mission_reward,
                 start_game_enabled,
-                start_kuyo_and_game_enabled,
+                start_kuyo_and_game_enabled
             ]
             
             save_btn.click(
