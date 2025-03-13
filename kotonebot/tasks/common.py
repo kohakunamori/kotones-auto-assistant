@@ -199,6 +199,16 @@ class DailyMoneyShopItems(IntEnum):
     def all(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
         """获取所有枚举值及其对应的UI显示文本"""
         return [(cls.to_ui_text(item), item) for item in cls]
+    
+    @classmethod
+    def _is_note(cls, item: 'DailyMoneyShopItems') -> bool:
+        """判断是否为笔记"""
+        return 'Note' in item.name and not item.name.startswith('Note') and not item.name.endswith('Note')
+    
+    @classmethod
+    def note_items(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
+        """获取所有枚举值及其对应的UI显示文本"""
+        return [(cls.to_ui_text(item), item) for item in cls if cls._is_note(item)]
 
     def to_resource(self):
         from . import R
@@ -413,6 +423,13 @@ class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用领取任务奖励"""
 
+class ClubRewardConfig(ConfigBaseModel):
+    enabled: bool = False
+    """是否启用领取社团奖励"""
+
+    selected_note: DailyMoneyShopItems = DailyMoneyShopItems.AnomalyNoteVisual
+    """想在社团奖励中获取到的笔记"""
+
 class TraceConfig(ConfigBaseModel):
     recommend_card_detection: bool = False
     """跟踪推荐卡检测"""
@@ -451,6 +468,9 @@ class BaseConfig(ConfigBaseModel):
 
     mission_reward: MissionRewardConfig = MissionRewardConfig()
     """领取任务奖励配置"""
+
+    club_reward: ClubRewardConfig = ClubRewardConfig()
+    """领取社团奖励配置"""
 
     trace: TraceConfig = TraceConfig()
     """跟踪配置"""

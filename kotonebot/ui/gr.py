@@ -14,7 +14,7 @@ import gradio as gr
 from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.tasks.common import (
-    BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
+    BaseConfig, APShopItems, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
     RecommendCardDetectionMode, TraceConfig, StartGameConfig
@@ -262,6 +262,10 @@ class KotoneBotUI:
         actions_order: List[str],
         recommend_card_detection_mode: str,
         mission_reward_enabled: bool,
+        # club reward
+        club_reward_enabled: bool,
+        selected_note: DailyMoneyShopItems,
+        # start game
         start_game_enabled: bool,
         start_through_kuyo: bool,
         game_package_name: str,
@@ -328,6 +332,10 @@ class KotoneBotUI:
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
+            ),
+            club_reward=ClubRewardConfig(
+                enabled=club_reward_enabled,
+                selected_note=selected_note
             ),
             start_game=StartGameConfig(
                 enabled=start_game_enabled,
@@ -683,6 +691,30 @@ class KotoneBotUI:
                 outputs=[memory_sets_group]
             )
         return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode
+    
+    def _create_club_reward_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown]:
+        with gr.Column():
+            gr.Markdown("### 社团奖励设置")
+            club_reward_enabled = gr.Checkbox(
+                label="启用社团奖励",
+                value=self.current_config.options.club_reward.enabled,
+                info=ClubRewardConfig.model_fields['enabled'].description
+            )
+            with gr.Group(visible=self.current_config.options.club_reward.enabled) as club_reward_group:
+                selected_note = gr.Dropdown(
+                    choices=list(DailyMoneyShopItems.note_items()),
+                    value=self.current_config.options.club_reward.selected_note,
+                    label="想在社团奖励中获取到的笔记",
+                    interactive=True,
+                    info=ClubRewardConfig.model_fields['selected_note'].description
+                )
+            club_reward_enabled.change(
+                fn=lambda x: gr.Group(visible=x),
+                inputs=[club_reward_enabled],
+                outputs=[club_reward_group]
+            )
+        return club_reward_enabled, selected_note
+
 
     def _create_start_game_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Textbox, gr.Textbox]:
         with gr.Column():
@@ -802,6 +834,9 @@ class KotoneBotUI:
                     info=MissionRewardConfig.model_fields['enabled'].description
                 )
             
+            # 社团奖励设置
+            club_reward_settings = self._create_club_reward_settings()
+            
             # 跟踪设置
             with gr.Column():
                 gr.Markdown("### 跟踪设置")
@@ -831,6 +866,7 @@ class KotoneBotUI:
                 *contest_settings,
                 *produce_settings,
                 mission_reward,
+                *club_reward_settings,
                 *start_game_settings
             ]
             
