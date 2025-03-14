@@ -35,14 +35,24 @@ def upgrade_support_card():
 
     # 往下滑，划到最底部
     for _ in range(5):
-        device.swipe_scaled(0.50, 0.67, 0.50, 0.42, duration=1.0)
+        device.swipe(
+            R.Daily.SupportCard.DragDownStartPoint.x,
+            R.Daily.SupportCard.DragDownStartPoint.y,
+            R.Daily.SupportCard.DragDownEndPoint.x,
+            R.Daily.SupportCard.DragDownEndPoint.y,
+            duration=1.0
+        )
+        sleep(0.1)
     sleep(1.5)
     
     # 点击左上角第一张支援卡
     # 点击位置百分比: (0.18, 0.34)
     # 720p缩放后的位置: (130, 435)
     for _ in range(2):
-        device.click(130, 435)
+        device.click(
+            R.Daily.SupportCard.TargetSupportCard.x,
+            R.Daily.SupportCard.TargetSupportCard.y
+        )
         sleep(0.5)
     
     # 点击两次升级按钮（两个按钮的logo不一样，但是文字是一样的，这里资源文件只包含文字）

@@ -38,7 +38,7 @@ def club_reward():
     # 如果笔记请求已经结束，则发起一轮新的笔记请求；
     # 注：下面这个图片要可以区分出笔记请求是否已经结束，不然会发生不幸的事情
     logger.info('Prepare to start new note request')
-    if image.find(R.Daily.ButtonClubCollectReward):
+    if image.find(R.Daily.ButtonClubCollectReward, threshold=0.99):
         device.click()
         sleep(1)
         # 找到配置中选择的书籍
