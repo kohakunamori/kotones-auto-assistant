@@ -1,7 +1,7 @@
 """领取社团奖励，并尽可能地给其他人送礼物"""
 import logging
 
-from kotonebot import task, device, image, sleep
+from kotonebot import task, device, image, sleep, ocr
 from . import R
 from .common import conf
 from .actions.scenes import at_home, goto_home
@@ -38,9 +38,14 @@ def club_reward():
     # 如果笔记请求已经结束，则发起一轮新的笔记请求；
     # 注：下面这个图片要可以区分出笔记请求是否已经结束，不然会发生不幸的事情
     logger.info('Prepare to start new note request')
-    if image.find(R.Daily.ButtonClubCollectReward, threshold=0.99):
-        device.click()
-        sleep(1)
+
+    texts = ocr.ocr(rect=R.Daily.Club.NoteRequestHintBox)
+    logger.debug(f'OCR result: {texts}')
+    # 不应该进入的情况，识别结果为：[OcrResult(text="リクエストロ", rect=(243, 298, 145, 35), confidence=0.8576575517654419)]
+    if texts and texts[0].text == 'リクエスト':
+        # 经测验，threshold=0.999时也可以正确识别，所以这里保留这个阈值
+        device.click(image.expect_wait(R.Daily.ButtonClubCollectReward, threshold=0.99))
+        sleep(0.5)
         # 找到配置中选择的书籍
         device.click(image.expect_wait(conf().club_reward.selected_note.to_resource(), timeout=5))
         sleep(0.5)
