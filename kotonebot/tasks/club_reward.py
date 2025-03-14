@@ -25,33 +25,36 @@ def club_reward():
     logger.info('Entering club UI')
     device.click(image.expect_wait(R.Daily.IconMenu, timeout=5))
     device.click(image.expect_wait(R.Daily.IconMenuClub, timeout=5))
-    sleep(2)
+    sleep(3)
 
     # 如果笔记请求尚未结束，则不进行任何笔记请求有关操作（领取奖励 & 发起新的笔记请求）
 
     # 如果笔记请求已经结束，且存在奖励提示，学偶UI应该会直接弹出面板，那么直接点击关闭按钮即可；
+    logger.info('Prepare to collect note request reward')
     if image.find(R.Common.ButtonClose):
         device.click()
-        logger.info('Collected club reward')
+        logger.info('Collected note request reward')
 
     # 如果笔记请求已经结束，则发起一轮新的笔记请求；
     # 注：下面这个图片要可以区分出笔记请求是否已经结束，不然会发生不幸的事情
+    logger.info('Prepare to start new note request')
     if image.find(R.Daily.ButtonClubCollectReward):
-        logger.info('Starting new note request')
         device.click()
         sleep(1)
         # 找到配置中选择的书籍
         if not image.expect_wait(conf().club_reward.selected_note.to_resource(), timeout=5):
             logger.error('Failed to select note!')
             return
-        # 点两次书，确保选中
-        device.click()
-        sleep(0.5)
         device.click()
         sleep(0.5)
         # 确认键
         device.click(image.expect_wait(R.Common.ButtonConfirm, timeout=5))
+        sleep(0.5)
+        device.click(image.expect_wait(R.Common.ButtonConfirm, timeout=5))
+        sleep(1)
         logger.info('Started new note request')
+    else:
+        logger.info('No need to start new note request')
     
     # 送礼物（好友硬币是重要的o(*￣▽￣*)o
     logger.info('Sending gifts')
