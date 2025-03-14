@@ -42,10 +42,7 @@ def club_reward():
         device.click()
         sleep(1)
         # 找到配置中选择的书籍
-        if not image.expect_wait(conf().club_reward.selected_note.to_resource(), timeout=5):
-            logger.error('Failed to select note!')
-            return
-        device.click()
+        device.click(image.expect_wait(conf().club_reward.selected_note.to_resource(), timeout=5))
         sleep(0.5)
         # 确认键
         device.click(image.expect_wait(R.Common.ButtonConfirm, timeout=5))
