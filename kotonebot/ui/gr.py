@@ -11,17 +11,6 @@ from typing import List, Dict, Tuple, Literal, Generator
 import cv2
 import gradio as gr
 
-from kotonebot.backend.context import task_registry, ContextStackVars
-from kotonebot.config.manager import load_config, save_config
-from kotonebot.tasks.common import (
-    BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
-    PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
-    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
-    RecommendCardDetectionMode, TraceConfig, StartGameConfig, StartKuyoAndGameConfig
-)
-from kotonebot.config.base_config import UserConfig, BackendConfig
-from kotonebot.backend.bot import KotoneBot
-
 # 初始化日志
 os.makedirs('logs', exist_ok=True)
 log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
@@ -38,6 +27,21 @@ root_logger.addHandler(console_handler)
 root_logger.addHandler(file_handler)
 
 logging.getLogger("kotonebot").setLevel(logging.DEBUG)
+
+from kotonebot.backend.context import task_registry, ContextStackVars
+from kotonebot.config.manager import load_config, save_config
+from kotonebot.tasks.common import (
+    BaseConfig, APShopItems, PurchaseConfig, ActivityFundsConfig,
+    PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
+    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
+    RecommendCardDetectionMode, TraceConfig, StartGameConfig, StartKuyoAndGameConfig,
+    upgrade_config
+)
+from kotonebot.config.base_config import UserConfig, BackendConfig
+from kotonebot.backend.bot import KotoneBot
+
+# 升级配置
+upgrade_msg = upgrade_config()
 
 logger = logging.getLogger(__name__)
 
@@ -351,11 +355,12 @@ class KotoneBotUI:
     def _create_status_tab(self) -> None:
         with gr.Tab("状态"):
             gr.Markdown("## 状态")
-            progress_bar = gr.Progress()
             
             with gr.Row():
                 run_btn = gr.Button("启动", scale=1)
-                debug_btn = gr.Button("调试", scale=1)
+            if upgrade_msg:
+                gr.Markdown('### 配置升级报告')
+                gr.Markdown(upgrade_msg)
             gr.Markdown('脚本报错或者卡住？点击"日志"选项卡中的"一键导出报告"可以快速反馈！')
             
             task_status = gr.Dataframe(
