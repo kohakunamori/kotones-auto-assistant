@@ -1,3 +1,4 @@
+from gc import enable
 import os
 from importlib import resources
 from typing import Literal, Dict, NamedTuple, Tuple, TypeVar, Generic
@@ -434,6 +435,22 @@ class UpgradeSupportCardConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用支援卡升级"""
 
+class CapsuleToysConfig(ConfigBaseModel):
+    enabled: bool = False
+    """是否启用扭蛋机"""
+
+    friend_capsule_toys_count: int = 0
+    """好友扭蛋机次数"""
+
+    sense_capsule_toys_count: int = 0
+    """感性扭蛋机次数"""
+
+    logic_capsule_toys_count: int = 0
+    """理性扭蛋机次数"""
+
+    anomaly_capsule_toys_count: int = 0
+    """非凡扭蛋机次数"""
+    
 class TraceConfig(ConfigBaseModel):
     recommend_card_detection: bool = False
     """跟踪推荐卡检测"""
@@ -478,6 +495,9 @@ class BaseConfig(ConfigBaseModel):
 
     upgrade_support_card: UpgradeSupportCardConfig = UpgradeSupportCardConfig()
     """支援卡升级配置"""
+
+    capsule_toys: CapsuleToysConfig = CapsuleToysConfig()
+    """扭蛋机配置"""
 
     trace: TraceConfig = TraceConfig()
     """跟踪配置"""

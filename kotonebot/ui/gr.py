@@ -1,3 +1,4 @@
+from operator import gt
 import os
 import zipfile
 import logging
@@ -13,9 +14,9 @@ import gradio as gr
 
 from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.config.manager import load_config, save_config
-from kotonebot.tasks import upgrade_support_card
+from kotonebot.tasks import capsule_toys, upgrade_support_card
 from kotonebot.tasks.common import (
-    BaseConfig, APShopItems, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
+    BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
     RecommendCardDetectionMode, TraceConfig, StartGameConfig, UpgradeSupportCardConfig
@@ -268,6 +269,12 @@ class KotoneBotUI:
         selected_note: DailyMoneyShopItems,
         # upgrade support card
         upgrade_support_card_enabled: bool,
+        # capsule toys
+        capsule_toys_enabled: bool,
+		friend_capsule_toys_count: int,
+		sense_capsule_toys_count: int,
+		logic_capsule_toys_count: int,
+		anomaly_capsule_toys_count: int,
         # start game
         start_game_enabled: bool,
         start_through_kuyo: bool,
@@ -342,6 +349,13 @@ class KotoneBotUI:
             ),
             upgrade_support_card=UpgradeSupportCardConfig(
                 enabled=upgrade_support_card_enabled
+            ),
+            capsule_toys=CapsuleToysConfig(
+                enabled=capsule_toys_enabled,
+                friend_capsule_toys_count=friend_capsule_toys_count,
+                sense_capsule_toys_count=sense_capsule_toys_count,
+                logic_capsule_toys_count=logic_capsule_toys_count,
+                anomaly_capsule_toys_count=anomaly_capsule_toys_count
             ),
             start_game=StartGameConfig(
                 enabled=start_game_enabled,
@@ -721,6 +735,52 @@ class KotoneBotUI:
             )
         return club_reward_enabled, selected_note
 
+    def _create_capsule_toys_settings(self) -> Tuple[gr.Checkbox, gr.Number, gr.Number, gr.Number, gr.Number]:
+        with gr.Column():
+            gr.Markdown("### 扭蛋设置")
+            capsule_toys_enabled = gr.Checkbox(
+                label="是否启用自动扭蛋机",
+                value=self.current_config.options.capsule_toys.enabled,
+                info=CapsuleToysConfig.model_fields['enabled'].description
+            )
+            min_value = 0
+            max_value = 10
+            with gr.Group(visible=self.current_config.options.capsule_toys.enabled) as capsule_toys_group:
+                friend_capsule_toys_count = gr.Number(
+                    value=self.current_config.options.capsule_toys.friend_capsule_toys_count,
+                    label="好友扭蛋机的扭蛋次数",
+                    info=CapsuleToysConfig.model_fields['friend_capsule_toys_count'].description,
+                    minimum=0,
+                    maximum=5
+                )
+                sense_capsule_toys_count = gr.Number(
+                    value=self.current_config.options.capsule_toys.sense_capsule_toys_count,
+                    label="感性扭蛋机的扭蛋次数",
+                    info=CapsuleToysConfig.model_fields['sense_capsule_toys_count'].description,
+                    minimum=0,
+                    maximum=5
+                )
+                logic_capsule_toys_count = gr.Number(
+                    value=self.current_config.options.capsule_toys.logic_capsule_toys_count,
+                    label="逻辑扭蛋机的扭蛋次数",
+                    info=CapsuleToysConfig.model_fields['logic_capsule_toys_count'].description,
+                    minimum=0,
+                    maximum=5
+                )
+                anomaly_capsule_toys_count = gr.Number(
+                    value=self.current_config.options.capsule_toys.anomaly_capsule_toys_count,
+                    label="非凡扭蛋机的扭蛋次数",
+                    info=CapsuleToysConfig.model_fields['anomaly_capsule_toys_count'].description,
+                    minimum=0,
+                    maximum=5
+                )
+            capsule_toys_enabled.change(
+                fn=lambda x: gr.Group(visible=x),
+                inputs=[capsule_toys_enabled],
+                outputs=[capsule_toys_group]
+            )
+        return capsule_toys_enabled, friend_capsule_toys_count, sense_capsule_toys_count, logic_capsule_toys_count, anomaly_capsule_toys_count
+
 
     def _create_start_game_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Textbox, gr.Textbox]:
         with gr.Column():
@@ -852,6 +912,8 @@ class KotoneBotUI:
                     info=UpgradeSupportCardConfig.model_fields['enabled'].description
                 )
             
+            capsule_toys_settings = self._create_capsule_toys_settings()
+            
             # 跟踪设置
             with gr.Column():
                 gr.Markdown("### 跟踪设置")
@@ -883,6 +945,7 @@ class KotoneBotUI:
                 mission_reward,
                 *club_reward_settings,
                 upgrade_support_card_enabled,
+                *capsule_toys_settings,
                 *start_game_settings
             ]
             
