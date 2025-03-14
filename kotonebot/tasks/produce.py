@@ -56,7 +56,7 @@ def select_idol(target_titles: list[str] | PIdol):
         device.screenshot()
 
     if isinstance(target_titles, PIdol):
-        target_titles = target_titles.value
+        target_titles = target_titles.to_title()
     _target_titles = [contains(t) for t in target_titles]
     device.screenshot()
     # 定位滑动基准
@@ -207,7 +207,7 @@ def do_produce(
         device.click(image.expect_wait(R.InPurodyuusu.ButtonCancel))
         return False
     # 1. 选择 PIdol [screenshots/produce/select_p_idol.png]
-    select_idol(idol.value)
+    select_idol(idol.to_title())
     device.click(image.expect_wait(R.Common.ButtonNextNoIcon))
     # 2. 选择支援卡 自动编成 [screenshots/produce/select_support_card.png]
     ocr.expect_wait(contains('サポート'), rect=R.Produce.BoxStepIndicator)

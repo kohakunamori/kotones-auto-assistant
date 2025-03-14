@@ -1,13 +1,19 @@
 from gc import enable
 import os
+import json
+import shutil
 from importlib import resources
-from typing import Literal, Dict, NamedTuple, Tuple, TypeVar, Generic
+from typing import Literal, Dict, NamedTuple, Tuple, TypeVar, Generic, Any
+from typing_extensions import assert_never
 from enum import IntEnum, Enum
 
 from pydantic import BaseModel, ConfigDict
 
 # TODO: from kotonebot import config (context) 会和 kotonebot.config 冲突
+from kotonebot import logging
 from kotonebot.backend.context import config
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 class ConfigEnum(Enum):
@@ -31,86 +37,269 @@ class APShopItems(IntEnum):
     """回忆再生成券"""
 
 
-class PIdol(Enum):
+倉本千奈_BASE = 0
+十王星南_BASE = 100
+姫崎莉波_BASE = 200
+月村手毬_BASE = 300
+有村麻央_BASE = 400
+篠泽广_BASE = 500
+紫云清夏_BASE = 600
+花海佑芽_BASE = 700
+花海咲季_BASE = 800
+葛城リーリヤ_BASE = 900
+藤田ことね_BASE = 1000
+
+class PIdol(IntEnum):
     """P偶像"""
-    倉本千奈_Campusmode = ["倉本千奈", "Campus", "mode", "!!"]
-    倉本千奈_WonderScale = ["倉本千奈", "Wonder", "Scale"]
-    倉本千奈_ようこそ初星温泉 = ["倉本千奈", "ようこそ初星温泉"]
-    倉本千奈_仮装狂騒曲 = ["倉本千奈", "仮装狂騒曲"]
-    倉本千奈_初心 = ["倉本千奈", "初心"]
-    倉本千奈_学園生活 = ["倉本千奈", "学園生活"]
-    倉本千奈_日々_発見的ステップ = ["倉本千奈", "日々、発見的ステップ！"]
-    倉本千奈_胸を張って一歩ずつ = ["倉本千奈", "胸を張って一歩ずつ"]
-    十王星南_Campusmode = ["十王星南", "Campus", "mode", "!!"]
-    十王星南_一番星 = ["十王星南", "一番星"]
-    十王星南_学園生活 = ["十王星南", "学園生活"]
-    十王星南_小さな野望 = ["十王星南", "小さな野望"]
-    姫崎莉波_clumsytrick = ["姫崎莉波", "clumsy", "trick"]
-    姫崎莉波_私らしさのはじまり = ["姫崎莉波", "『私らしさ』のはじまり"]
-    姫崎莉波_キミとセミブルー = ["姫崎莉波", "キミとセミブルー"]
-    姫崎莉波_Campusmode = ["姫崎莉波", "Campus", "mode", "!!"]
-    姫崎莉波_LUV = ["姫崎莉波", "L.U.V"]
-    姫崎莉波_ようこそ初星温泉 = ["姫崎莉波", "ようこそ初星温泉"]
-    姫崎莉波_ハッピーミルフィーユ = ["姫崎莉波", "ハッピーミルフィーユ"]
-    姫崎莉波_初心 = ["姫崎莉波", "初心"]
-    姫崎莉波_学園生活 = ["姫崎莉波", "学園生活"]
-    月村手毬_Lunasaymaybe = ["月村手毬", "Luna", "say", "maybe"]
-    月村手毬_一匹狼 = ["月村手毬", "一匹狼"]
-    月村手毬_Campusmode = ["月村手毬", "Campus mode!!"]
-    月村手毬_アイヴイ = ["月村手毬", "アイヴイ"]
-    月村手毬_初声 = ["月村手毬", "初声"]
-    月村手毬_学園生活 = ["月村手毬", "学園生活"]
-    月村手毬_仮装狂騒曲 = ["月村手毬", "仮装狂騒曲"]
-    有村麻央_Fluorite = ["有村麻央", "Fluorite"]
-    有村麻央_はじまりはカッコよく = ["有村麻央", "はじまりはカッコよく"]
-    有村麻央_Campusmode = ["有村麻央", "Campus", "mode", "!!"]
-    有村麻央_FeelJewelDream = ["有村麻央", "Feel", "Jewel", "Dream"]
-    有村麻央_キミとセミブルー = ["有村麻央", "キミとセミブルー"]
-    有村麻央_初恋 = ["有村麻央", "初恋"]
-    有村麻央_学園生活 = ["有村麻央", "学園生活"]
-    篠泽广_コントラスト = ["篠泽广", "コントラスト"]
-    篠泽广_一番向いていないこと = ["篠泽广", "一番向いていないこと"]
-    篠泽广_光景 = ["篠泽广", "光景"]
-    篠泽广_Campusmode = ["篠泽广", "Campus", "mode", "!!"]
-    篠泽广_仮装狂騒曲 = ["篠泽广", "仮装狂騒曲"]
-    篠泽广_ハッピーミルフィーユ = ["篠泽广", "ハッピーミルフィーユ"]
-    篠泽广_初恋 = ["篠泽广", "初恋"]
-    篠泽广_学園生活 = ["篠泽广", "学園生活"]
-    紫云清夏_TameLieOneStep = ["紫云清夏", "Tame", "Lie", "One", "Step"]
-    紫云清夏_カクシタワタシ = ["紫云清夏", "カクシタワタシ"]
-    紫云清夏_夢へのリスタート = ["紫云清夏", "夢へのリスタート"]
-    紫云清夏_Campusmode = ["紫云清夏", "Campus", "mode", "!!"]
-    紫云清夏_キミとセミブルー = ["紫云清夏", "キミとセミブルー"]
-    紫云清夏_初恋 = ["紫云清夏", "初恋"]
-    紫云清夏_学園生活 = ["紫云清夏", "学園生活"]
-    花海佑芽_WhiteNightWhiteWish = ["花海佑芽", "White", "Night", "Wish", "!"]
-    花海佑芽_学園生活 = ["花海佑芽", "学園生活"]
-    花海佑芽_Campusmode = ["花海佑芽", "Campus", "mode", "!!"]
-    花海佑芽_TheRollingRiceball = ["花海佑芽", "The", "Rolling", "Riceball"]
-    花海佑芽_アイドル_はじめっ = ["花海佑芽", "アイドル、はじめっ！"]
-    花海咲季_BoomBoomPow = ["花海咲季", "Boom", "Boom", "Pow"]
-    花海咲季_Campusmode = ["花海咲季", "Campus", "mode", "!!"]
-    花海咲季_FightingMyWay = ["花海咲季", "Fighting", "My", "Way"]
-    花海咲季_わたしが一番 = ["花海咲季", "わたしが一番！"]
-    花海咲季_冠菊 = ["花海咲季", "冠菊"]
-    花海咲季_初声 = ["花海咲季", "初声"]
-    花海咲季_古今東西ちょちょいのちょい = ["花海咲季", "古今東西ちょちょいのちょい"]
-    花海咲季_学園生活 = ["花海咲季", "学園生活"]
-    葛城リーリヤ_一つ踏み出した先に = ["葛城リーリヤ", "一つ踏み出した先に"]
-    葛城リーリヤ_白線 = ["葛城リーリヤ", "白線"]
-    葛城リーリヤ_Campusmode = ["葛城リーリヤ", "Campus", "mode", "!!"]
-    葛城リーリヤ_WhiteNightWhiteWish = ["葛城リーリヤ", "White", "Night", "Wish", "!"]
-    葛城リーリヤ_冠菊 = ["葛城リーリヤ", "冠菊"]
-    葛城リーリヤ_初心 = ["葛城リーリヤ", "初心"]
-    葛城リーリヤ_学園生活 = ["葛城リーリヤ", "学園生活"]
-    藤田ことね_カワイイ_はじめました = ["藤田ことね", "カワイイ", "はじめました"]
-    藤田ことね_世界一可愛い私 = ["藤田ことね", "世界一可愛い私"]
-    藤田ことね_Campusmode = ["藤田ことね", "Campus", "mode", "!!"]
-    藤田ことね_YellowBigBang = ["藤田ことね", "Yellow", "Big", "Bang", "!"]
-    藤田ことね_WhiteNightWhiteWish = ["藤田ことね", "White", "Night", "Wish", "!"]
-    藤田ことね_冠菊 = ["藤田ことね", "冠菊"]
-    藤田ことね_初声 = ["藤田ことね", "初声"]
-    藤田ことね_学園生活 = ["藤田ことね", "学園生活"]
+    倉本千奈_Campusmode = 倉本千奈_BASE + 0
+    倉本千奈_WonderScale = 倉本千奈_BASE + 1
+    倉本千奈_ようこそ初星温泉 = 倉本千奈_BASE + 2
+    倉本千奈_仮装狂騒曲 = 倉本千奈_BASE + 3
+    倉本千奈_初心 = 倉本千奈_BASE + 4
+    倉本千奈_学園生活 = 倉本千奈_BASE + 5
+    倉本千奈_日々_発見的ステップ = 倉本千奈_BASE + 6
+    倉本千奈_胸を張って一歩ずつ = 倉本千奈_BASE + 7
+
+    十王星南_Campusmode = 十王星南_BASE + 0
+    十王星南_一番星 = 十王星南_BASE + 1
+    十王星南_学園生活 = 十王星南_BASE + 2
+    十王星南_小さな野望 = 十王星南_BASE + 3
+
+    姫崎莉波_clumsytrick = 姫崎莉波_BASE + 0
+    姫崎莉波_私らしさのはじまり = 姫崎莉波_BASE + 1
+    姫崎莉波_キミとセミブルー = 姫崎莉波_BASE + 2
+    姫崎莉波_Campusmode = 姫崎莉波_BASE + 3
+    姫崎莉波_LUV = 姫崎莉波_BASE + 4
+    姫崎莉波_ようこそ初星温泉 = 姫崎莉波_BASE + 5
+    姫崎莉波_ハッピーミルフィーユ = 姫崎莉波_BASE + 6
+    姫崎莉波_初心 = 姫崎莉波_BASE + 7
+    姫崎莉波_学園生活 = 姫崎莉波_BASE + 8
+
+    月村手毬_Lunasaymaybe = 月村手毬_BASE + 0
+    月村手毬_一匹狼 = 月村手毬_BASE + 1
+    月村手毬_Campusmode = 月村手毬_BASE + 2
+    月村手毬_アイヴイ = 月村手毬_BASE + 3
+    月村手毬_初声 = 月村手毬_BASE + 4
+    月村手毬_学園生活 = 月村手毬_BASE + 5
+    月村手毬_仮装狂騒曲 = 月村手毬_BASE + 6
+
+    有村麻央_Fluorite = 有村麻央_BASE + 0
+    有村麻央_はじまりはカッコよく = 有村麻央_BASE + 1
+    有村麻央_Campusmode = 有村麻央_BASE + 2
+    有村麻央_FeelJewelDream = 有村麻央_BASE + 3
+    有村麻央_キミとセミブルー = 有村麻央_BASE + 4
+    有村麻央_初恋 = 有村麻央_BASE + 5
+    有村麻央_学園生活 = 有村麻央_BASE + 6
+
+    篠泽广_コントラスト = 篠泽广_BASE + 0
+    篠泽广_一番向いていないこと = 篠泽广_BASE + 1
+    篠泽广_光景 = 篠泽广_BASE + 2
+    篠泽广_Campusmode = 篠泽广_BASE + 3
+    篠泽广_仮装狂騒曲 = 篠泽广_BASE + 4
+    篠泽广_ハッピーミルフィーユ = 篠泽广_BASE + 5
+    篠泽广_初恋 = 篠泽广_BASE + 6
+    篠泽广_学園生活 = 篠泽广_BASE + 7
+
+    紫云清夏_TameLieOneStep = 紫云清夏_BASE + 0
+    紫云清夏_カクシタワタシ = 紫云清夏_BASE + 1
+    紫云清夏_夢へのリスタート = 紫云清夏_BASE + 2
+    紫云清夏_Campusmode = 紫云清夏_BASE + 3
+    紫云清夏_キミとセミブルー = 紫云清夏_BASE + 4
+    紫云清夏_初恋 = 紫云清夏_BASE + 5
+    紫云清夏_学園生活 = 紫云清夏_BASE + 6
+    
+    花海佑芽_WhiteNightWhiteWish = 花海佑芽_BASE + 0
+    花海佑芽_学園生活 = 花海佑芽_BASE + 1
+    花海佑芽_Campusmode = 花海佑芽_BASE + 2
+    花海佑芽_TheRollingRiceball = 花海佑芽_BASE + 3
+    花海佑芽_アイドル_はじめっ = 花海佑芽_BASE + 4
+
+    花海咲季_BoomBoomPow = 花海咲季_BASE + 0
+    花海咲季_Campusmode = 花海咲季_BASE + 1
+    花海咲季_FightingMyWay = 花海咲季_BASE + 2
+    花海咲季_わたしが一番 = 花海咲季_BASE + 3
+    花海咲季_冠菊 = 花海咲季_BASE + 4
+    花海咲季_初声 = 花海咲季_BASE + 5
+    花海咲季_古今東西ちょちょいのちょい = 花海咲季_BASE + 6
+    花海咲季_学園生活 = 花海咲季_BASE + 7
+
+    葛城リーリヤ_一つ踏み出した先に = 葛城リーリヤ_BASE + 0
+    葛城リーリヤ_白線 = 葛城リーリヤ_BASE + 1
+    葛城リーリヤ_Campusmode = 葛城リーリヤ_BASE + 2
+    葛城リーリヤ_WhiteNightWhiteWish = 葛城リーリヤ_BASE + 3
+    葛城リーリヤ_冠菊 = 葛城リーリヤ_BASE + 4
+    葛城リーリヤ_初心 = 葛城リーリヤ_BASE + 5
+    葛城リーリヤ_学園生活 = 葛城リーリヤ_BASE + 6
+
+    藤田ことね_カワイイ_はじめました = 藤田ことね_BASE + 0
+    藤田ことね_世界一可愛い私 = 藤田ことね_BASE + 1
+    藤田ことね_Campusmode = 藤田ことね_BASE + 2
+    藤田ことね_YellowBigBang = 藤田ことね_BASE + 3
+    藤田ことね_WhiteNightWhiteWish = 藤田ことね_BASE + 4
+    藤田ことね_冠菊 = 藤田ことね_BASE + 5
+    藤田ことね_初声 = 藤田ことね_BASE + 6
+    藤田ことね_学園生活 = 藤田ことね_BASE + 7
+
+    def to_title(self) -> list[str]:
+        match self:
+            case PIdol.倉本千奈_Campusmode:
+                return ["倉本千奈", "Campus", "mode", "!!"]
+            case PIdol.倉本千奈_WonderScale:
+                return ["倉本千奈", "Wonder", "Scale"]
+            case PIdol.倉本千奈_ようこそ初星温泉:
+                return ["倉本千奈", "ようこそ初星温泉"]
+            case PIdol.倉本千奈_仮装狂騒曲:
+                return ["倉本千奈", "仮装狂騒曲"]
+            case PIdol.倉本千奈_初心:
+                return ["倉本千奈", "初心"]
+            case PIdol.倉本千奈_学園生活:
+                return ["倉本千奈", "学園生活"]
+            case PIdol.倉本千奈_日々_発見的ステップ:
+                return ["倉本千奈", "日々、発見的ステップ！"]
+            case PIdol.倉本千奈_胸を張って一歩ずつ:
+                return ["倉本千奈", "胸を張って一歩ずつ"]
+            case PIdol.十王星南_Campusmode:
+                return ["十王星南", "Campus", "mode", "!!"]
+            case PIdol.十王星南_一番星:
+                return ["十王星南", "一番星"]
+            case PIdol.十王星南_学園生活:
+                return ["十王星南", "学園生活"]
+            case PIdol.十王星南_小さな野望:
+                return ["十王星南", "小さな野望"]
+            case PIdol.姫崎莉波_clumsytrick:
+                return ["姫崎莉波", "clumsy", "trick"]
+            case PIdol.姫崎莉波_私らしさのはじまり:
+                return ["姫崎莉波", "『私らしさ』のはじまり"]
+            case PIdol.姫崎莉波_キミとセミブルー:
+                return ["姫崎莉波", "キミとセミブルー"]
+            case PIdol.姫崎莉波_Campusmode:
+                return ["姫崎莉波", "Campus", "mode", "!!"]
+            case PIdol.姫崎莉波_LUV:
+                return ["姫崎莉波", "L.U.V"]
+            case PIdol.姫崎莉波_ようこそ初星温泉:
+                return ["姫崎莉波", "ようこそ初星温泉"]
+            case PIdol.姫崎莉波_ハッピーミルフィーユ:
+                return ["姫崎莉波", "ハッピーミルフィーユ"]
+            case PIdol.姫崎莉波_初心:
+                return ["姫崎莉波", "初心"]
+            case PIdol.姫崎莉波_学園生活:
+                return ["姫崎莉波", "学園生活"]
+            case PIdol.月村手毬_Lunasaymaybe:
+                return ["月村手毬", "Luna", "say", "maybe"]
+            case PIdol.月村手毬_一匹狼:
+                return ["月村手毬", "一匹狼"]
+            case PIdol.月村手毬_Campusmode:
+                return ["月村手毬", "Campus mode!!"]
+            case PIdol.月村手毬_アイヴイ:
+                return ["月村手毬", "アイヴイ"]
+            case PIdol.月村手毬_初声:
+                return ["月村手毬", "初声"]
+            case PIdol.月村手毬_学園生活:
+                return ["月村手毬", "学園生活"]
+            case PIdol.月村手毬_仮装狂騒曲:
+                return ["月村手毬", "仮装狂騒曲"]
+            case PIdol.有村麻央_Fluorite:
+                return ["有村麻央", "Fluorite"]
+            case PIdol.有村麻央_はじまりはカッコよく:
+                return ["有村麻央", "はじまりはカッコよく"]
+            case PIdol.有村麻央_Campusmode:
+                return ["有村麻央", "Campus", "mode", "!!"]
+            case PIdol.有村麻央_FeelJewelDream:
+                return ["有村麻央", "Feel", "Jewel", "Dream"]
+            case PIdol.有村麻央_キミとセミブルー:
+                return ["有村麻央", "キミとセミブルー"]
+            case PIdol.有村麻央_初恋:
+                return ["有村麻央", "初恋"]
+            case PIdol.有村麻央_学園生活:
+                return ["有村麻央", "学園生活"]
+            case PIdol.篠泽广_コントラスト:
+                return ["篠泽广", "コントラスト"]
+            case PIdol.篠泽广_一番向いていないこと:
+                return ["篠泽广", "一番向いていないこと"]
+            case PIdol.篠泽广_光景:
+                return ["篠泽广", "光景"]
+            case PIdol.篠泽广_Campusmode:
+                return ["篠泽广", "Campus", "mode", "!!"]
+            case PIdol.篠泽广_仮装狂騒曲:
+                return ["篠泽广", "仮装狂騒曲"]
+            case PIdol.篠泽广_ハッピーミルフィーユ:
+                return ["篠泽广", "ハッピーミルフィーユ"]
+            case PIdol.篠泽广_初恋:
+                return ["篠泽广", "初恋"]
+            case PIdol.篠泽广_学園生活:
+                return ["篠泽广", "学園生活"]
+            case PIdol.紫云清夏_TameLieOneStep:
+                return ["紫云清夏", "Tame", "Lie", "One", "Step"]
+            case PIdol.紫云清夏_カクシタワタシ:
+                return ["紫云清夏", "カクシタワタシ"]
+            case PIdol.紫云清夏_夢へのリスタート:
+                return ["紫云清夏", "夢へのリスタート"]
+            case PIdol.紫云清夏_Campusmode:
+                return ["紫云清夏", "Campus", "mode", "!!"]
+            case PIdol.紫云清夏_キミとセミブルー:
+                return ["紫云清夏", "キミとセミブルー"]
+            case PIdol.紫云清夏_初恋:
+                return ["紫云清夏", "初恋"]
+            case PIdol.紫云清夏_学園生活:
+                return ["紫云清夏", "学園生活"]
+            case PIdol.花海佑芽_WhiteNightWhiteWish:
+                return ["花海佑芽", "White", "Night", "Wish", "!"]
+            case PIdol.花海佑芽_学園生活:
+                return ["花海佑芽", "学園生活"]
+            case PIdol.花海佑芽_Campusmode:
+                return ["花海佑芽", "Campus", "mode", "!!"]
+            case PIdol.花海佑芽_TheRollingRiceball:
+                return ["花海佑芽", "The", "Rolling", "Riceball"]
+            case PIdol.花海佑芽_アイドル_はじめっ:
+                return ["花海佑芽", "アイドル、はじめっ！"]
+            case PIdol.花海咲季_BoomBoomPow:
+                return ["花海咲季", "Boom", "Boom", "Pow"]
+            case PIdol.花海咲季_Campusmode:
+                return ["花海咲季", "Campus", "mode", "!!"]
+            case PIdol.花海咲季_FightingMyWay:
+                return ["花海咲季", "Fighting", "My", "Way"]
+            case PIdol.花海咲季_わたしが一番:
+                return ["花海咲季", "わたしが一番！"]
+            case PIdol.花海咲季_冠菊:
+                return ["花海咲季", "冠菊"]
+            case PIdol.花海咲季_初声:
+                return ["花海咲季", "初声"]
+            case PIdol.花海咲季_古今東西ちょちょいのちょい:
+                return ["花海咲季", "古今東西ちょちょいのちょい"]
+            case PIdol.花海咲季_学園生活:
+                return ["花海咲季", "学園生活"]
+            case PIdol.葛城リーリヤ_一つ踏み出した先に:
+                return ["葛城リーリヤ", "一つ踏み出した先に"]
+            case PIdol.葛城リーリヤ_白線:
+                return ["葛城リーリヤ", "白線"]
+            case PIdol.葛城リーリヤ_Campusmode:
+                return ["葛城リーリヤ", "Campus", "mode", "!!"]
+            case PIdol.葛城リーリヤ_WhiteNightWhiteWish:
+                return ["葛城リーリヤ", "White", "Night", "Wish", "!"]
+            case PIdol.葛城リーリヤ_冠菊:
+                return ["葛城リーリヤ", "冠菊"]
+            case PIdol.葛城リーリヤ_初心:
+                return ["葛城リーリヤ", "初心"]
+            case PIdol.葛城リーリヤ_学園生活:
+                return ["葛城リーリヤ", "学園生活"]
+            case PIdol.藤田ことね_カワイイ_はじめました:
+                return ["藤田ことね", "カワイイ", "はじめました"]
+            case PIdol.藤田ことね_世界一可愛い私:
+                return ["藤田ことね", "世界一可愛い私"]
+            case PIdol.藤田ことね_Campusmode:
+                return ["藤田ことね", "Campus", "mode", "!!"]
+            case PIdol.藤田ことね_YellowBigBang:
+                return ["藤田ことね", "Yellow", "Big", "Bang", "!"]
+            case PIdol.藤田ことね_WhiteNightWhiteWish:
+                return ["藤田ことね", "White", "Night", "Wish", "!"]
+            case PIdol.藤田ことね_冠菊:
+                return ["藤田ことね", "冠菊"]
+            case PIdol.藤田ことね_初声:
+                return ["藤田ことね", "初声"]
+            case PIdol.藤田ことね_学園生活:
+                return ["藤田ことね", "学園生活"]
+            case _:
+                assert_never(self)
 
 class DailyMoneyShopItems(IntEnum):
     """日常商店物品"""
@@ -168,33 +357,57 @@ class DailyMoneyShopItems(IntEnum):
     @classmethod
     def to_ui_text(cls, item: "DailyMoneyShopItems") -> str:
         """获取枚举值对应的UI显示文本"""
-        MAP = {
-            cls.Recommendations: "所有推荐商品",
-            cls.LessonNote: "课程笔记",
-            cls.VeteranNote: "老手笔记",
-            cls.SupportEnhancementPt: "支援强化点数",
-            cls.SenseNoteVocal: "感性笔记（声乐）",
-            cls.SenseNoteDance: "感性笔记（舞蹈）",
-            cls.SenseNoteVisual: "感性笔记（形象）",
-            cls.LogicNoteVocal: "理性笔记（声乐）",
-            cls.LogicNoteDance: "理性笔记（舞蹈）",
-            cls.LogicNoteVisual: "理性笔记（形象）",
-            cls.AnomalyNoteVocal: "非凡笔记（声乐）",
-            cls.AnomalyNoteDance: "非凡笔记（舞蹈）",
-            cls.AnomalyNoteVisual: "非凡笔记（形象）",
-            cls.RechallengeTicket: "重新挑战券",
-            cls.RecordKey: "记录钥匙",
-            cls.IdolPiece_倉本千奈_WonderScale: "倉本千奈 WonderScale 碎片",
-            cls.IdolPiece_篠泽广_光景: "篠泽广 光景 碎片",
-            cls.IdolPiece_紫云清夏_TameLieOneStep: "紫云清夏 Tame-Lie-One-Step 碎片",
-            cls.IdolPiece_葛城リーリヤ_白線: "葛城リーリヤ 白線 碎片",
-            cls.IdolPiece_姫崎薪波_cIclumsy_trick: "姫崎薪波 cIclumsy trick 碎片",
-            cls.IdolPiece_花海咲季_FightingMyWay: "花海咲季 FightingMyWay 碎片",
-            cls.IdolPiece_藤田ことね_世界一可愛い私: "藤田ことね 世界一可愛い私 碎片",
-            cls.IdolPiece_花海佑芽_TheRollingRiceball: "花海佑芽 The Rolling Riceball 碎片",
-            cls.IdolPiece_月村手毬_LunaSayMaybe: "月村手毬 Luna say maybe 碎片"
-        }
-        return MAP.get(item, str(item))
+        match item:
+            case cls.Recommendations:
+                return "所有推荐商品"
+            case cls.LessonNote:
+                return "课程笔记"
+            case cls.VeteranNote:
+                return "老手笔记"
+            case cls.SupportEnhancementPt:
+                return "支援强化点数"
+            case cls.SenseNoteVocal:
+                return "感性笔记（声乐）"
+            case cls.SenseNoteDance:
+                return "感性笔记（舞蹈）"
+            case cls.SenseNoteVisual:
+                return "感性笔记（形象）"
+            case cls.LogicNoteVocal:
+                return "理性笔记（声乐）"
+            case cls.LogicNoteDance:
+                return "理性笔记（舞蹈）"
+            case cls.LogicNoteVisual:
+                return "理性笔记（形象）"
+            case cls.AnomalyNoteVocal:
+                return "非凡笔记（声乐）"
+            case cls.AnomalyNoteDance:
+                return "非凡笔记（舞蹈）"
+            case cls.AnomalyNoteVisual:
+                return "非凡笔记（形象）"
+            case cls.RechallengeTicket:
+                return "重新挑战券"
+            case cls.RecordKey:
+                return "记录钥匙"
+            case cls.IdolPiece_倉本千奈_WonderScale:
+                return "倉本千奈 WonderScale 碎片"
+            case cls.IdolPiece_篠泽广_光景:
+                return "篠泽广 光景 碎片"
+            case cls.IdolPiece_紫云清夏_TameLieOneStep:
+                return "紫云清夏 Tame-Lie-One-Step 碎片"
+            case cls.IdolPiece_葛城リーリヤ_白線:
+                return "葛城リーリヤ 白線 碎片"
+            case cls.IdolPiece_姫崎薪波_cIclumsy_trick:
+                return "姫崎薪波 cIclumsy trick 碎片"
+            case cls.IdolPiece_花海咲季_FightingMyWay:
+                return "花海咲季 FightingMyWay 碎片"
+            case cls.IdolPiece_藤田ことね_世界一可愛い私:
+                return "藤田ことね 世界一可愛い私 碎片"
+            case cls.IdolPiece_花海佑芽_TheRollingRiceball:
+                return "花海佑芽 The Rolling Riceball 碎片"
+            case cls.IdolPiece_月村手毬_LunaSayMaybe:
+                return "月村手毬 Luna say maybe 碎片"
+            case _:
+                assert_never(item)
     
     @classmethod
     def all(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
@@ -263,7 +476,7 @@ class DailyMoneyShopItems(IntEnum):
             case DailyMoneyShopItems.IdolPiece_月村手毬_LunaSayMaybe:
                 return R.Shop.IdolPiece.月村手毬_LunaSayMaybe
             case _:
-                raise ValueError(f"Unknown daily shop item: {self}")
+                assert_never(self)
 
 class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -516,6 +729,215 @@ def sprite_path(path: str) -> str:
     if os.path.exists(standalone):
         return standalone
     return str(resources.files('kotonebot.tasks.sprites') / path)
+
+def upgrade_config() -> str | None:
+    """
+    升级配置文件
+    """
+    with open('config.json', 'r', encoding='utf-8') as f:
+        root = json.load(f)
+    
+    user_configs = root['user_configs']
+    old_version = root['version']
+    messages = []
+    def upgrade_user_config(version: int, user_config: dict[str, Any]) -> int:
+        nonlocal messages
+        while True:
+            match version:
+                case 1:
+                    logger.info('Upgrading config: v1 -> v2')
+                    user_config, msg = upgrade_v1_to_v2(user_config['options'])
+                    messages.append(msg)
+                    version = 2
+                case _:
+                    logger.info('No config upgrade needed.')
+                    return version
+    for user_config in user_configs:
+        new_version = upgrade_user_config(old_version, user_config)
+        root['version'] = new_version
+
+    with open('config.json', 'w', encoding='utf-8') as f:
+        json.dump(root, f, ensure_ascii=False, indent=4)
+    return '\n'.join(messages)
+    
+def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+    """
+    v1 -> v2 变更：
+
+    1. 将 PIdol 的枚举值改为整数
+    """
+    msg = ''
+    # 转换 PIdol 的枚举值
+    def map_idol(idol: list[str]) -> PIdol | None:
+        logger.debug("Converting %s", idol)
+        match idol:
+            case ["倉本千奈", "Campus mode!!"]:
+                return PIdol.倉本千奈_Campusmode
+            case ["倉本千奈", "Wonder Scale"]:
+                return PIdol.倉本千奈_WonderScale
+            case ["倉本千奈", "ようこそ初星温泉"]:
+                return PIdol.倉本千奈_ようこそ初星温泉
+            case ["倉本千奈", "仮装狂騒曲"]:
+                return PIdol.倉本千奈_仮装狂騒曲
+            case ["倉本千奈", "初心"]:
+                return PIdol.倉本千奈_初心
+            case ["倉本千奈", "学園生活"]:
+                return PIdol.倉本千奈_学園生活
+            case ["倉本千奈", "日々、発見的ステップ！"]:
+                return PIdol.倉本千奈_日々_発見的ステップ
+            case ["倉本千奈", "胸を張って一歩ずつ"]:
+                return PIdol.倉本千奈_胸を張って一歩ずつ
+            case ["十王星南", "Campus mode!!"]:
+                return PIdol.十王星南_Campusmode
+            case ["十王星南", "一番星"]:
+                return PIdol.十王星南_一番星
+            case ["十王星南", "学園生活"]:
+                return PIdol.十王星南_学園生活
+            case ["十王星南", "小さな野望"]:
+                return PIdol.十王星南_小さな野望
+            case ["姫崎莉波", "clumsy trick"]:
+                return PIdol.姫崎莉波_clumsytrick
+            case ["姫崎莉波", "『私らしさ』のはじまり"]:
+                return PIdol.姫崎莉波_私らしさのはじまり
+            case ["姫崎莉波", "キミとセミブルー"]:
+                return PIdol.姫崎莉波_キミとセミブルー
+            case ["姫崎莉波", "Campus mode!!"]:
+                return PIdol.姫崎莉波_Campusmode
+            case ["姫崎莉波", "L.U.V"]:
+                return PIdol.姫崎莉波_LUV
+            case ["姫崎莉波", "ようこそ初星温泉"]:
+                return PIdol.姫崎莉波_ようこそ初星温泉
+            case ["姫崎莉波", "ハッピーミルフィーユ"]:
+                return PIdol.姫崎莉波_ハッピーミルフィーユ
+            case ["姫崎莉波", "初心"]:
+                return PIdol.姫崎莉波_初心
+            case ["姫崎莉波", "学園生活"]:
+                return PIdol.姫崎莉波_学園生活
+            case ["月村手毬", "Luna say maybe"]:
+                return PIdol.月村手毬_Lunasaymaybe
+            case ["月村手毬", "一匹狼"]:
+                return PIdol.月村手毬_一匹狼
+            case ["月村手毬", "Campus mode!!"]:
+                return PIdol.月村手毬_Campusmode
+            case ["月村手毬", "アイヴイ"]:
+                return PIdol.月村手毬_アイヴイ
+            case ["月村手毬", "初声"]:
+                return PIdol.月村手毬_初声
+            case ["月村手毬", "学園生活"]:
+                return PIdol.月村手毬_学園生活
+            case ["月村手毬", "仮装狂騒曲"]:
+                return PIdol.月村手毬_仮装狂騒曲
+            case ["有村麻央", "Fluorite"]:
+                return PIdol.有村麻央_Fluorite
+            case ["有村麻央", "はじまりはカッコよく"]:
+                return PIdol.有村麻央_はじまりはカッコよく
+            case ["有村麻央", "Campus mode!!"]:
+                return PIdol.有村麻央_Campusmode
+            case ["有村麻央", "Feel Jewel Dream"]:
+                return PIdol.有村麻央_FeelJewelDream
+            case ["有村麻央", "キミとセミブルー"]:
+                return PIdol.有村麻央_キミとセミブルー
+            case ["有村麻央", "初恋"]:
+                return PIdol.有村麻央_初恋
+            case ["有村麻央", "学園生活"]:
+                return PIdol.有村麻央_学園生活
+            case ["篠泽广", "コントラスト"]:
+                return PIdol.篠泽广_コントラスト
+            case ["篠泽广", "一番向いていないこと"]:
+                return PIdol.篠泽广_一番向いていないこと
+            case ["篠泽广", "光景"]:
+                return PIdol.篠泽广_光景
+            case ["篠泽广", "Campus mode!!"]:
+                return PIdol.篠泽广_Campusmode
+            case ["篠泽广", "仮装狂騒曲"]:
+                return PIdol.篠泽广_仮装狂騒曲
+            case ["篠泽广", "ハッピーミルフィーユ"]:
+                return PIdol.篠泽广_ハッピーミルフィーユ
+            case ["篠泽广", "初恋"]:
+                return PIdol.篠泽广_初恋
+            case ["篠泽广", "学園生活"]:
+                return PIdol.篠泽广_学園生活
+            case ["紫云清夏", "Tame-Lie-One-Step"]:
+                return PIdol.紫云清夏_TameLieOneStep
+            case ["紫云清夏", "カクシタワタシ"]:
+                return PIdol.紫云清夏_カクシタワタシ
+            case ["紫云清夏", "夢へのリスタート"]:
+                return PIdol.紫云清夏_夢へのリスタート
+            case ["紫云清夏", "Campus mode!!"]:
+                return PIdol.紫云清夏_Campusmode
+            case ["紫云清夏", "キミとセミブルー"]:
+                return PIdol.紫云清夏_キミとセミブルー
+            case ["紫云清夏", "初恋"]:
+                return PIdol.紫云清夏_初恋
+            case ["紫云清夏", "学園生活"]:
+                return PIdol.紫云清夏_学園生活
+            case ["花海佑芽", "White Night! White Wish!"]:
+                return PIdol.花海佑芽_WhiteNightWhiteWish
+            case ["花海佑芽", "学園生活"]:
+                return PIdol.花海佑芽_学園生活
+            case ["花海佑芽", "Campus mode!!"]:
+                return PIdol.花海佑芽_Campusmode
+            case ["花海佑芽", "The Rolling Riceball"]:
+                return PIdol.花海佑芽_TheRollingRiceball
+            case ["花海佑芽", "アイドル、はじめっ！"]:
+                return PIdol.花海佑芽_アイドル_はじめっ
+            case ["花海咲季", "Boom Boom Pow"]:
+                return PIdol.花海咲季_BoomBoomPow
+            case ["花海咲季", "Campus mode!!"]:
+                return PIdol.花海咲季_Campusmode
+            case ["花海咲季", "Fighting My Way"]:
+                return PIdol.花海咲季_FightingMyWay
+            case ["花海咲季", "わたしが一番！"]:
+                return PIdol.花海咲季_わたしが一番
+            case ["花海咲季", "冠菊"]:
+                return PIdol.花海咲季_冠菊
+            case ["花海咲季", "初声"]:
+                return PIdol.花海咲季_初声
+            case ["花海咲季", "古今東西ちょちょいのちょい"]:
+                return PIdol.花海咲季_古今東西ちょちょいのちょい
+            case ["花海咲季", "学園生活"]:
+                return PIdol.花海咲季_学園生活
+            case ["葛城リーリヤ", "一つ踏み出した先に"]:
+                return PIdol.葛城リーリヤ_一つ踏み出した先に
+            case ["葛城リーリヤ", "白線"]:
+                return PIdol.葛城リーリヤ_白線
+            case ["葛城リーリヤ", "Campus mode!!"]:
+                return PIdol.葛城リーリヤ_Campusmode
+            case ["葛城リーリヤ", "White Night! White Wish!"]:
+                return PIdol.葛城リーリヤ_WhiteNightWhiteWish
+            case ["葛城リーリヤ", "冠菊"]:
+                return PIdol.葛城リーリヤ_冠菊
+            case ["葛城リーリヤ", "初心"]:
+                return PIdol.葛城リーリヤ_初心
+            case ["葛城リーリヤ", "学園生活"]:
+                return PIdol.葛城リーリヤ_学園生活
+            case ["藤田ことね", "カワイイ", "はじめました"]:
+                return PIdol.藤田ことね_カワイイ_はじめました
+            case ["藤田ことね", "世界一可愛い私"]:
+                return PIdol.藤田ことね_世界一可愛い私
+            case ["藤田ことね", "Campus mode!!"]:
+                return PIdol.藤田ことね_Campusmode
+            case ["藤田ことね", "Yellow Big Bang！"]:
+                return PIdol.藤田ことね_YellowBigBang
+            case ["藤田ことね", "White Night! White Wish!"]:
+                return PIdol.藤田ことね_WhiteNightWhiteWish
+            case ["藤田ことね", "冠菊"]:
+                return PIdol.藤田ことね_冠菊
+            case ["藤田ことね", "初声"]:
+                return PIdol.藤田ことね_初声
+            case ["藤田ことね", "学園生活"]:
+                return PIdol.藤田ことね_学園生活
+            case _:
+                nonlocal msg
+                if msg == '':
+                    msg = '培育设置中的以下偶像升级失败。请尝试手动添加。\n'
+                msg += f'{idol} 未找到\n'
+                return None
+    old_idols = options['produce']['idols']
+    new_idols = list(filter(lambda x: x is not None, map(map_idol, old_idols)))
+    options['produce']['idols'] = new_idols
+    shutil.copy('config.json', 'config.json.v1.json')
+    return options, msg
 
 
 if __name__ == '__main__':
