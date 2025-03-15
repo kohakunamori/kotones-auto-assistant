@@ -734,6 +734,8 @@ def upgrade_config() -> str | None:
     """
     升级配置文件
     """
+    if not os.path.exists('config.json'):
+        return None
     with open('config.json', 'r', encoding='utf-8') as f:
         root = json.load(f)
     
