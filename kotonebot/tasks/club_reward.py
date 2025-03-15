@@ -34,6 +34,7 @@ def club_reward():
     if image.find(R.Common.ButtonClose):
         device.click()
         logger.info('Collected note request reward')
+    sleep(1)
 
     # 如果笔记请求已经结束，则发起一轮新的笔记请求；
     # 注：下面这个图片要可以区分出笔记请求是否已经结束，不然会发生不幸的事情
@@ -42,6 +43,7 @@ def club_reward():
     texts = ocr.ocr(rect=R.Daily.Club.NoteRequestHintBox)
     logger.debug(f'OCR result: {texts}')
     # 不应该进入的情况，识别结果为：[OcrResult(text="リクエストロ", rect=(243, 298, 145, 35), confidence=0.8576575517654419)]
+    # 应该进入的情况，识别结果为：[OcrResult(text="リクエスト", rect=(244, 297, 141, 35), confidence=0.9993334531784057)]
     if texts and texts[0].text == 'リクエスト':
         # 经测验，threshold=0.999时也可以正确识别，所以这里保留这个阈值
         device.click(image.expect_wait(R.Daily.ButtonClubCollectReward, threshold=0.99))
