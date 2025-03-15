@@ -1,7 +1,7 @@
 """扭蛋机，支持任意次数的任意扭蛋类型"""
 import logging
 
-from kotonebot import task, action, device, image, sleep
+from kotonebot import task, action, device, image, sleep, Interval
 from kotonebot.backend.image import TemplateMatchResult
 from . import R
 from .common import conf
@@ -30,20 +30,27 @@ def draw_capsule_toys(button: TemplateMatchResult, times: int):
     )
     sleep(0.5)
 
-    # 点击加号按钮
-    add_button = image.expect_wait(R.Daily.ButtonShopCountAdd, timeout=5)
-    for _ in range(times):
-        device.click(add_button)
-    sleep(0.5)
-
-    # 点击确认按钮
-    device.click(image.expect_wait(R.Common.ButtonConfirm, timeout=5))
-    sleep(0.5)
-
-    # 点击关闭按钮（这里同时处理了两种情况：成功，关闭提示页面；扭蛋次数不足，关闭抽扭蛋页面）
-    if image.wait_for(R.Common.ButtonIconClose, timeout=5):
-        device.click()
-        sleep(1)
+    confirm_button = image.find(R.Common.ButtonConfirm, colored=True)
+    if confirm_button is None:
+        # 硬币不足
+        logger.info('Not enough coins.')
+    else:
+        # 硬币足够
+        add_button = image.expect_wait(R.Daily.ButtonShopCountAdd, timeout=5)
+        for _ in range(times):
+            device.click(add_button)
+        sleep(0.5)
+        device.click(confirm_button)
+        sleep(0.5)
+    
+    # 等待动画完成
+    it = Interval()
+    while True:
+        if image.find(R.Common.ButtonIconClose):
+            device.click()
+        elif image.find(R.Daily.CapsuleToys.IconTitle):
+            break
+        it.wait()
 
 @action('获取抽扭蛋按钮')
 def get_capsule_toys_draw_buttons():
@@ -84,7 +91,8 @@ def capsule_toys():
     logger.info('Entering Capsule Toys page')
     device.click(image.expect_wait(R.Daily.ButtonShop, timeout=5))
     device.click(image.expect_wait(R.Daily.ButtonShopCapsuleToys, timeout=5))
-    sleep(1)
+    # 等待加载
+    image.expect_wait(R.Daily.CapsuleToys.IconTitle)
 
     # 处理好友扭蛋和感性扭蛋
     buttons = get_capsule_toys_draw_buttons();
@@ -109,7 +117,7 @@ def capsule_toys():
     sleep(1) # 等待滑动静止（由于swipe duration失效，所以这里需要手动等待）
 
     # 处理逻辑扭蛋扭蛋和非凡扭蛋
-    buttons = get_capsule_toys_draw_buttons();
+    buttons = get_capsule_toys_draw_buttons()
     if len(buttons) != 2:
         return
     
