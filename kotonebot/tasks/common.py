@@ -936,7 +936,7 @@ def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | Non
     old_idols = options['produce']['idols']
     new_idols = list(filter(lambda x: x is not None, map(map_idol, old_idols)))
     options['produce']['idols'] = new_idols
-    shutil.copy('config.json', 'config.json.v1.json')
+    shutil.copy('config.json', 'config.v1.json')
     return options, msg
 
 
