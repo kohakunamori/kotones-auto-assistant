@@ -1,19 +1,51 @@
 """启动游戏，领取登录奖励，直到首页为止"""
 import logging
 
-from kotonebot import task, device, image, cropped, AdaptiveWait, sleep, ocr
-from kotonebot.backend.context.task_action import action
+from kotonebot import task, device, image, AdaptiveWait, sleep, ocr
 from kotonebot.errors import GameUpdateNeededError
 from . import R
 from .common import Priority, conf
 from .actions.loading import loading
 from .actions.scenes import at_home, goto_home
-from .actions.commu import is_at_commu, handle_unread_commu
+from .actions.commu import handle_unread_commu
 
 logger = logging.getLogger(__name__)
 
-@action('启动游戏公共部分')
-def start_game_common():
+@task('启动游戏', priority=Priority.START_GAME)
+def start_game():
+    """
+    启动游戏，直到游戏进入首页为止。
+    """
+
+    if not conf().start_game.enabled:
+        logger.info('"Start game" is disabled.')
+        return
+    
+    # 如果已经在游戏中，直接返回home
+    if device.current_package() == conf().start_game.game_package_name:
+        logger.info("Game already started")
+        if not at_home():
+            logger.info("Not at home, going to home")
+            goto_home()
+        return
+    
+    # 如果不在游戏中，启动游戏
+    if not conf().start_game.start_through_kuyo:
+        # 直接启动
+        device.launch_app('com.bandainamcoent.idolmaster_gakuen')
+    else:
+        # 通过Kuyo启动
+        if device.current_package() == conf().start_game.kuyo_package_name:
+            logger.warning("Kuyo already started. Auto start game failed.")
+            # TODO: Kuyo支持改进
+            return
+        # 启动kuyo
+        device.launch_app('org.kuyo.game')
+        # 点击"加速"
+        device.click(image.expect_wait(R.Kuyo.ButtonTab3Speedup, timeout=10))
+        # 点击"K空间启动"
+        device.click(image.expect_wait(R.Kuyo.ButtonStartGame, timeout=10))
+
     # [screenshots/startup/1.png]
     image.wait_for(R.Daily.ButonLinkData, timeout=30)
     sleep(2)
@@ -40,46 +72,6 @@ def start_game_common():
             else:
                 device.click_center()
             wait()
-
-@task('启动游戏', priority=Priority.START_GAME)
-def start_game():
-    """
-    启动游戏，直到游戏进入首页为止。
-    """
-    if not conf().start_game.enabled:
-        logger.info('"Start game" is disabled.')
-        return
-    # TODO: 包名放到配置文件里
-    if device.current_package() == 'com.bandainamcoent.idolmaster_gakuen':
-        logger.info("Game already started")
-        if not at_home():
-            logger.info("Not at home, going to home")
-            goto_home()
-        return
-    device.launch_app('com.bandainamcoent.idolmaster_gakuen')
-    start_game_common()
-
-@task('启动 Kuyo 及游戏', priority=Priority.START_GAME)
-def start_kuyo_and_game():
-    """
-    启动 Kuyo 及游戏，直到游戏进入首页为止。
-    """
-    if not conf().start_kuyo_and_game.enabled:
-        logger.info('"Start kuyo and game" is disabled.')
-        return
-    # TODO: 包名放到配置文件里
-    if device.current_package() == 'org.kuyo.game':
-        logger.info("Kuyo already started")
-        return
-    if device.current_package() == 'com.bandainamcoent.idolmaster_gakuen':
-        logger.info("Game already started")
-        return
-    # 启动kuyo
-    device.launch_app('org.kuyo.game')
-    device.click(image.expect_wait(R.Kuyo.ButtonTab3Speedup, timeout=10))
-    device.click(image.expect_wait(R.Kuyo.ButtonStartGame, timeout=10))
-    # 启动游戏
-    start_game_common()
 
 if __name__ == '__main__':
     import logging

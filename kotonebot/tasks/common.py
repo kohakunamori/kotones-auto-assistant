@@ -1,3 +1,4 @@
+from gc import enable
 import os
 import json
 import shutil
@@ -412,6 +413,16 @@ class DailyMoneyShopItems(IntEnum):
     def all(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
         """获取所有枚举值及其对应的UI显示文本"""
         return [(cls.to_ui_text(item), item) for item in cls]
+    
+    @classmethod
+    def _is_note(cls, item: 'DailyMoneyShopItems') -> bool:
+        """判断是否为笔记"""
+        return 'Note' in item.name and not item.name.startswith('Note') and not item.name.endswith('Note')
+    
+    @classmethod
+    def note_items(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
+        """获取所有枚举值及其对应的UI显示文本"""
+        return [(cls.to_ui_text(item), item) for item in cls if cls._is_note(item)]
 
     def to_resource(self):
         from . import R
@@ -626,18 +637,49 @@ class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用领取任务奖励"""
 
+class ClubRewardConfig(ConfigBaseModel):
+    enabled: bool = False
+    """是否启用领取社团奖励"""
+
+    selected_note: DailyMoneyShopItems = DailyMoneyShopItems.AnomalyNoteVisual
+    """想在社团奖励中获取到的笔记"""
+
+class UpgradeSupportCardConfig(ConfigBaseModel):
+    enabled: bool = False
+    """是否启用支援卡升级"""
+
+class CapsuleToysConfig(ConfigBaseModel):
+    enabled: bool = False
+    """是否启用扭蛋机"""
+
+    friend_capsule_toys_count: int = 0
+    """好友扭蛋机次数"""
+
+    sense_capsule_toys_count: int = 0
+    """感性扭蛋机次数"""
+
+    logic_capsule_toys_count: int = 0
+    """理性扭蛋机次数"""
+
+    anomaly_capsule_toys_count: int = 0
+    """非凡扭蛋机次数"""
+    
 class TraceConfig(ConfigBaseModel):
     recommend_card_detection: bool = False
     """跟踪推荐卡检测"""
+
 class StartGameConfig(ConfigBaseModel):
     enabled: bool = True
-    """
-    是否启用自动启动游戏。默认为True
-    """
+    """是否启用自动启动游戏。默认为True"""
 
-class StartKuyoAndGameConfig(ConfigBaseModel):
-    enabled: bool = False
-    """是否启用自动启动Kuyo与游戏"""
+    start_through_kuyo: bool = False
+    """是否通过Kuyo来启动游戏"""
+
+    game_package_name: str = 'com.bandinamcoent.idolmaster_gakuen'
+    """游戏包名"""
+
+    kuyo_package_name: str = 'org.kuyo.game'
+    """Kuyo包名"""
 
 class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
@@ -661,13 +703,20 @@ class BaseConfig(ConfigBaseModel):
     mission_reward: MissionRewardConfig = MissionRewardConfig()
     """领取任务奖励配置"""
 
+    club_reward: ClubRewardConfig = ClubRewardConfig()
+    """领取社团奖励配置"""
+
+    upgrade_support_card: UpgradeSupportCardConfig = UpgradeSupportCardConfig()
+    """支援卡升级配置"""
+
+    capsule_toys: CapsuleToysConfig = CapsuleToysConfig()
+    """扭蛋机配置"""
+
     trace: TraceConfig = TraceConfig()
     """跟踪配置"""
+
     start_game: StartGameConfig = StartGameConfig()
     """启动游戏配置"""
-
-    start_kuyo_and_game: StartKuyoAndGameConfig = StartKuyoAndGameConfig()
-    """启动Kuyo与游戏配置"""
 
 
 def conf() -> BaseConfig:
