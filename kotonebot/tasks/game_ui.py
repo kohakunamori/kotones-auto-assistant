@@ -1,16 +1,19 @@
 from dataclasses import dataclass
-from typing import Literal, NamedTuple
+from typing import Literal, NamedTuple, overload
 
+import cv2
 import numpy as np
+from cv2.typing import MatLike
+
+from kotonebot.backend.image import TemplateMatchResult
 
 from . import R
 from kotonebot import action, device, color, image, ocr, sleep
 from kotonebot.backend.color import HsvColor
 from kotonebot.util import Rect
 from kotonebot.backend.core import HintBox, Image
+from kotonebot.backend.preprocessor import HsvColorFilter
 
-import cv2
-from cv2.typing import MatLike
 
 @action('按钮是否禁用', screenshot_mode='manual-inherit')
 def button_state(*, target: Image | None = None, rect: Rect | None = None) -> bool | None:
@@ -189,20 +192,45 @@ class CommuEventButtonUI:
         ocr_result = ocr.raw().ocr(img, rect=rects[0])
         return ocr_result.squash().text
 
-def filter_white(img: MatLike):
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    lower_white = np.array([0, 0, 180])
-    upper_white = np.array([180, 50, 255])
-    return cv2.inRange(hsv, lower_white, upper_white)
+class WhiteFilter(HsvColorFilter):
+    def __init__(self):
+        super().__init__(WHITE_LOW, WHITE_HIGH)
 
-# TODO: image 对象加入自定义 hook，处理 post-process 和 pre-process
+@overload
+def toolbar_home(critical: Literal[False] = False) -> TemplateMatchResult | None:
+    """寻找工具栏上的首页按钮。"""
+    ...
+
+@overload
+def toolbar_home(critical: Literal[True]) -> TemplateMatchResult:
+    """寻找工具栏上的首页按钮。若未找到，则抛出异常。"""
+    ...
+
 @action('工具栏按钮.寻找首页', screenshot_mode='manual-inherit')
-def toolbar_home():
-    img = device.screenshot()
-    img = filter_white(img)
-    result = image.raw().find(img, R.Common.ButtonToolbarHomeBinary.binary())
-    return result
+def toolbar_home(critical: bool = False):
+    device.screenshot()
+    if critical:
+        return image.expect_wait(R.Common.ButtonToolbarHome, preprocessors=[WhiteFilter()])
+    else:
+        return image.find(R.Common.ButtonToolbarHome, preprocessors=[WhiteFilter()])
 
+@overload
+def toolbar_menu(critical: Literal[False] = False) -> TemplateMatchResult | None:
+    """寻找工具栏上的菜单按钮。"""
+    ...
+
+@overload
+def toolbar_menu(critical: Literal[True]) -> TemplateMatchResult:
+    """寻找工具栏上的菜单按钮。若未找到，则抛出异常。"""
+    ...
+
+@action('工具栏按钮.寻找菜单', screenshot_mode='manual-inherit')
+def toolbar_menu(critical: bool = False):
+    device.screenshot()
+    if critical:
+        return image.expect_wait(R.Common.ButtonToolbarMenu, preprocessors=[WhiteFilter()])
+    else:
+        return image.find(R.Common.ButtonToolbarMenu, preprocessors=[WhiteFilter()])
 
 if __name__ == '__main__':
     from pprint import pprint as print
