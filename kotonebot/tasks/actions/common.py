@@ -1,6 +1,7 @@
 from typing import Literal
 from logging import getLogger
 
+from kotonebot.backend.preprocessor import HsvColorFilter
 from kotonebot.tasks.actions.loading import loading
 
 from .. import R
@@ -14,7 +15,7 @@ from kotonebot import (
     sleep,
     Interval,
 )
-from ..game_ui import CommuEventButtonUI
+from ..game_ui import CommuEventButtonUI, WhiteFilter
 from .pdorinku import acquire_pdorinku
 from kotonebot.backend.dispatch import SimpleDispatcher
 from kotonebot.tasks.actions.commu import handle_unread_commu
@@ -55,7 +56,7 @@ def acquire_skill_card():
 def select_p_item():
     """
     前置条件：P物品选择对话框（受け取るＰアイテムを選んでください;）\n
-    结束条件：P物品获取动画
+    结束状态：P物品获取动画
     """
     # 前置条件 [screenshots/produce/in_produce/select_p_item.png]
     # 前置条件 [screenshots/produce/in_produce/claim_p_item.png]
@@ -73,12 +74,12 @@ def select_p_item():
 def hanlde_skill_card_enhance():
     """
     前置条件：技能卡强化对话框\n
-    结束条件：技能卡强化动画结束后瞬间
+    结束状态：技能卡强化动画结束后瞬间
 
     :return: 是否成功处理对话框
     """
     # 前置条件 [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_skill_card_enhane.png]
-    # 结束条件 [screenshots/produce/in_produce/skill_card_enhance.png]
+    # 结束状态 [screenshots/produce/in_produce/skill_card_enhance.png]
     cards = image.find_multi([
         R.InPurodyuusu.A,
         R.InPurodyuusu.M
@@ -93,7 +94,7 @@ def hanlde_skill_card_enhance():
         device.screenshot()
         if image.find(R.InPurodyuusu.ButtonEnhance, colored=True):
             device.click()
-        elif '強化' in ocr.ocr(rect=R.InPurodyuusu.BoxSkillCardEnhaced).squash().text:
+        elif image.find(R.InPurodyuusu.IconSkillCardEventBubble):
             device.click_center()
             break
         it.wait()
@@ -104,11 +105,10 @@ AcquisitionType = Literal[
     "PDrinkSelect", # P饮料主动领取
     "PDrinkMax", # P饮料到达上限
     "PSkillCardAcquire", # 技能卡领取
-    "PSkillCardChange", # 技能卡更换
     "PSkillCardSelect", # 技能卡选择
     "PSkillCardEnhanced", # 技能卡强化
     "PSkillCardEnhanceSelect", # 技能卡强化选择
-    "PSkillCardRemove", # 技能卡移除
+    "PSkillCardEvent", # 技能卡事件（随机强化、删除、更换）
     "PItemClaim", # P物品领取
     "PItemSelect", # P物品选择
     "Clear", # 目标达成
@@ -118,7 +118,7 @@ AcquisitionType = Literal[
     "Loading", # 加载画面
 ]
 
-@measure_time(file_path='logs/acquisition.time.log')
+@measure_time()
 @action('处理培育事件', screenshot_mode='manual')
 def acquisitions() -> AcquisitionType | None:
     """处理行动开始前和结束后可能需要处理的事件，直到到行动页面为止"""
@@ -158,10 +158,10 @@ def acquisitions() -> AcquisitionType | None:
                 logger.info("Leave button found")
                 device.click(leave)
                 return "PDrinkMax"
-    if ocr.find(contains('報酬'), rect=R.InPurodyuusu.BoxPDrinkMaxConfirmTitle):
+    if image.find(R.InPurodyuusu.TextPDrinkMaxConfirmTitle):
         logger.debug("PDrink max confirm found")
         device.screenshot()
-        if ocr.find(contains('報酬'), rect=R.InPurodyuusu.BoxPDrinkMaxConfirmTitle):
+        if image.find(R.InPurodyuusu.TextPDrinkMaxConfirmTitle):
             if confirm := image.find(R.Common.ButtonConfirm):
                 logger.info("Confirm button found")
                 device.click(confirm)
@@ -190,7 +190,7 @@ def acquisitions() -> AcquisitionType | None:
         sleep(1)
         return "Clear"
     # 目标达成 NEXT
-    if ocr.find(regex('NEXT|next'), rect=R.InPurodyuusu.BoxGoalClearNext):
+    if image.find(R.InPurodyuusu.TextGoalClearNext, preprocessors=[WhiteFilter()]):
         logger.info("Goal clear (達成) next found")
         device.click_center()
         sleep(1)
@@ -218,53 +218,44 @@ def acquisitions() -> AcquisitionType | None:
 
     # 物品选择对话框
     logger.debug("Check award select dialog...")
-    if result := ocr.find(contains("受け取る"), rect=R.InPurodyuusu.BoxSelectPStuff):
+    if image.find(R.InPurodyuusu.TextClaim):
         logger.info("Award select dialog found.")
-        logger.debug(f"Dialog text: {result.text}")
 
         # P饮料选择
         logger.debug("Check PDrink select...")
-        if "Pドリンク" in result.text:
+        if image.find(R.InPurodyuusu.TextPDrink):
             logger.info("PDrink select found")
             acquire_pdorinku(index=0)
             return "PDrinkSelect"
         # 技能卡选择
         logger.debug("Check skill card select...")
-        if "スキルカード" in result.text:
+        if image.find(R.InPurodyuusu.TextSkillCard):
             logger.info("Acquire skill card found")
             acquire_skill_card()
             return "PSkillCardSelect"
         # P物品选择
         logger.debug("Check PItem select...")
-        if "Pアイテム" in result.text:
+        if image.find(R.InPurodyuusu.TextPItem):
             logger.info("Acquire PItem found")
             select_p_item()
             return "PItemSelect"
 
     # 技能卡变更事件
+    # 包括下面这些：
+    # 1. 技能卡更换
+    # [screenshots/produce/in_produce/support_card_change.png]
+    # 2. 技能卡强化
+    # [screenshots/produce/in_produce/skill_card_enhance.png]
+    # 3. 技能卡移除
+    # [screenshots/produce/in_produce/skill_card_removal.png]
     logger.debug("Check skill card events...")
-    if result := ocr.ocr(rect=R.InPurodyuusu.BoxSkillCardEnhaced).squash():
-        # 技能卡更换（支援卡效果）
-        # [screenshots/produce/in_produce/support_card_change.png]
-        if "チェンジ" in result.text:
-            logger.info("Change skill card found")
-            device.click(*bottom_pos)
-            return "PSkillCardChange"
-        # 技能卡强化
-        # [screenshots/produce/in_produce/skill_card_enhance.png]
-        if "強化" in result.text:
-            logger.info("Enhance skill card found")
-            device.click(*bottom_pos)
-            return "PSkillCardEnhanced"
-        # 技能卡移除
-        # [screenshots\produce\in_produce\skill_card_removal.png]
-        if "削除" in result.text:
-            logger.info("Remove skill card found")
-            device.click(*bottom_pos)
-            return "PSkillCardRemove"
+    if image.find(R.InPurodyuusu.IconSkillCardEventBubble):
+        device.click() # 不能 click_center，因为中间是技能卡
+        return "PSkillCardEvent"
     
     # 技能卡获取
-    # [res/sprites/jp/in_purodyuusu/screenshot_skill_card_acquired.png]
+    # [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_skill_card_acquired.png]
+    # 因为这个文本有缩放动画，因此暂时没法用模板匹配代替
     if ocr.find("スキルカード獲得", rect=R.InPurodyuusu.BoxSkillCardAcquired):
         logger.info("Acquire skill card from loot box")
         device.click_center()

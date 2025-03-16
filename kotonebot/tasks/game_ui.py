@@ -193,6 +193,12 @@ class CommuEventButtonUI:
         return ocr_result.squash().text
 
 class WhiteFilter(HsvColorFilter):
+    """
+    匹配时，只匹配图像和模板中的白色部分。
+    
+    此类用于识别空心/透明背景的白色图标或文字。
+    """
+
     def __init__(self):
         super().__init__(WHITE_LOW, WHITE_HIGH)
 
