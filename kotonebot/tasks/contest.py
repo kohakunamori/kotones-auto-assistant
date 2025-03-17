@@ -2,10 +2,9 @@
 import logging
 from gettext import gettext as _
 
-from kotonebot.backend.dispatch import SimpleDispatcher
-
 from . import R
 from .common import conf
+from .game_ui import WhiteFilter
 from .actions.scenes import at_home, goto_home
 from .actions.loading import wait_loading_end
 from kotonebot import device, image, ocr, color, action, task, user, rect_expand, sleep, contains
@@ -28,9 +27,9 @@ def goto_contest() -> bool:
     device.click(btn_contest)
     if not has_ongoing_contest:
         while not image.find(R.Daily.ButtonContestRanking):
-            # [screenshots/contest/acquire1.png]
+            # [kotonebot-resource\sprites\jp\daily\screenshot_contest_season_reward.png]
             # [screenshots/contest/acquire2.png]
-            device.click(0, 0)
+            device.click(R.Daily.PointDissmissContestReward)
             sleep(1)
         # [screenshots/contest/main.png]
     else:
