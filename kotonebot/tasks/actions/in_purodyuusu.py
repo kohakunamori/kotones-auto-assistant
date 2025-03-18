@@ -13,12 +13,13 @@ from .. import R
 from . import loading
 from .scenes import at_home
 from ..util.trace import trace
+from ..game_ui import WhiteFilter
 from .commu import handle_unread_commu
 from ..common import ProduceAction, RecommendCardDetectionMode, conf
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.context.context import use_screenshot
 from .common import until_acquisition_clear, acquisitions, commut_event
-from kotonebot.util import AdaptiveWait, Countdown, crop, cropped
+from kotonebot.util import AdaptiveWait, Countdown, Interval, crop, cropped
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
 from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect, wait
 from .non_lesson_actions import (
@@ -677,6 +678,7 @@ def exam(type: Literal['mid', 'final']):
         while ocr.wait_for(contains("メモリー"), timeout=7):
             device.click_center()
 
+# TODO: 将这个函数改为手动截图模式
 @action('考试结束流程')
 def produce_end():
     """执行考试结束流程"""
@@ -690,12 +692,22 @@ def produce_end():
     # 等待选择封面画面 [screenshots/produce_end/select_cover.jpg]
     # 次へ
     logger.info("Waiting for select cover screen...")
-    aw = AdaptiveWait(timeout=60 * 5, max_interval=20)
+    it = Interval()
     while not image.find(R.InPurodyuusu.ButtonNextNoIcon):
+        # device.screenshot()
+        # 未读交流
         if handle_unread_commu():
             logger.info("Skipping unread commu")
-            continue
-        aw()
+        # 跳过演出
+        # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end.png]
+        elif image.find(R.Produce.ButtonSkipLive, preprocessors=[WhiteFilter()]):
+            logger.info("Skipping live.")
+            device.click()
+        # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end_skip.png]
+        elif image.find(R.Produce.TextSkipLiveDialogTitle):
+            logger.info("Confirming skip live.")
+            device.click(image.expect_wait(R.Common.IconButtonCheck))
+        it.wait()
         device.click(0, 0)
     # 选择封面
     logger.info("Use default cover.")
