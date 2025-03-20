@@ -1,26 +1,67 @@
 """启动游戏，领取登录奖励，直到首页为止"""
+import os
 import logging
 
-from kotonebot import task, device, image, AdaptiveWait, sleep, ocr
-from kotonebot.errors import GameUpdateNeededError
 from . import R
 from .common import Priority, conf
 from .actions.loading import loading
+from kotonebot.util import Countdown, Interval
 from .actions.scenes import at_home, goto_home
 from .actions.commu import handle_unread_commu
+from kotonebot.errors import GameUpdateNeededError
+from kotonebot import task, action, device, image, ocr
 
 logger = logging.getLogger(__name__)
 
-@task('启动游戏', priority=Priority.START_GAME)
-def start_game():
+@action('启动游戏.进入首页', screenshot_mode='manual-inherit')
+def wait_for_home():
     """
-    启动游戏，直到游戏进入首页为止。
+    前置条件：游戏已启动\n
+    结束状态：游戏首页
     """
+    logger.info('Entering home...')
+    it = Interval()
+    click_cd = Countdown(1).start()
+    should_click = False
+    while True:
+        device.screenshot()
+        # 首页
+        if image.find(R.Daily.ButtonHomeCurrent):
+            break
+        # TAP TO START 画面
+        # [screenshots/startup/1.png]
+        elif image.find(R.Daily.ButonLinkData):
+            should_click = True
+        elif loading():
+            pass
+        # 热更新
+        # [screenshots/startup/update.png]
+        elif image.find(R.Common.TextGameUpdate):
+            device.click(image.expect(R.Common.ButtonConfirm))
+        # 本体更新
+        # [kotonebot-resource/sprites/jp/daily/screenshot_apk_update.png]
+        elif ocr.find('アップデート', rect=R.Daily.BoxApkUpdateDialogTitle):
+            raise GameUpdateNeededError()
+        # 公告
+        # [screenshots/startup/announcement1.png]
+        elif image.find(R.Common.ButtonIconClose):
+            device.click()
+        # 生日
+        # [screenshots/startup/birthday.png]
+        elif handle_unread_commu():
+            pass
 
-    if not conf().start_game.enabled:
-        logger.info('"Start game" is disabled.')
-        return
-    
+        if should_click and click_cd.expired():
+            device.click_center()
+            click_cd.reset()
+        it.wait()
+
+@action('启动游戏.Android', screenshot_mode='manual-inherit')
+def android_launch():
+    """
+    前置条件：-
+    结束状态：-
+    """
     # 如果已经在游戏中，直接返回home
     if device.current_package() == conf().start_game.game_package_name:
         logger.info("Game already started")
@@ -32,7 +73,7 @@ def start_game():
     # 如果不在游戏中，启动游戏
     if not conf().start_game.start_through_kuyo:
         # 直接启动
-        device.launch_app('com.bandainamcoent.idolmaster_gakuen')
+        device.launch_app(conf().start_game.game_package_name)
     else:
         # 通过Kuyo启动
         if device.current_package() == conf().start_game.kuyo_package_name:
@@ -46,32 +87,43 @@ def start_game():
         # 点击"K空间启动"
         device.click(image.expect_wait(R.Kuyo.ButtonStartGame, timeout=10))
 
-    # [screenshots/startup/1.png]
-    image.wait_for(R.Daily.ButonLinkData, timeout=30)
-    sleep(2)
-    device.click_center()
-    wait = AdaptiveWait(timeout=240, timeout_message='Game startup loading timeout')
+@action('启动游戏.Windows', screenshot_mode='manual-inherit')
+def windows_launch():
+    """
+    前置条件：-
+    结束状态：游戏窗口出现
+    """
+    from ahk import AHK
+
+    ahk = AHK(executable_path='bin/AutoHotkey.exe')
+    logger.info('Starting game...')
+    os.startfile('dmmgameplayer://play/GCL/gakumas/cl/win')
+    # 等待游戏窗口出现
+    it = Interval()
     while True:
-        while loading():
-            wait()
-        with device.pinned():
-            if image.find(R.Daily.ButtonHomeCurrent):
-                break
-            # [screenshots/startup/update.png]
-            elif image.find(R.Common.TextGameUpdate):
-                device.click(image.expect(R.Common.ButtonConfirm))
-            # [kotonebot-resource/sprites/jp/daily/screenshot_apk_update.png]
-            elif ocr.find('アップデート', rect=R.Daily.BoxApkUpdateDialogTitle):
-                raise GameUpdateNeededError()
-            # [screenshots/startup/announcement1.png]
-            elif image.find(R.Common.ButtonIconClose):
-                device.click()
-            # [screenshots/startup/birthday.png]
-            elif handle_unread_commu():
-                pass
-            else:
-                device.click_center()
-            wait()
+        if ahk.find_window(title='gakumas'):
+            logger.debug('Game window found.')
+            break
+        logger.debug('Waiting for game window...')
+        it.wait()
+
+@task('启动游戏', priority=Priority.START_GAME)
+def start_game():
+    """
+    启动游戏，直到游戏进入首页为止。
+    """
+    if not conf().start_game.enabled:
+        logger.info('"Start game" is disabled.')
+        return
+    
+    if device.platform == 'android':
+        android_launch()
+    elif device.platform == 'windows':
+        windows_launch()
+    else:
+        raise ValueError(f'Unsupported platform: {device.platform}')
+
+    wait_for_home()
 
 if __name__ == '__main__':
     import logging
