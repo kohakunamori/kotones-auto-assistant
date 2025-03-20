@@ -57,7 +57,7 @@ def select_idol(target_titles: list[str] | PIdol):
 
     if isinstance(target_titles, PIdol):
         target_titles = target_titles.to_title()
-    _target_titles = [contains(t) for t in target_titles]
+    _target_titles = [contains(t, ignore_case=True) for t in target_titles]
     device.screenshot()
     # 定位滑动基准
     results = image.find_all(R.Produce.IconPIdolLevel)
