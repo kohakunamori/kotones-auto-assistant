@@ -1,4 +1,3 @@
-from operator import gt
 import os
 import zipfile
 import logging
@@ -231,7 +230,7 @@ class KotoneBotUI:
         self,
         adb_ip: str,
         adb_port: int,
-        screenshot_method: Literal['adb', 'adb_raw', 'uiautomator2'],
+        screenshot_method: Literal['adb', 'adb_raw', 'uiautomator2', 'windows'],
         keep_screenshots: bool,
         check_emulator: bool,
         emulator_path: str,
@@ -477,7 +476,7 @@ class KotoneBotUI:
                 interactive=True
             )
             screenshot_impl = gr.Dropdown(
-                choices=['adb', 'adb_raw', 'uiautomator2'],
+                choices=['adb', 'adb_raw', 'uiautomator2', 'windows'],
                 value=self.current_config.backend.screenshot_impl,
                 label="截图方法",
                 info=BackendConfig.model_fields['screenshot_impl'].description,
