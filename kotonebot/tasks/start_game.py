@@ -94,8 +94,10 @@ def windows_launch():
     结束状态：游戏窗口出现
     """
     from ahk import AHK
+    from importlib import resources
 
-    ahk = AHK(executable_path='bin/AutoHotkey.exe')
+    ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
+    ahk = AHK(executable_path=ahk_path)
     logger.info('Starting game...')
     os.startfile('dmmgameplayer://play/GCL/gakumas/cl/win')
     # 等待游戏窗口出现
