@@ -70,7 +70,7 @@ def select_p_item():
     sleep(0.5)
     device.click(ocr.expect_wait('受け取る'))
 
-@action('技能卡强化', screenshot_mode='manual-inherit')
+@action('技能卡自选强化', screenshot_mode='manual-inherit')
 def hanlde_skill_card_enhance():
     """
     前置条件：技能卡强化对话框\n
@@ -94,11 +94,41 @@ def hanlde_skill_card_enhance():
         device.screenshot()
         if image.find(R.InPurodyuusu.ButtonEnhance, colored=True):
             device.click()
+            logger.debug("Enhance button found")
         elif image.find(R.InPurodyuusu.IconSkillCardEventBubble):
             device.click_center()
+            logger.debug("Skill card event bubble found")
             break
         it.wait()
     logger.debug("Handle skill card enhance finished.")
+
+@action('技能卡自选删除', screenshot_mode='manual-inherit')
+def handle_skill_card_removal():
+    """
+    前置条件：技能卡删除对话框\n
+    结束状态：技能卡删除动画结束后瞬间
+    """
+    # 前置条件 [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_remove_skill_card.png]
+    card = image.find_multi([
+        R.InPurodyuusu.A,
+        R.InPurodyuusu.M
+    ])
+    if card is None:
+        logger.info("No skill cards found")
+        return False
+    device.click(card)
+    it = Interval()
+    while True:
+        device.screenshot()
+        if image.find(R.InPurodyuusu.ButtonRemove):
+            device.click()
+            logger.debug("Remove button clicked.")
+        elif image.find(R.InPurodyuusu.IconSkillCardEventBubble):
+            device.click_center()
+            logger.debug("Skill card event bubble found")
+            break
+        it.wait()
+    logger.debug("Handle skill card removal finished.")
 
 AcquisitionType = Literal[
     "PDrinkAcquire", # P饮料被动领取
@@ -107,7 +137,8 @@ AcquisitionType = Literal[
     "PSkillCardAcquire", # 技能卡领取
     "PSkillCardSelect", # 技能卡选择
     "PSkillCardEnhanced", # 技能卡强化
-    "PSkillCardEnhanceSelect", # 技能卡强化选择
+    "PSkillCardEnhanceSelect", # 技能卡自选强化
+    "PSkillCardRemoveSelect", # 技能卡自选删除
     "PSkillCardEvent", # 技能卡事件（随机强化、删除、更换）
     "PItemClaim", # P物品领取
     "PItemSelect", # P物品选择
@@ -176,10 +207,15 @@ def acquisitions() -> AcquisitionType | None:
         device.click_center()
         return "PSkillCardAcquire"
 
-    # 技能卡强化选择
+    # 技能卡自选强化
     if image.find(R.InPurodyuusu.IconTitleSkillCardEnhance):
         if hanlde_skill_card_enhance():
             return "PSkillCardEnhanceSelect"
+
+    # 技能卡自选删除
+    if image.find(R.InPurodyuusu.IconTitleSkillCardRemoval):
+        if handle_skill_card_removal():
+            return "PSkillCardRemoveSelect"
 
     # 目标达成
     logger.debug("Check gloal clear (達成)...")
