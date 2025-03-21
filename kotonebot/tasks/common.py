@@ -1,4 +1,3 @@
-from gc import enable
 import os
 import json
 import shutil

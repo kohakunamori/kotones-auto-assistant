@@ -1,4 +1,3 @@
-from operator import gt
 import os
 import zipfile
 import logging
