@@ -2,10 +2,9 @@
 import logging
 from gettext import gettext as _
 
-from kotonebot.backend.dispatch import SimpleDispatcher
-
 from . import R
 from .common import conf
+from .game_ui import WhiteFilter
 from .actions.scenes import at_home, goto_home
 from .actions.loading import wait_loading_end
 from kotonebot import device, image, ocr, color, action, task, user, rect_expand, sleep, contains
@@ -28,9 +27,9 @@ def goto_contest() -> bool:
     device.click(btn_contest)
     if not has_ongoing_contest:
         while not image.find(R.Daily.ButtonContestRanking):
-            # [screenshots/contest/acquire1.png]
+            # [kotonebot-resource\sprites\jp\daily\screenshot_contest_season_reward.png]
             # [screenshots/contest/acquire2.png]
-            device.click(0, 0)
+            device.click(R.Daily.PointDissmissContestReward)
             sleep(1)
         # [screenshots/contest/main.png]
     else:
@@ -93,8 +92,7 @@ def pick_and_contest(has_ongoing_contest: bool = False) -> bool:
     # 点击 SKIP
     sleep(3)
     logger.debug('Clicking on SKIP.')
-    # TODO: 改为二值化图片
-    device.click(image.expect(R.Daily.ButtonIconSkip, colored=True, transparent=True, threshold=0.999))
+    device.click(image.expect(R.Daily.ButtonIconSkip, preprocessors=[WhiteFilter()]))
     while not image.wait_for(R.Common.ButtonNextNoIcon, timeout=2):
         device.click_center()
         logger.debug('Waiting for the result.')

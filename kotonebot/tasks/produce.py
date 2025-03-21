@@ -189,7 +189,7 @@ def do_produce(
 
     device.screenshot()
     # 有进行中培育的情况
-    if ocr.find(contains('プロデュース中'), rect=R.Produce.BoxProduceOngoing):
+    if ocr.find(contains('中'), rect=R.Produce.BoxProduceOngoing):
         logger.info('Ongoing produce found. Try to resume produce.')
         resume_produce()
         return True

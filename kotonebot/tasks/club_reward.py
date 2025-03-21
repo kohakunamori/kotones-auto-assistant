@@ -1,10 +1,11 @@
 """领取社团奖励，并尽可能地给其他人送礼物"""
 import logging
 
-from kotonebot import task, device, image, sleep, ocr
 from . import R
 from .common import conf
 from .actions.scenes import at_home, goto_home
+from kotonebot.tasks.game_ui import toolbar_menu
+from kotonebot import task, device, image, sleep, ocr
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def club_reward():
     
     # 进入社团UI
     logger.info('Entering club UI')
-    device.click(image.expect_wait(R.Daily.IconMenu, timeout=5))
+    device.click(toolbar_menu(True))
     device.click(image.expect_wait(R.Daily.IconMenuClub, timeout=5))
     sleep(3)
 
