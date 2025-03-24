@@ -30,16 +30,17 @@ def draw_capsule_toys(button: TemplateMatchResult, times: int):
     )
     sleep(0.5)
 
+    add_button = image.expect_wait(R.Daily.ButtonShopCountAdd, timeout=5)
+    for _ in range(times):
+        device.click(add_button)
+    sleep(0.5)
+
     confirm_button = image.find(R.Common.ButtonConfirm, colored=True)
     if confirm_button is None:
         # 硬币不足
         logger.info('Not enough coins.')
     else:
         # 硬币足够
-        add_button = image.expect_wait(R.Daily.ButtonShopCountAdd, timeout=5)
-        for _ in range(times):
-            device.click(add_button)
-        sleep(0.5)
         device.click(confirm_button)
         sleep(0.5)
     
