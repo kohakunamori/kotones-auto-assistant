@@ -1,23 +1,19 @@
 from typing import Literal
 from logging import getLogger
 
-from kotonebot.backend.preprocessor import HsvColorFilter
 from kotonebot.tasks.actions.loading import loading
 
 from .. import R
 from kotonebot import (
     ocr,
     device,
-    contains,
     image,
-    regex,
     action,
     sleep,
     Interval,
 )
-from ..game_ui import CommuEventButtonUI, WhiteFilter
+from kotonebot.tasks.game_ui import WhiteFilter, CommuEventButtonUI
 from .pdorinku import acquire_pdorinku
-from kotonebot.backend.dispatch import SimpleDispatcher
 from kotonebot.tasks.actions.commu import handle_unread_commu
 from kotonebot.util import measure_time
 

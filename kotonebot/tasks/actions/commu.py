@@ -5,9 +5,9 @@ from cv2.typing import MatLike
 
 
 from .. import R
-from ..game_ui import WhiteFilter
-from kotonebot.util import Countdown, Interval
-from kotonebot import device, image, color, user, rect_expand, until, action, sleep, use_screenshot
+from kotonebot.util import Interval
+from kotonebot.tasks.game_ui import WhiteFilter
+from kotonebot import device, image, user, action, use_screenshot
 
 logger = logging.getLogger(__name__)
 

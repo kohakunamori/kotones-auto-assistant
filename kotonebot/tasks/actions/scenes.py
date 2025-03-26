@@ -1,14 +1,9 @@
 import logging
-from typing import Callable
-
-
 
 from .. import R
-from .loading import loading
 from kotonebot.util import Interval
-from ..game_ui import toolbar_home
-from kotonebot import device, image, action, cropped, until, sleep
-from kotonebot.errors import UnrecoverableError
+from kotonebot.tasks.game_ui import toolbar_home
+from kotonebot import device, image, action, until, sleep
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +73,5 @@ def goto_shop():
     until(at_daily_shop, critical=True)
 
 if __name__ == "__main__":
-    import time
     goto_home()
 
