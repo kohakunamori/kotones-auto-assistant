@@ -7,11 +7,11 @@ from kotonebot.ui import user
 from kotonebot.util import Countdown, Interval
 from kotonebot.backend.dispatch import SimpleDispatcher
 
-from . import R
-from .common import conf, PIdol
-from .actions.scenes import at_home, goto_home
-from .actions.in_purodyuusu import hajime_pro, hajime_regular, resume_regular_produce
-from kotonebot import device, image, ocr, task, action, sleep, equals, contains
+from .. import R
+from ..common import conf, PIdol
+from ..actions.scenes import at_home, goto_home
+from ..produce.in_purodyuusu import hajime_pro, hajime_regular, resume_regular_produce
+from kotonebot import device, image, ocr, task, action, sleep, contains
 
 logger = logging.getLogger(__name__)
 

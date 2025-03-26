@@ -9,19 +9,19 @@ import numpy as np
 from cv2.typing import MatLike
 
 from .. import R
-from . import loading
-from .scenes import at_home
+from ..actions.loading import loading
+from ..actions.scenes import at_home
 from ..util.trace import trace
-from kotonebot.tasks.game_ui import WhiteFilter
-from .commu import handle_unread_commu
+from ..game_ui import WhiteFilter
+from ..actions.commu import handle_unread_commu
 from ..common import ProduceAction, RecommendCardDetectionMode, conf
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.context.context import use_screenshot
-from .common import until_acquisition_clear, acquisitions, commut_event
+from ..produce.common import until_acquisition_clear, acquisitions, commut_event
 from kotonebot.util import Countdown, Interval, crop, cropped
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
 from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect, wait
-from .non_lesson_actions import (
+from ..produce.non_lesson_actions import (
     enter_allowance, allowance_available,
     study_available, enter_study,
     is_rest_available, rest,

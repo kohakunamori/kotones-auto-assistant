@@ -1,11 +1,11 @@
 """扭蛋机，支持任意次数的任意扭蛋类型"""
 import logging
 
-from kotonebot import task, action, device, image, sleep, Interval
+from .. import R
+from ..common import conf
+from ..actions.scenes import at_home, goto_home
 from kotonebot.backend.image import TemplateMatchResult
-from . import R
-from .common import conf
-from .actions.scenes import at_home, goto_home
+from kotonebot import task, action, device, image, sleep, Interval
 
 logger = logging.getLogger(__name__)
 

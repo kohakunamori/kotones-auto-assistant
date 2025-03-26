@@ -1,9 +1,9 @@
 """收取活动费"""
 import logging
 
-from . import R
-from .common import conf
-from .actions.scenes import at_home, goto_home
+from .. import R
+from ..common import conf
+from ..actions.scenes import at_home, goto_home
 from kotonebot import task, device, image, color
 
 logger = logging.getLogger(__name__)

@@ -2,11 +2,11 @@
 import logging
 from gettext import gettext as _
 
-from . import R
-from .common import conf
-from kotonebot.tasks.game_ui import WhiteFilter
-from .actions.scenes import at_home, goto_home
-from .actions.loading import wait_loading_end
+from .. import R
+from ..common import conf
+from ..game_ui import WhiteFilter
+from ..actions.scenes import at_home, goto_home
+from ..actions.loading import wait_loading_end
 from kotonebot import device, image, ocr, color, action, task, user, rect_expand, sleep, contains
 
 logger = logging.getLogger(__name__)
