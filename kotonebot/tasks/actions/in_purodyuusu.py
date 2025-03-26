@@ -417,9 +417,15 @@ def until_action_scene(week_first: bool = False):
         R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
     ]):
         logger.info("Action scene not detected. Retry...")
-        if acquisitions():
-            continue
+        # commu_event 和 acquisitions 顺序不能颠倒。
+        # 在 PRO 培育初始饮料、技能卡二选一事件时，右下方的
+        # 快进按钮会被视为交流。如果先执行 acquisitions()，
+        # 会因为命中交流而 continue，commut_event() 永远
+        # 不会执行。
+        # [screenshots/produce/in_produce/initial_commu_event.png]
         if week_first and commut_event():
+            continue
+        if acquisitions():
             continue
         sleep(0.2)
     else:
