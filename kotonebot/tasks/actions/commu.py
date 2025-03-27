@@ -31,13 +31,13 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
     ret = False
     logger.info('Check and skip commu')
     img = use_screenshot(img)
-    skip_btn = image.find(R.Common.ButtonCommuFastforward, preprocessors=[WhiteFilter()])
+    skip_btn = image.find(R.Common.ButtonCommuSkip, preprocessors=[WhiteFilter()])
     if skip_btn is None:
-        logger.info('No fast forward button found. Not at a commu.')
+        logger.info('No skip button found. Not at a commu.')
         return ret
     
     ret = True
-    logger.debug('Fast forward button found. Check commu')
+    logger.debug('Skip button found. Check commu')
 
     it = Interval()
     while True:
