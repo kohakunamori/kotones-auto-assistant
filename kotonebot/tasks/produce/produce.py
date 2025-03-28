@@ -3,6 +3,7 @@ from itertools import cycle
 from typing import Optional, Literal
 
 from kotonebot.backend.context.context import wait
+from kotonebot.tasks.game_ui.scrollable import Scrollable
 from kotonebot.ui import user
 from kotonebot.util import Countdown, Interval
 from kotonebot.backend.dispatch import SimpleDispatcher
@@ -70,7 +71,7 @@ def select_idol(target_titles: list[str] | PIdol):
     found = False
     max_tries = 5
     tries = 0
-    # TODO: 加入 ScrollBar 类，判断滚动条进度
+    sc = Scrollable()
     # 找到目标偶像
     while not found:
         # 首先检查当前选中的是不是已经是目标
@@ -90,8 +91,9 @@ def select_idol(target_titles: list[str] | PIdol):
             if tries > max_tries:
                 break
             # 翻页
-            device.swipe(x1=100, x2=100, y1=max_y, y2=min_y)
-            sleep(2)
+            # device.swipe(x1=100, x2=100, y1=max_y, y2=min_y)
+            sc.next(page=0.8)
+            sleep(0.4)
             device.screenshot()
             results = image.find_all(R.Produce.IconPIdolLevel)
             results.sort(key=lambda r: tuple(r.position))
