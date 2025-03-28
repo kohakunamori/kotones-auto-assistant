@@ -9,7 +9,7 @@ import numpy as np
 from cv2.typing import MatLike
 
 from .. import R
-from ..actions.loading import loading
+from ..actions import loading
 from ..actions.scenes import at_home
 from ..util.trace import trace
 from ..game_ui import WhiteFilter
