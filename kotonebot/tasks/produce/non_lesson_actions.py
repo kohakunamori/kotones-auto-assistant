@@ -5,11 +5,11 @@
 """
 from logging import getLogger
 
-from kotonebot.tasks.common import conf
 
 from .. import R
-from .common import acquisitions
-from ..game_ui import CommuEventButtonUI
+from ..common import conf
+from ..produce.common import acquisitions
+from ..game_ui.commu_event_buttons import CommuEventButtonUI
 from kotonebot.util import Interval
 from kotonebot.errors import UnrecoverableError
 from kotonebot import device, image, action, sleep
@@ -67,7 +67,7 @@ def enter_study():
         elif target == 'vocal':
             logger.debug("Clicking on lesson vocal.")
             device.double_click(image.expect(R.InPurodyuusu.TextSelfStudyVocal))
-        from .in_purodyuusu import until_practice_scene, practice
+        from ..produce.in_purodyuusu import until_practice_scene, practice
         logger.info("Entering practice scene.")
         until_practice_scene()
         logger.info("Executing practice.")

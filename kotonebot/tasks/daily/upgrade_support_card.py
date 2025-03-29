@@ -1,10 +1,11 @@
 """升级一张支援卡，优先升级低等级支援卡"""
 import logging
 
+from .. import R
+from ..common import conf
+from ..game_ui.scrollable import Scrollable
+from ..actions.scenes import at_home, goto_home
 from kotonebot import task, device, image, sleep
-from . import R
-from .common import conf
-from .actions.scenes import at_home, goto_home
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +32,8 @@ def upgrade_support_card():
     device.click(image.expect_wait(R.Common.ButtonIdolSupportCard, timeout=5))
     sleep(2)
 
-    # TODO: 将下面硬编码的值塞到合适的地方
-
     # 往下滑，划到最底部
-    for _ in range(5):
-        device.swipe(
-            R.Daily.SupportCard.DragDownStartPoint.x,
-            R.Daily.SupportCard.DragDownStartPoint.y,
-            R.Daily.SupportCard.DragDownEndPoint.x,
-            R.Daily.SupportCard.DragDownEndPoint.y,
-            duration=1.0
-        )
-        sleep(0.1)
-    sleep(1.5)
+    Scrollable().to(1)
     
     # 点击左上角第一张支援卡
     # 点击位置百分比: (0.18, 0.34)

@@ -1,11 +1,12 @@
 """扭蛋机，支持任意次数的任意扭蛋类型"""
 import logging
 
-from kotonebot import task, action, device, image, sleep, Interval
+from .. import R
+from ..common import conf
+from ..game_ui.scrollable import Scrollable
+from ..actions.scenes import at_home, goto_home
 from kotonebot.backend.image import TemplateMatchResult
-from . import R
-from .common import conf
-from .actions.scenes import at_home, goto_home
+from kotonebot import task, action, device, image, sleep, Interval
 
 logger = logging.getLogger(__name__)
 
@@ -107,15 +108,8 @@ def capsule_toys():
         draw_capsule_toys(buttons[1], conf().capsule_toys.sense_capsule_toys_count)
     
     # 划到第二页
-    device.swipe(
-        R.Daily.CapsuleToys.NextPageStartPoint.x,
-        R.Daily.CapsuleToys.NextPageStartPoint.y,
-        R.Daily.CapsuleToys.NextPageEndPoint.x,
-        R.Daily.CapsuleToys.NextPageEndPoint.y,
-        duration=2.0 # 划慢点，确保精确定位
-                     # FIXME: adb不支持swipe duration失效
-    )
-    sleep(1) # 等待滑动静止（由于swipe duration失效，所以这里需要手动等待）
+    sc = Scrollable()
+    sc.next(page=1)
 
     # 处理逻辑扭蛋扭蛋和非凡扭蛋
     buttons = get_capsule_toys_draw_buttons()
@@ -129,8 +123,4 @@ def capsule_toys():
         draw_capsule_toys(buttons[1], conf().capsule_toys.anomaly_capsule_toys_count)
 
 if __name__ == '__main__':
-    import logging
-    logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
-    logger.setLevel(logging.DEBUG)
     capsule_toys()
-
