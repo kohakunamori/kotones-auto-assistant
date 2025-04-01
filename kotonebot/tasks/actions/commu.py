@@ -29,7 +29,7 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
     :return: 是否跳过了交流。
     """
     ret = False
-    logger.info('Check and skip commu')
+    logger.debug('Check and skip commu')
     img = use_screenshot(img)
     skip_btn = image.find(R.Common.ButtonCommuSkip, preprocessors=[WhiteFilter()])
     if skip_btn is None:
@@ -53,10 +53,10 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
             logger.debug('Pushing notification...')
             user.info('发现未读交流', images=[img])
 
-        logger.debug('Fast forwarding...')
+        logger.debug('Skipping commu...')
         it.wait()
     
-    logger.info('Fast forward done.')
+    logger.info('Commu skip done.')
     return ret
 
 
