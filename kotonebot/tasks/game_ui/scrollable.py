@@ -90,15 +90,30 @@ def find_scroll_bar2(img: MatLike) -> Rect | None:
     return None
 
 class ScrollableIterator:
-    def __init__(self, scrollable: 'Scrollable', delta_pixels: int):
+    def __init__(
+            self,
+            scrollable: 'Scrollable',
+            delta_pixels: int,
+            start: float | None,
+            end: float,
+            skip_first: bool
+        ):
         self.scrollable = scrollable
         self.delta_pixels = delta_pixels
+        self.start = start
+        self.end = end
+        self.skip_first = skip_first
 
     def __iter__(self):
+        if self.start is not None:
+            self.scrollable.to(self.start)
         return self
     
     def __next__(self):
-        if self.scrollable.position >= 1:
+        if self.skip_first:
+            self.skip_first = False
+            return self.scrollable.position
+        if self.scrollable.position >= self.end:
             raise StopIteration
         self.scrollable.by(pixels=self.delta_pixels)
         return self.scrollable.position
@@ -285,18 +300,30 @@ class Scrollable:
             self.update()
         return True
     
-    def __call__(self, step_percentage: float) -> ScrollableIterator:
+    def __call__(self,
+            step: float,
+            *,
+            start: float | None = 0,
+            end: float = 1,
+            skip_first: bool = True
+        ) -> ScrollableIterator:
         """
         以指定步长滚动。
 
-        :param step_percentage: 步长，范围 [-1, 1]。
+        :param step: 步长，范围 [-1, 1]。
+        :param start: 起始位置，范围 [0, 1]。默认为 None。
+            若为 None，表示使用当前位置。
+        :param end: 结束位置，范围 [0, 1]。默认为 1。
+        :param skip_first: 是否跳过第一次滚动。默认为 True。
+            若为 True，第一次滚动在第一次循环后执行。
+            若为 False，第一次滚动在第一次循环前执行。
         :return: 一个迭代器，迭代时滚动指定步长。
         """
         if not self.track_height:
             self.update()
         if not self.track_height:
             raise ValueError('Unable to update scrollbar data.')
-        return ScrollableIterator(self, int(self.track_height * step_percentage))
+        return ScrollableIterator(self, int(self.track_height * step), start, end, skip_first)
 
 if __name__ == '__main__':
     from kotonebot.backend.context import init_context, manual_context, device
