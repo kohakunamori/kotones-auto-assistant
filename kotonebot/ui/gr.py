@@ -9,8 +9,11 @@ from typing import List, Dict, Tuple, Literal, Generator
 import cv2
 import gradio as gr
 
-from kotonebot.backend.context import task_registry, ContextStackVars
+from kotonebot.tasks.db import IdolCard
+from kotonebot.backend.bot import KotoneBot
 from kotonebot.config.manager import load_config, save_config
+from kotonebot.config.base_config import UserConfig, BackendConfig
+from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
@@ -18,8 +21,6 @@ from kotonebot.tasks.common import (
     RecommendCardDetectionMode, TraceConfig, StartGameConfig, UpgradeSupportCardConfig,
     upgrade_config
 )
-from kotonebot.config.base_config import UserConfig, BackendConfig
-from kotonebot.backend.bot import KotoneBot
 
 # 初始化日志
 os.makedirs('logs', exist_ok=True)
@@ -330,7 +331,7 @@ class KotoneBotUI:
                 enabled=produce_enabled,
                 mode=produce_mode,
                 produce_count=produce_count,
-                idols=[PIdol[idol] for idol in produce_idols],
+                idols=produce_idols,
                 memory_sets=[int(i) for i in memory_sets],
                 auto_set_memory=auto_set_memory,
                 auto_set_support_card=auto_set_support,
@@ -662,8 +663,13 @@ class KotoneBotUI:
                     info=ProduceConfig.model_fields['produce_count'].description
                 )
                 # 添加偶像选择
-                idol_choices = [idol.name for idol in PIdol]
-                selected_idols = [idol.name for idol in self.current_config.options.produce.idols]
+                idol_choices = []
+                for idol in IdolCard.all():
+                    if idol.is_another:
+                        idol_choices.append((f'{idol.name}　「{idol.another_name}」', idol.skin_id))
+                    else:
+                        idol_choices.append((f'{idol.name}', idol.skin_id))
+                selected_idols = self.current_config.options.produce.idols
                 produce_idols = gr.Dropdown(
                     choices=idol_choices,
                     value=selected_idols,

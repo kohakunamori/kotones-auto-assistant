@@ -11,6 +11,7 @@ from kotonebot.backend.dispatch import SimpleDispatcher
 from .. import R
 from ..common import conf, PIdol
 from ..actions.scenes import at_home, goto_home
+from ..game_ui.idols_overview import locate_idol
 from ..produce.in_purodyuusu import hajime_pro, hajime_regular, resume_regular_produce
 from kotonebot import device, image, ocr, task, action, sleep, contains
 
@@ -37,69 +38,33 @@ def unify(arr: list[int]):
     return result
 
 @action('选择P偶像', screenshot_mode='manual-inherit')
-def select_idol(target_titles: list[str] | PIdol):
+def select_idol(skin_id: str):
     """
     选择目标P偶像
 
-    前置条件：培育-偶像选择页面 1.アイドル選択\n
-    结束状态：培育-偶像选择页面 1.アイドル選択\n
-
-    :param target_titles: 目标偶像的名称关键字。选择时只会选择所有关键字都出现的偶像。
+    前置条件：偶像选择页面 1.アイドル選択\n
+    结束状态：偶像选择页面 1.アイドル選択\n
     """
-    # 前置条件：[res/sprites/jp/produce/produce_preparation1.png]
-    # 结束状态：[res/sprites/jp/produce/produce_preparation1.png]
-    
-    logger.info(f"Find and select idol: {target_titles}")
+    logger.info("Find and select idol: %s", skin_id)
     # 进入总览
     device.screenshot()
-    device.click(image.expect(R.Produce.ButtonPIdolOverview))
+    it = Interval()
     while not image.find(R.Common.ButtonConfirmNoIcon):
+        if image.find(R.Produce.ButtonPIdolOverview):
+            device.click()
         device.screenshot()
-
-    if isinstance(target_titles, PIdol):
-        target_titles = target_titles.to_title()
-    _target_titles = [contains(t, ignore_case=True) for t in target_titles]
-    device.screenshot()
-    # 定位滑动基准
-    results = image.find_all(R.Produce.IconPIdolLevel)
-    results.sort(key=lambda r: tuple(r.position))
-    ys = unify([r.position[1] for r in results])
-
-    min_y = ys[0]
-    max_y = ys[1]
-
-    found = False
-    max_tries = 5
-    tries = 0
-    sc = Scrollable()
-    # 找到目标偶像
-    while not found:
-        # 首先检查当前选中的是不是已经是目标
-        if all(ocr.find_all(_target_titles, rect=R.Produce.KbIdolOverviewName)):
-            found = True
-            break
-        # 如果不是，就挨个选中，判断名称
-        for r in results:
-            device.click(r)
-            sleep(0.3)
-            device.screenshot(force=True)
-            if all(ocr.find_all(_target_titles, rect=R.Produce.KbIdolOverviewName)):
-                found = True
-                break
-        if not found:
-            tries += 1
-            if tries > max_tries:
-                break
-            # 翻页
-            # device.swipe(x1=100, x2=100, y1=max_y, y2=min_y)
-            sc.next(page=0.8)
-            sleep(0.4)
-            device.screenshot()
-            results = image.find_all(R.Produce.IconPIdolLevel)
-            results.sort(key=lambda r: tuple(r.position))
-
-    device.click(image.expect(R.Common.ButtonConfirmNoIcon))
-    return found
+        it.wait()
+    # 选择偶像
+    pos = locate_idol(skin_id)
+    if pos is None:
+        raise ValueError(f"Idol {skin_id} not found.")
+    # 确认
+    it.reset()
+    while btn_confirm := image.find(R.Common.ButtonConfirmNoIcon):
+        device.click(pos)
+        sleep(0.3)
+        device.click(btn_confirm)
+        it.wait()
 
 @action('培育开始.编成翻页', screenshot_mode='manual-inherit')
 def select_set(index: int):
@@ -172,7 +137,7 @@ def resume_produce():
 
 @action('执行培育', screenshot_mode='manual-inherit')
 def do_produce(
-    idol: PIdol,
+    idol_skin_id: str,
     mode: Literal['regular', 'pro'],
     memory_set_index: Optional[int] = None
 ) -> bool:
@@ -209,7 +174,7 @@ def do_produce(
         device.click(image.expect_wait(R.InPurodyuusu.ButtonCancel))
         return False
     # 1. 选择 PIdol [screenshots/produce/select_p_idol.png]
-    select_idol(idol.to_title())
+    select_idol(idol_skin_id)
     device.click(image.expect_wait(R.Common.ButtonNextNoIcon))
     # 2. 选择支援卡 自动编成 [screenshots/produce/select_support_card.png]
     ocr.expect_wait(contains('サポート'), rect=R.Produce.BoxStepIndicator)
@@ -272,7 +237,7 @@ def do_produce(
 def produce_task(
     mode: Optional[Literal['regular', 'pro']] = None,
     count: Optional[int] = None,
-    idols: Optional[list[PIdol]] = None,
+    idols: Optional[list[str]] = None,
     memory_sets: Optional[list[int]] = None
 ):
     """
@@ -280,7 +245,7 @@ def produce_task(
 
     :param mode: 培育模式。若为 None，则从配置文件中读入。
     :param count: 培育次数。若为 None，则从配置文件中读入。
-    :param idols: 要培育的偶像。若为 None，则从配置文件中读入。
+    :param idols: 要培育的偶像的 IdolCardSkin.id。若为 None，则从配置文件中读入。
     """
     if not conf().produce.enabled:
         logger.info('Produce is disabled.')
@@ -310,7 +275,7 @@ def produce_task(
             memory_set = next(memory_set_iterator, None)
         logger.info(
             f'Produce start with: '
-            f'idol: {idol.value}, mode: {mode}, memory_set: #{memory_set}'
+            f'idol: {idol}, mode: {mode}, memory_set: #{memory_set}'
         )
         if not do_produce(idol, mode, memory_set):
             user.info('AP 不足', f'由于 AP 不足，跳过了 {count - i} 次培育。')
@@ -340,13 +305,13 @@ if __name__ == '__main__':
     conf().produce.enabled = True
     conf().produce.mode = 'pro'
     conf().produce.produce_count = 1
-    conf().produce.idols = [PIdol.月村手毬_アイヴイ]
+    conf().produce.idols = ['i_card-skin-hski-3-002']
     conf().produce.memory_sets = [5]
     conf().produce.auto_set_memory = False
     # do_produce(PIdol.月村手毬_初声, 'pro', 5)
     produce_task()
     # a()
-    # select_idol(PIdol.藤田ことね_学園生活)
+    # select_idol()
     # select_set(10)
     # manual_context().begin()
     # print(ocr.ocr(rect=R.Produce.BoxSetCountIndicator).squash().numbers())

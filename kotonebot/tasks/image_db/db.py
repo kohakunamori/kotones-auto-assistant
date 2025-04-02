@@ -52,6 +52,9 @@ class DatabaseQueryResult(NamedTuple):
     feature: Any
     distance: float
 
+    def __repr__(self):
+        return f'DatabaseQueryResult(key={self.key}, distance={self.distance})'
+
 def chi2_distance(hist1: np.ndarray, hist2: np.ndarray, eps=1e-10):
     return 0.5 * np.sum((hist1 - hist2) ** 2 / (hist1 + hist2 + eps))
 
@@ -163,7 +166,7 @@ class ImageDatabase:
     
 
 if __name__ == '__main__':
-    from kotonebot.tasks.db.image_db.db import Db
+    from kotonebot.tasks.image_db.db import Db
     logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     imgs_path = r'E:\GithubRepos\KotonesAutoAssistant.worktrees\dev\kotonebot\tasks\resources\idol_cards'
     needle_path = r'D:\05.png'
