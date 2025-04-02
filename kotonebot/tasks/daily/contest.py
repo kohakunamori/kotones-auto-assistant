@@ -90,9 +90,8 @@ def pick_and_contest(has_ongoing_contest: bool = False) -> bool:
         device.click()
         sleep(0.5)
     # 点击 SKIP
-    sleep(3)
     logger.debug('Clicking on SKIP.')
-    device.click(image.expect(R.Daily.ButtonIconSkip, preprocessors=[WhiteFilter()]))
+    device.click(image.expect_wait(R.Daily.ButtonIconSkip, timeout=10, preprocessors=[WhiteFilter()]))
     while not image.wait_for(R.Common.ButtonNextNoIcon, timeout=2):
         device.click_center()
         logger.debug('Waiting for the result.')
