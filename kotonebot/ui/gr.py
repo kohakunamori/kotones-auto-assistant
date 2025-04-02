@@ -230,10 +230,11 @@ class KotoneBotUI:
         self,
         adb_ip: str,
         adb_port: int,
-        screenshot_method: Literal['adb', 'adb_raw', 'uiautomator2'],
+        screenshot_method: Literal['adb', 'adb_raw', 'uiautomator2', 'windows'],
         keep_screenshots: bool,
         check_emulator: bool,
         emulator_path: str,
+        adb_emulator_name: str,
         trace_recommend_card_detection: bool,
         purchase_enabled: bool,
         money_enabled: bool,
@@ -294,6 +295,7 @@ class KotoneBotUI:
         
         self.current_config.backend.adb_ip = adb_ip
         self.current_config.backend.adb_port = adb_port
+        self.current_config.backend.adb_emulator_name = adb_emulator_name
         self.current_config.backend.screenshot_impl = screenshot_method
         self.current_config.keep_screenshots = keep_screenshots
         self.current_config.backend.check_emulator = check_emulator
@@ -454,6 +456,63 @@ class KotoneBotUI:
                 inputs=[task_dropdown],
                 outputs=[task_result]
             )
+
+    def _create_emulator_settings(self) -> Tuple[gr.Textbox, gr.Number, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Textbox, gr.Textbox]:
+        with gr.Column():
+            gr.Markdown("### 模拟器设置")
+            adb_ip = gr.Textbox(
+                value=self.current_config.backend.adb_ip,
+                label="ADB IP 地址",
+                info=BackendConfig.model_fields['adb_ip'].description,
+                interactive=True
+            )
+            adb_port = gr.Number(
+                value=self.current_config.backend.adb_port,
+                label="ADB 端口",
+                info=BackendConfig.model_fields['adb_port'].description,
+                minimum=1,
+                maximum=65535,
+                step=1,
+                interactive=True
+            )
+            screenshot_impl = gr.Dropdown(
+                choices=['adb', 'adb_raw', 'uiautomator2', 'windows'],
+                value=self.current_config.backend.screenshot_impl,
+                label="截图方法",
+                info=BackendConfig.model_fields['screenshot_impl'].description,
+                interactive=True
+            )
+            keep_screenshots = gr.Checkbox(
+                label="保留截图数据",
+                value=self.current_config.keep_screenshots,
+                info=UserConfig.model_fields['keep_screenshots'].description,
+                interactive=True
+            )
+            check_emulator = gr.Checkbox(
+                label="检查并启动模拟器",
+                value=self.current_config.backend.check_emulator,
+                info=BackendConfig.model_fields['check_emulator'].description,
+                interactive=True
+            )
+            with gr.Group(visible=self.current_config.backend.check_emulator) as check_emulator_group:
+                emulator_path = gr.Textbox(
+                    value=self.current_config.backend.emulator_path,
+                    label="模拟器 exe 文件路径",
+                    info=BackendConfig.model_fields['emulator_path'].description,
+                    interactive=True
+                )
+                adb_emulator_name = gr.Textbox(
+                    value=self.current_config.backend.adb_emulator_name,
+                    label="ADB 模拟器名称",
+                    info=BackendConfig.model_fields['adb_emulator_name'].description,
+                    interactive=True
+                )
+            check_emulator.change(
+                fn=lambda x: gr.Group(visible=x),
+                inputs=[check_emulator],
+                outputs=[check_emulator_group]
+            )
+        return adb_ip, adb_port, screenshot_impl, keep_screenshots, check_emulator, emulator_path, adb_emulator_name
 
     def _create_purchase_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Dropdown, gr.Dropdown]:
         with gr.Column():
@@ -819,48 +878,7 @@ class KotoneBotUI:
             gr.Markdown("## 设置")
             
             # 模拟器设置
-            with gr.Column():
-                gr.Markdown("### 模拟器设置")
-                adb_ip = gr.Textbox(
-                    value=self.current_config.backend.adb_ip,
-                    label="ADB IP 地址",
-                    info=BackendConfig.model_fields['adb_ip'].description,
-                    interactive=True
-                )
-                adb_port = gr.Number(
-                    value=self.current_config.backend.adb_port,
-                    label="ADB 端口",
-                    info=BackendConfig.model_fields['adb_port'].description,
-                    minimum=1,
-                    maximum=65535,
-                    step=1,
-                    interactive=True
-                )
-                screenshot_impl = gr.Dropdown(
-                    choices=['adb', 'adb_raw', 'uiautomator2'],
-                    value=self.current_config.backend.screenshot_impl,
-                    label="截图方法",
-                    info=BackendConfig.model_fields['screenshot_impl'].description,
-                    interactive=True
-                )
-                keep_screenshots = gr.Checkbox(
-                    label="保留截图数据",
-                    value=self.current_config.keep_screenshots,
-                    info=UserConfig.model_fields['keep_screenshots'].description,
-                    interactive=True
-                )
-                check_emulator = gr.Checkbox(
-                    label="检查并启动模拟器",
-                    value=self.current_config.backend.check_emulator,
-                    info=BackendConfig.model_fields['check_emulator'].description,
-                    interactive=True
-                )
-                emulator_path = gr.Textbox(
-                    value=self.current_config.backend.emulator_path,
-                    label="模拟器 exe 文件路径",
-                    info=BackendConfig.model_fields['emulator_path'].description,
-                    interactive=True
-                )
+            emulator_settings = self._create_emulator_settings()
             
             # 商店购买设置
             purchase_settings = self._create_purchase_settings()
@@ -934,8 +952,7 @@ class KotoneBotUI:
             
             # 收集所有设置组件
             all_settings = [
-                adb_ip, adb_port, screenshot_impl, keep_screenshots,
-                check_emulator, emulator_path,
+                *emulator_settings,
                 trace_recommend_card_detection,
                 *purchase_settings,
                 activity_funds,

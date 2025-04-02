@@ -142,161 +142,161 @@ class PIdol(IntEnum):
     def to_title(self) -> list[str]:
         match self:
             case PIdol.倉本千奈_Campusmode:
-                return ["倉本千奈", "Campus", "mode", "!!"]
+                return ["倉本", "千奈", "Campus", "mode"]
             case PIdol.倉本千奈_WonderScale:
-                return ["倉本千奈", "Wonder", "Scale"]
+                return ["倉本", "千奈", "Wonder", "Scale"]
             case PIdol.倉本千奈_ようこそ初星温泉:
-                return ["倉本千奈", "ようこそ初星温泉"]
+                return ["倉本", "千奈", "ようこそ初星温泉"]
             case PIdol.倉本千奈_仮装狂騒曲:
-                return ["倉本千奈", "仮装狂騒曲"]
+                return ["倉本", "千奈", "仮装狂騒曲"]
             case PIdol.倉本千奈_初心:
-                return ["倉本千奈", "初心"]
+                return ["倉本", "千奈", "初心"]
             case PIdol.倉本千奈_学園生活:
-                return ["倉本千奈", "学園生活"]
+                return ["倉本", "千奈", "学園生活"]
             case PIdol.倉本千奈_日々_発見的ステップ:
-                return ["倉本千奈", "日々、発見的ステップ！"]
+                return ["倉本", "千奈", "日々、発見的ステップ"]
             case PIdol.倉本千奈_胸を張って一歩ずつ:
-                return ["倉本千奈", "胸を張って一歩ずつ"]
+                return ["倉本", "千奈", "胸を張って一歩ずつ"]
             case PIdol.十王星南_Campusmode:
-                return ["十王星南", "Campus", "mode", "!!"]
+                return ["十王", "星南", "Campus", "mode"]
             case PIdol.十王星南_一番星:
-                return ["十王星南", "一番星"]
+                return ["十王", "星南", "一番星"]
             case PIdol.十王星南_学園生活:
-                return ["十王星南", "学園生活"]
+                return ["十王", "星南", "学園生活"]
             case PIdol.十王星南_小さな野望:
-                return ["十王星南", "小さな野望"]
+                return ["十王", "星南", "小さな野望"]
             case PIdol.姫崎莉波_clumsytrick:
-                return ["姫崎莉波", "clumsy", "trick"]
+                return ["姫崎", "莉波", "clumsy", "trick"]
             case PIdol.姫崎莉波_私らしさのはじまり:
-                return ["姫崎莉波", "『私らしさ』のはじまり"]
+                return ["姫崎", "莉波", "『私らしさ』のはじまり"]
             case PIdol.姫崎莉波_キミとセミブルー:
-                return ["姫崎莉波", "キミとセミブルー"]
+                return ["姫崎", "莉波", "キミとセミブルー"]
             case PIdol.姫崎莉波_Campusmode:
-                return ["姫崎莉波", "Campus", "mode", "!!"]
+                return ["姫崎", "莉波", "Campus", "mode"]
             case PIdol.姫崎莉波_LUV:
-                return ["姫崎莉波", "L.U.V"]
+                return ["姫崎", "莉波", "L", "U", "V"]
             case PIdol.姫崎莉波_ようこそ初星温泉:
-                return ["姫崎莉波", "ようこそ初星温泉"]
+                return ["姫崎", "莉波", "ようこそ初星温泉"]
             case PIdol.姫崎莉波_ハッピーミルフィーユ:
-                return ["姫崎莉波", "ハッピーミルフィーユ"]
+                return ["姫崎", "莉波", "ハッピーミルフィーユ"]
             case PIdol.姫崎莉波_初心:
-                return ["姫崎莉波", "初心"]
+                return ["姫崎", "莉波", "初心"]
             case PIdol.姫崎莉波_学園生活:
-                return ["姫崎莉波", "学園生活"]
+                return ["姫崎", "莉波", "学園生活"]
             case PIdol.月村手毬_Lunasaymaybe:
-                return ["月村手毬", "Luna", "say", "maybe"]
+                return ["月村", "手毬", "Luna", "say", "maybe"]
             case PIdol.月村手毬_一匹狼:
-                return ["月村手毬", "一匹狼"]
+                return ["月村", "手毬", "一匹狼"]
             case PIdol.月村手毬_Campusmode:
-                return ["月村手毬", "Campus mode!!"]
+                return ["月村", "手毬", "Campus", "mode"]
             case PIdol.月村手毬_アイヴイ:
-                return ["月村手毬", "アイヴイ"]
+                return ["月村", "手毬", "アイヴイ"]
             case PIdol.月村手毬_初声:
-                return ["月村手毬", "初声"]
+                return ["月村", "手毬", "初声"]
             case PIdol.月村手毬_学園生活:
-                return ["月村手毬", "学園生活"]
+                return ["月村", "手毬", "学園生活"]
             case PIdol.月村手毬_仮装狂騒曲:
-                return ["月村手毬", "仮装狂騒曲"]
+                return ["月村", "手毬", "仮装狂騒曲"]
             case PIdol.有村麻央_Fluorite:
-                return ["有村麻央", "Fluorite"]
+                return ["有村", "麻央", "Fluorite"]
             case PIdol.有村麻央_はじまりはカッコよく:
-                return ["有村麻央", "はじまりはカッコよく"]
+                return ["有村", "麻央", "はじまりはカッコよく"]
             case PIdol.有村麻央_Campusmode:
-                return ["有村麻央", "Campus", "mode", "!!"]
+                return ["有村", "麻央", "Campus", "mode"]
             case PIdol.有村麻央_FeelJewelDream:
-                return ["有村麻央", "Feel", "Jewel", "Dream"]
+                return ["有村", "麻央", "Feel", "Jewel", "Dream"]
             case PIdol.有村麻央_キミとセミブルー:
-                return ["有村麻央", "キミとセミブルー"]
+                return ["有村", "麻央", "キミとセミブルー"]
             case PIdol.有村麻央_初恋:
-                return ["有村麻央", "初恋"]
+                return ["有村", "麻央", "初恋"]
             case PIdol.有村麻央_学園生活:
-                return ["有村麻央", "学園生活"]
+                return ["有村", "麻央", "学園生活"]
             case PIdol.篠泽广_コントラスト:
-                return ["篠泽广", "コントラスト"]
+                return ["篠泽", "広", "コントラスト"]
             case PIdol.篠泽广_一番向いていないこと:
-                return ["篠泽广", "一番向いていないこと"]
+                return ["篠泽", "広", "一番向いていないこと"]
             case PIdol.篠泽广_光景:
-                return ["篠泽广", "光景"]
+                return ["篠泽", "広", "光景"]
             case PIdol.篠泽广_Campusmode:
-                return ["篠泽广", "Campus", "mode", "!!"]
+                return ["篠泽", "広", "Campus", "mode"]
             case PIdol.篠泽广_仮装狂騒曲:
-                return ["篠泽广", "仮装狂騒曲"]
+                return ["篠泽", "広", "仮装狂騒曲"]
             case PIdol.篠泽广_ハッピーミルフィーユ:
-                return ["篠泽广", "ハッピーミルフィーユ"]
+                return ["篠泽", "広", "ハッピーミルフィーユ"]
             case PIdol.篠泽广_初恋:
-                return ["篠泽广", "初恋"]
+                return ["篠泽", "広", "初恋"]
             case PIdol.篠泽广_学園生活:
-                return ["篠泽广", "学園生活"]
+                return ["篠泽", "広", "学園生活"]
             case PIdol.紫云清夏_TameLieOneStep:
-                return ["紫云清夏", "Tame", "Lie", "One", "Step"]
+                return ["紫云", "清夏", "Tame", "Lie", "One", "Step"]
             case PIdol.紫云清夏_カクシタワタシ:
-                return ["紫云清夏", "カクシタワタシ"]
+                return ["紫云", "清夏", "カクシタワタシ"]
             case PIdol.紫云清夏_夢へのリスタート:
-                return ["紫云清夏", "夢へのリスタート"]
+                return ["紫云", "清夏", "夢へのリスタート"]
             case PIdol.紫云清夏_Campusmode:
-                return ["紫云清夏", "Campus", "mode", "!!"]
+                return ["紫云", "清夏", "Campus", "mode"]
             case PIdol.紫云清夏_キミとセミブルー:
-                return ["紫云清夏", "キミとセミブルー"]
+                return ["紫云", "清夏", "キミとセミブルー"]
             case PIdol.紫云清夏_初恋:
-                return ["紫云清夏", "初恋"]
+                return ["紫云", "清夏", "初恋"]
             case PIdol.紫云清夏_学園生活:
-                return ["紫云清夏", "学園生活"]
+                return ["紫云", "清夏", "学園生活"]
             case PIdol.花海佑芽_WhiteNightWhiteWish:
-                return ["花海佑芽", "White", "Night", "Wish", "!"]
+                return ["花海", "佑芽", "White", "Night", "Wish"]
             case PIdol.花海佑芽_学園生活:
-                return ["花海佑芽", "学園生活"]
+                return ["花海", "佑芽", "学園生活"]
             case PIdol.花海佑芽_Campusmode:
-                return ["花海佑芽", "Campus", "mode", "!!"]
+                return ["花海", "佑芽", "Campus", "mode"]
             case PIdol.花海佑芽_TheRollingRiceball:
-                return ["花海佑芽", "The", "Rolling", "Riceball"]
+                return ["花海", "佑芽", "The", "Rolling", "Riceball"]
             case PIdol.花海佑芽_アイドル_はじめっ:
-                return ["花海佑芽", "アイドル、はじめっ！"]
+                return ["花海", "佑芽", "アイドル、はじめっ"]
             case PIdol.花海咲季_BoomBoomPow:
-                return ["花海咲季", "Boom", "Boom", "Pow"]
+                return ["花海", "咲季", "Boom", "Boom", "Pow"]
             case PIdol.花海咲季_Campusmode:
-                return ["花海咲季", "Campus", "mode", "!!"]
+                return ["花海", "咲季", "Campus", "mode"]
             case PIdol.花海咲季_FightingMyWay:
-                return ["花海咲季", "Fighting", "My", "Way"]
+                return ["花海", "咲季", "Fighting", "My", "Way"]
             case PIdol.花海咲季_わたしが一番:
-                return ["花海咲季", "わたしが一番！"]
+                return ["花海", "咲季", "わたしが一番"]
             case PIdol.花海咲季_冠菊:
-                return ["花海咲季", "冠菊"]
+                return ["花海", "咲季", "冠菊"]
             case PIdol.花海咲季_初声:
-                return ["花海咲季", "初声"]
+                return ["花海", "咲季", "初声"]
             case PIdol.花海咲季_古今東西ちょちょいのちょい:
-                return ["花海咲季", "古今東西ちょちょいのちょい"]
+                return ["花海", "咲季", "古今東西ちょちょいのちょい"]
             case PIdol.花海咲季_学園生活:
-                return ["花海咲季", "学園生活"]
+                return ["花海", "咲季", "学園生活"]
             case PIdol.葛城リーリヤ_一つ踏み出した先に:
-                return ["葛城リーリヤ", "一つ踏み出した先に"]
+                return ["葛城", "リーリヤ", "一つ踏み出した先に"]
             case PIdol.葛城リーリヤ_白線:
-                return ["葛城リーリヤ", "白線"]
+                return ["葛城", "リーリヤ", "白線"]
             case PIdol.葛城リーリヤ_Campusmode:
-                return ["葛城リーリヤ", "Campus", "mode", "!!"]
+                return ["葛城", "リーリヤ", "Campus", "mode"]
             case PIdol.葛城リーリヤ_WhiteNightWhiteWish:
-                return ["葛城リーリヤ", "White", "Night", "Wish", "!"]
+                return ["葛城", "リーリヤ", "White", "Night", "Wish"]
             case PIdol.葛城リーリヤ_冠菊:
-                return ["葛城リーリヤ", "冠菊"]
+                return ["葛城", "リーリヤ", "冠菊"]
             case PIdol.葛城リーリヤ_初心:
-                return ["葛城リーリヤ", "初心"]
+                return ["葛城", "リーリヤ", "初心"]
             case PIdol.葛城リーリヤ_学園生活:
-                return ["葛城リーリヤ", "学園生活"]
+                return ["葛城", "リーリヤ", "学園生活"]
             case PIdol.藤田ことね_カワイイ_はじめました:
-                return ["藤田ことね", "カワイイ", "はじめました"]
+                return ["藤田", "ことね", "カワイイ", "はじめました"]
             case PIdol.藤田ことね_世界一可愛い私:
-                return ["藤田ことね", "世界一可愛い私"]
+                return ["藤田", "ことね", "世界一可愛い私"]
             case PIdol.藤田ことね_Campusmode:
-                return ["藤田ことね", "Campus", "mode", "!!"]
+                return ["藤田", "ことね", "Campus", "mode"]
             case PIdol.藤田ことね_YellowBigBang:
-                return ["藤田ことね", "Yellow", "Big", "Bang", "!"]
+                return ["藤田", "ことね", "Yellow", "Big", "Bang"]
             case PIdol.藤田ことね_WhiteNightWhiteWish:
-                return ["藤田ことね", "White", "Night", "Wish", "!"]
+                return ["藤田", "ことね", "White", "Night", "Wish"]
             case PIdol.藤田ことね_冠菊:
-                return ["藤田ことね", "冠菊"]
+                return ["藤田", "ことね", "冠菊"]
             case PIdol.藤田ことね_初声:
-                return ["藤田ことね", "初声"]
+                return ["藤田", "ことね", "初声"]
             case PIdol.藤田ことね_学園生活:
-                return ["藤田ことね", "学園生活"]
+                return ["藤田", "ことね", "学園生活"]
             case _:
                 assert_never(self)
 
