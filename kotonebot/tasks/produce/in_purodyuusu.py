@@ -95,7 +95,7 @@ def handle_sp_lesson():
     else:
         return False
 
-@action('执行推荐行动')
+@action('执行推荐行动', screenshot_mode='manual-inherit')
 def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
     """
     在行动选择页面，执行推荐行动
@@ -110,13 +110,25 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
     """
     # 获取课程
     logger.debug("Getting recommended lesson...")
-    with cropped(device, y1=0.00, y2=0.30):
-        result = image.find_multi([
-            R.InPurodyuusu.TextSenseiTipDance,
-            R.InPurodyuusu.TextSenseiTipVocal,
-            R.InPurodyuusu.TextSenseiTipVisual,
-            R.InPurodyuusu.TextSenseiTipRest,
-        ])
+    device.screenshot()
+    if not image.find(R.InPurodyuusu.IconAsariSenseiAvatar):
+        return None
+    it = Interval()
+    cd = Countdown(sec=5).start()
+    result = None
+    while not cd.expired():
+        logger.debug('Retrieving recommended lesson...')
+        with cropped(device, y1=0.00, y2=0.30):
+            if result := image.find_multi([
+                R.InPurodyuusu.TextSenseiTipDance,
+                R.InPurodyuusu.TextSenseiTipVocal,
+                R.InPurodyuusu.TextSenseiTipVisual,
+                R.InPurodyuusu.TextSenseiTipRest,
+            ]):
+                break
+        it.wait()
+        device.screenshot()
+
     logger.debug("image.find_multi: %s", result)
     if result is None:
         logger.debug("No recommended lesson found")
@@ -156,7 +168,7 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
         else:
             return None
         logger.debug("Try clicking lesson...")
-        device.double_click(image.expect_wait(template))
+        device.double_click(image.expect(template))
         return recommended
 
 class CardDetectResult(NamedTuple):
