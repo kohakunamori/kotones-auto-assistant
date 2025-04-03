@@ -9,7 +9,7 @@ from kotonebot.util import Countdown, Interval
 from kotonebot.backend.dispatch import SimpleDispatcher
 
 from .. import R
-from ..common import conf, PIdol
+from ..common import conf
 from ..actions.scenes import at_home, goto_home
 from ..game_ui.idols_overview import locate_idol
 from ..produce.in_purodyuusu import hajime_pro, hajime_regular, resume_regular_produce

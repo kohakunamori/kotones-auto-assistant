@@ -485,6 +485,11 @@ def upgrade_config() -> str | None:
                     user_config, msg = upgrade_v1_to_v2(user_config['options'])
                     messages.append(msg)
                     version = 2
+                case 2:
+                    logger.info('Upgrading config: v2 -> v3')
+                    user_config, msg = upgrade_v2_to_v3(user_config['options'])
+                    messages.append(msg)
+                    version = 3
                 case _:
                     logger.info('No config upgrade needed.')
                     return version
@@ -511,7 +516,7 @@ def upgrade_config() -> str | None:
 
 class PIdol(IntEnum):
     """
-    P偶像。已废弃，仅为 upgrade_v1_to_v2() 使用而保留。
+    P偶像。已废弃，仅为 upgrade_v1_to_v2()、upgrade_v2_to_v3() 而保留。
     """
     倉本千奈_Campusmode = 倉本千奈_BASE + 0
     倉本千奈_WonderScale = 倉本千奈_BASE + 1
@@ -782,6 +787,103 @@ def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | Non
     shutil.copy('config.json', 'config.v1.json')
     return options, msg
 
+def upgrade_v2_to_v3(options: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+    """
+    v2 -> v3 变更：\n
+    引入了游戏解包数据，因此 PIdol 枚举废弃，直接改用游戏内 ID。
+    """
+    msg = ''
+    def map_idol(idol: PIdol) -> str | None:
+        match idol:
+            case PIdol.倉本千奈_Campusmode: return "i_card-skin-kcna-3-007"
+            case PIdol.倉本千奈_WonderScale: return "i_card-skin-kcna-3-000"
+            case PIdol.倉本千奈_ようこそ初星温泉: return "i_card-skin-kcna-3-005"
+            case PIdol.倉本千奈_仮装狂騒曲: return "i_card-skin-kcna-3-002"
+            case PIdol.倉本千奈_初心: return "i_card-skin-kcna-1-001"
+            case PIdol.倉本千奈_学園生活: return "i_card-skin-kcna-1-000"
+            case PIdol.倉本千奈_日々_発見的ステップ: return "i_card-skin-kcna-3-001"
+            case PIdol.倉本千奈_胸を張って一歩ずつ: return "i_card-skin-kcna-2-000"
+            case PIdol.十王星南_Campusmode: return "i_card-skin-jsna-3-002"
+            case PIdol.十王星南_一番星: return "i_card-skin-jsna-2-000"
+            case PIdol.十王星南_学園生活: return "i_card-skin-jsna-1-000"
+            case PIdol.十王星南_小さな野望: return "i_card-skin-jsna-3-000"
+            case PIdol.姫崎莉波_clumsytrick: return "i_card-skin-hrnm-3-000"
+            case PIdol.姫崎莉波_私らしさのはじまり: return "i_card-skin-hrnm-2-000"
+            case PIdol.姫崎莉波_キミとセミブルー: return "i_card-skin-hrnm-3-001"
+            case PIdol.姫崎莉波_Campusmode: return "i_card-skin-hrnm-3-007"
+            case PIdol.姫崎莉波_LUV: return "i_card-skin-hrnm-3-002"
+            case PIdol.姫崎莉波_ようこそ初星温泉: return "i_card-skin-hrnm-3-004"
+            case PIdol.姫崎莉波_ハッピーミルフィーユ: return "i_card-skin-hrnm-3-008"
+            case PIdol.姫崎莉波_初心: return "i_card-skin-hrnm-1-001"
+            case PIdol.姫崎莉波_学園生活: return "i_card-skin-hrnm-1-000"
+            case PIdol.月村手毬_Lunasaymaybe: return "i_card-skin-ttmr-3-000"
+            case PIdol.月村手毬_一匹狼: return "i_card-skin-ttmr-2-000"
+            case PIdol.月村手毬_Campusmode: return "i_card-skin-ttmr-3-007"
+            case PIdol.月村手毬_アイヴイ: return "i_card-skin-ttmr-3-001"
+            case PIdol.月村手毬_初声: return "i_card-skin-ttmr-1-001"
+            case PIdol.月村手毬_学園生活: return "i_card-skin-ttmr-1-000"
+            case PIdol.月村手毬_仮装狂騒曲: return "i_card-skin-ttmr-3-002"
+            case PIdol.有村麻央_Fluorite: return "i_card-skin-amao-3-000"
+            case PIdol.有村麻央_はじまりはカッコよく: return "i_card-skin-amao-2-000"
+            case PIdol.有村麻央_Campusmode: return "i_card-skin-amao-3-007"
+            case PIdol.有村麻央_FeelJewelDream: return "i_card-skin-amao-3-002"
+            case PIdol.有村麻央_キミとセミブルー: return "i_card-skin-amao-3-001"
+            case PIdol.有村麻央_初恋: return "i_card-skin-amao-1-001"
+            case PIdol.有村麻央_学園生活: return "i_card-skin-amao-1-000"
+            case PIdol.篠泽广_コントラスト: return "i_card-skin-shro-3-001"
+            case PIdol.篠泽广_一番向いていないこと: return "i_card-skin-shro-2-000"
+            case PIdol.篠泽广_光景: return "i_card-skin-shro-3-000"
+            case PIdol.篠泽广_Campusmode: return "i_card-skin-shro-3-007"
+            case PIdol.篠泽广_仮装狂騒曲: return "i_card-skin-shro-3-002"
+            case PIdol.篠泽广_ハッピーミルフィーユ: return "i_card-skin-shro-3-008"
+            case PIdol.篠泽广_初恋: return "i_card-skin-shro-1-001"
+            case PIdol.篠泽广_学園生活: return "i_card-skin-shro-1-000"
+            case PIdol.紫云清夏_TameLieOneStep: return "i_card-skin-ssmk-3-000"
+            case PIdol.紫云清夏_カクシタワタシ: return "i_card-skin-ssmk-3-002"
+            case PIdol.紫云清夏_夢へのリスタート: return "i_card-skin-ssmk-2-000"
+            case PIdol.紫云清夏_Campusmode: return "i_card-skin-ssmk-3-007"
+            case PIdol.紫云清夏_キミとセミブルー: return "i_card-skin-ssmk-3-001"
+            case PIdol.紫云清夏_初恋: return "i_card-skin-ssmk-1-001"
+            case PIdol.紫云清夏_学園生活: return "i_card-skin-ssmk-1-000"
+            case PIdol.花海佑芽_WhiteNightWhiteWish: return "i_card-skin-hume-3-005"
+            case PIdol.花海佑芽_学園生活: return "i_card-skin-hume-1-000"
+            case PIdol.花海佑芽_Campusmode: return "i_card-skin-hume-3-006"
+            case PIdol.花海佑芽_TheRollingRiceball: return "i_card-skin-hume-3-000"
+            case PIdol.花海佑芽_アイドル_はじめっ: return "i_card-skin-hume-2-000"
+            case PIdol.花海咲季_BoomBoomPow: return "i_card-skin-hski-3-001"
+            case PIdol.花海咲季_Campusmode: return "i_card-skin-hski-3-008"
+            case PIdol.花海咲季_FightingMyWay: return "i_card-skin-hski-3-000"
+            case PIdol.花海咲季_わたしが一番: return "i_card-skin-hski-2-000"
+            case PIdol.花海咲季_冠菊: return "i_card-skin-hski-3-002"
+            case PIdol.花海咲季_初声: return "i_card-skin-hski-1-001"
+            case PIdol.花海咲季_古今東西ちょちょいのちょい: return "i_card-skin-hski-3-006"
+            case PIdol.花海咲季_学園生活: return "i_card-skin-hski-1-000"
+            case PIdol.葛城リーリヤ_一つ踏み出した先に: return "i_card-skin-kllj-2-000"
+            case PIdol.葛城リーリヤ_白線: return "i_card-skin-kllj-3-000"
+            case PIdol.葛城リーリヤ_Campusmode: return "i_card-skin-kllj-3-006"
+            case PIdol.葛城リーリヤ_WhiteNightWhiteWish: return "i_card-skin-kllj-3-005"
+            case PIdol.葛城リーリヤ_冠菊: return "i_card-skin-kllj-3-001"
+            case PIdol.葛城リーリヤ_初心: return "i_card-skin-kllj-1-001"
+            case PIdol.葛城リーリヤ_学園生活: return "i_card-skin-kllj-1-000"
+            case PIdol.藤田ことね_カワイイ_はじめました: return "i_card-skin-fktn-2-000"
+            case PIdol.藤田ことね_世界一可愛い私: return "i_card-skin-fktn-3-000"
+            case PIdol.藤田ことね_Campusmode: return "i_card-skin-fktn-3-007"
+            case PIdol.藤田ことね_YellowBigBang: return "i_card-skin-fktn-3-001"
+            case PIdol.藤田ことね_WhiteNightWhiteWish: return "i_card-skin-fktn-3-006"
+            case PIdol.藤田ことね_冠菊: return "i_card-skin-fktn-3-002"
+            case PIdol.藤田ことね_初声: return "i_card-skin-fktn-1-001"
+            case PIdol.藤田ことね_学園生活: return "i_card-skin-fktn-1-000"
+            case _:
+                nonlocal msg
+                if msg == '':
+                    msg = '培育设置中的以下偶像升级失败。请尝试手动添加。\n'
+                msg += f'{idol} 未找到\n'
+                return None
+    old_idols = options['produce']['idols']
+    new_idols = list(filter(lambda x: x is not None, map(map_idol, old_idols)))
+    options['produce']['idols'] = new_idols
+    shutil.copy('config.json', 'config.v2.json')
+    return options, msg
 
 if __name__ == '__main__':
     print(PurchaseConfig.model_fields['money_refresh_on'].description)

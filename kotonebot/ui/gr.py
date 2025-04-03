@@ -17,7 +17,7 @@ from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.tasks.common import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
-    MissionRewardConfig, PIdol, DailyMoneyShopItems, ProduceAction,
+    MissionRewardConfig, DailyMoneyShopItems, ProduceAction,
     RecommendCardDetectionMode, TraceConfig, StartGameConfig, UpgradeSupportCardConfig,
     upgrade_config
 )
