@@ -5,7 +5,7 @@ from cv2.typing import MatLike
 
 
 from .. import R
-from kotonebot.util import Interval
+from kotonebot.util import Interval, Countdown
 from kotonebot.tasks.game_ui import WhiteFilter
 from kotonebot import device, image, user, action, use_screenshot
 
@@ -40,9 +40,9 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
     logger.debug('Skip button found. Check commu')
 
     it = Interval()
+    cd = Countdown(3)
     while True:
-        if not is_at_commu():
-            break
+        device.screenshot()
         if image.find(R.Common.ButtonCommuSkip, preprocessors=[WhiteFilter()]):
             device.click()
             logger.debug('Clicked skip button.')
@@ -52,7 +52,8 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
             logger.debug('Clicked confirm button.')
             logger.debug('Pushing notification...')
             user.info('发现未读交流', images=[img])
-
+        if not is_at_commu():
+                break
         logger.debug('Skipping commu...')
         it.wait()
     
