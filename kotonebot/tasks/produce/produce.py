@@ -12,7 +12,7 @@ from .. import R
 from ..common import conf
 from ..actions.scenes import at_home, goto_home
 from ..game_ui.idols_overview import locate_idol
-from ..produce.in_purodyuusu import hajime_pro, hajime_regular, resume_regular_produce
+from ..produce.in_purodyuusu import hajime_pro, hajime_regular, resume_pro_produce, resume_regular_produce
 from kotonebot import device, image, ocr, task, action, sleep, contains
 
 logger = logging.getLogger(__name__)
@@ -116,7 +116,7 @@ def select_set(index: int):
     
     logger.error(f'Failed to navigate to set #{index} after {max_retries} retries.')
     
-@action('继续当前培育')
+@action('继续当前培育', screenshot_mode='manual-inherit')
 def resume_produce():
     """
     继续当前培育
@@ -124,16 +124,41 @@ def resume_produce():
     前置条件：游戏首页，且当前有进行中培育\n
     结束状态：游戏首页
     """
+    device.screenshot()
     # 点击 プロデュース中
     # [res/sprites/jp/daily/home_1.png]
     logger.info('Click ongoing produce button.')
     device.click(R.Produce.BoxProduceOngoing)
+    btn_resume = image.expect_wait(R.Produce.ButtonResume)
+    # 判断信息
+    mode_result = image.find_multi([
+        R.Produce.ResumeDialogRegular,
+        R.Produce.ResumeDialogPro,
+    ])
+    if not mode_result:
+        raise ValueError('Failed to detect produce mode.')
+    if mode_result.index == 0:
+        mode = 'regular'
+    else:
+        mode = 'pro'
+    logger.info(f'Produce mode: {mode}')
+    week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks).squash().regex(r'\d+/\d+')
+    if not week_text:
+        raise ValueError('Failed to detect weeks(1).')
+    weeks = week_text[0].split('/')
+    if len(weeks) < 2:
+        raise ValueError('Failed to detect weeks(2).')
+    current_week = int(weeks[0])
+    logger.info(f'Current week: {weeks[0]}/{weeks[1]}')
     # 点击 再開する
-    # [res/sprites/jp/produce/produce_resume.png]
+    # [kotonebot-resource/sprites/jp/produce/produce_resume.png]
     logger.info('Click resume button.')
-    device.click(image.expect_wait(R.Produce.ButtonResume))
+    device.click(btn_resume)
     # 继续流程
-    resume_regular_produce()
+    if mode == 'regular':
+        resume_regular_produce(current_week)
+    else:
+        resume_pro_produce(current_week)
 
 @action('执行培育', screenshot_mode='manual-inherit')
 def do_produce(
