@@ -95,7 +95,7 @@ def handle_sp_lesson():
     else:
         return False
 
-@action('执行推荐行动')
+@action('执行推荐行动', screenshot_mode='manual-inherit')
 def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
     """
     在行动选择页面，执行推荐行动
@@ -110,13 +110,25 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
     """
     # 获取课程
     logger.debug("Getting recommended lesson...")
-    with cropped(device, y1=0.00, y2=0.30):
-        result = image.find_multi([
-            R.InPurodyuusu.TextSenseiTipDance,
-            R.InPurodyuusu.TextSenseiTipVocal,
-            R.InPurodyuusu.TextSenseiTipVisual,
-            R.InPurodyuusu.TextSenseiTipRest,
-        ])
+    device.screenshot()
+    if not image.find(R.InPurodyuusu.IconAsariSenseiAvatar):
+        return None
+    it = Interval()
+    cd = Countdown(sec=5).start()
+    result = None
+    while not cd.expired():
+        logger.debug('Retrieving recommended lesson...')
+        with cropped(device, y1=0.00, y2=0.30):
+            if result := image.find_multi([
+                R.InPurodyuusu.TextSenseiTipDance,
+                R.InPurodyuusu.TextSenseiTipVocal,
+                R.InPurodyuusu.TextSenseiTipVisual,
+                R.InPurodyuusu.TextSenseiTipRest,
+            ]):
+                break
+        it.wait()
+        device.screenshot()
+
     logger.debug("image.find_multi: %s", result)
     if result is None:
         logger.debug("No recommended lesson found")
@@ -156,7 +168,7 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
         else:
             return None
         logger.debug("Try clicking lesson...")
-        device.double_click(image.expect_wait(template))
+        device.double_click(image.expect(template))
         return recommended
 
 class CardDetectResult(NamedTuple):
@@ -1100,7 +1112,7 @@ def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
         return 'unknown'
 
 @action('开始 Regular 培育')
-def hajime_regular_from_stage(stage: ProduceStage, type: Literal['regular', 'pro']):
+def hajime_regular_from_stage(stage: ProduceStage, type: Literal['regular', 'pro'], week: int):
     """
     开始 Regular 培育。
     """
@@ -1125,39 +1137,52 @@ def hajime_regular_from_stage(stage: ProduceStage, type: Literal['regular', 'pro
     elif stage == 'exam-start':
         device.click_center()
         until_exam_scene()
-        exam()
+        if type == 'regular':
+            hajime_regular(start_from=week)
+        elif type == 'pro':
+            hajime_pro(start_from=week)
     elif stage == 'exam-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Exam ongoing. Start exam.")
-        exam()
-        result = ocr.expect_wait(contains('中間|最終'))
-        if '中間' in result.text:
-            return hajime_regular_from_stage(detect_produce_scene(), type)
-        elif '最終' in result.text:
-            produce_end()
-        else:
-            raise UnrecoverableError("Failed to detect produce stage.")
+        if type == 'regular':
+            if week > 6: # 第六周为期中考试
+                exam('final')
+                return produce_end()
+            else:
+                exam('mid')
+                return hajime_regular_from_stage(detect_produce_scene(), type, week)
+        elif type == 'pro':
+            if week > 7:
+                exam('final')
+                return produce_end()
+            else:
+                exam('mid')
+                return hajime_regular_from_stage(detect_produce_scene(), type, week)
     elif stage == 'practice-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Practice ongoing. Start practice.")
         practice()
-        return hajime_regular_from_stage(detect_produce_scene(), type)
+        return hajime_regular_from_stage(detect_produce_scene(), type, week)
     else:
         raise UnrecoverableError(f'Cannot resume produce REGULAR from stage "{stage}".')
 
 @action('继续 Regular 培育')
-def resume_regular_produce():
+def resume_regular_produce(week: int):
     """
     继续 Regular 培育。
+    
+    :param week: 当前周数。
     """
-    hajime_regular_from_stage(detect_produce_scene(), 'regular')
+    hajime_regular_from_stage(detect_produce_scene(), 'regular', week)
 
 @action('继续 PRO 培育')
-def resume_pro_produce():
+def resume_pro_produce(week: int):
     """
     继续 PRO 培育。
+    
+    :param week: 当前周数。
     """
-    hajime_regular_from_stage(detect_produce_scene(), 'pro')
+    hajime_regular_from_stage(detect_produce_scene(), 'pro', week)
 
 if __name__ == '__main__':
     from logging import getLogger
@@ -1208,7 +1233,7 @@ if __name__ == '__main__':
     # hajime_pro(start_from=16)
     # exam('mid')
     stage = (detect_produce_scene())
-    hajime_regular_from_stage(stage, 'pro')
+    hajime_regular_from_stage(stage, 'pro', 0)
 
     # click_recommended_card(card_count=skill_card_count())
     # exam('mid')

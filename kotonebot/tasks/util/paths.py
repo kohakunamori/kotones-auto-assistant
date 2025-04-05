@@ -1,0 +1,18 @@
+import os
+from typing import cast
+
+from kotonebot.tasks import resources as res
+
+CACHE = os.path.join('cache')
+RESOURCE = cast(list[str], res.__path__)[0]
+
+if not os.path.exists(CACHE):
+    os.makedirs(CACHE)
+
+def cache(path: str) -> str:
+    p = os.path.join(CACHE, path)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    return p
+
+def resource(path: str) -> str:
+    return os.path.join(RESOURCE, path)

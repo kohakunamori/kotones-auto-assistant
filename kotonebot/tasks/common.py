@@ -35,271 +35,6 @@ class APShopItems(IntEnum):
     REGENERATE_MEMORY = 3
     """回忆再生成券"""
 
-
-倉本千奈_BASE = 0
-十王星南_BASE = 100
-姫崎莉波_BASE = 200
-月村手毬_BASE = 300
-有村麻央_BASE = 400
-篠泽广_BASE = 500
-紫云清夏_BASE = 600
-花海佑芽_BASE = 700
-花海咲季_BASE = 800
-葛城リーリヤ_BASE = 900
-藤田ことね_BASE = 1000
-
-class PIdol(IntEnum):
-    """P偶像"""
-    倉本千奈_Campusmode = 倉本千奈_BASE + 0
-    倉本千奈_WonderScale = 倉本千奈_BASE + 1
-    倉本千奈_ようこそ初星温泉 = 倉本千奈_BASE + 2
-    倉本千奈_仮装狂騒曲 = 倉本千奈_BASE + 3
-    倉本千奈_初心 = 倉本千奈_BASE + 4
-    倉本千奈_学園生活 = 倉本千奈_BASE + 5
-    倉本千奈_日々_発見的ステップ = 倉本千奈_BASE + 6
-    倉本千奈_胸を張って一歩ずつ = 倉本千奈_BASE + 7
-
-    十王星南_Campusmode = 十王星南_BASE + 0
-    十王星南_一番星 = 十王星南_BASE + 1
-    十王星南_学園生活 = 十王星南_BASE + 2
-    十王星南_小さな野望 = 十王星南_BASE + 3
-
-    姫崎莉波_clumsytrick = 姫崎莉波_BASE + 0
-    姫崎莉波_私らしさのはじまり = 姫崎莉波_BASE + 1
-    姫崎莉波_キミとセミブルー = 姫崎莉波_BASE + 2
-    姫崎莉波_Campusmode = 姫崎莉波_BASE + 3
-    姫崎莉波_LUV = 姫崎莉波_BASE + 4
-    姫崎莉波_ようこそ初星温泉 = 姫崎莉波_BASE + 5
-    姫崎莉波_ハッピーミルフィーユ = 姫崎莉波_BASE + 6
-    姫崎莉波_初心 = 姫崎莉波_BASE + 7
-    姫崎莉波_学園生活 = 姫崎莉波_BASE + 8
-
-    月村手毬_Lunasaymaybe = 月村手毬_BASE + 0
-    月村手毬_一匹狼 = 月村手毬_BASE + 1
-    月村手毬_Campusmode = 月村手毬_BASE + 2
-    月村手毬_アイヴイ = 月村手毬_BASE + 3
-    月村手毬_初声 = 月村手毬_BASE + 4
-    月村手毬_学園生活 = 月村手毬_BASE + 5
-    月村手毬_仮装狂騒曲 = 月村手毬_BASE + 6
-
-    有村麻央_Fluorite = 有村麻央_BASE + 0
-    有村麻央_はじまりはカッコよく = 有村麻央_BASE + 1
-    有村麻央_Campusmode = 有村麻央_BASE + 2
-    有村麻央_FeelJewelDream = 有村麻央_BASE + 3
-    有村麻央_キミとセミブルー = 有村麻央_BASE + 4
-    有村麻央_初恋 = 有村麻央_BASE + 5
-    有村麻央_学園生活 = 有村麻央_BASE + 6
-
-    篠泽广_コントラスト = 篠泽广_BASE + 0
-    篠泽广_一番向いていないこと = 篠泽广_BASE + 1
-    篠泽广_光景 = 篠泽广_BASE + 2
-    篠泽广_Campusmode = 篠泽广_BASE + 3
-    篠泽广_仮装狂騒曲 = 篠泽广_BASE + 4
-    篠泽广_ハッピーミルフィーユ = 篠泽广_BASE + 5
-    篠泽广_初恋 = 篠泽广_BASE + 6
-    篠泽广_学園生活 = 篠泽广_BASE + 7
-
-    紫云清夏_TameLieOneStep = 紫云清夏_BASE + 0
-    紫云清夏_カクシタワタシ = 紫云清夏_BASE + 1
-    紫云清夏_夢へのリスタート = 紫云清夏_BASE + 2
-    紫云清夏_Campusmode = 紫云清夏_BASE + 3
-    紫云清夏_キミとセミブルー = 紫云清夏_BASE + 4
-    紫云清夏_初恋 = 紫云清夏_BASE + 5
-    紫云清夏_学園生活 = 紫云清夏_BASE + 6
-    
-    花海佑芽_WhiteNightWhiteWish = 花海佑芽_BASE + 0
-    花海佑芽_学園生活 = 花海佑芽_BASE + 1
-    花海佑芽_Campusmode = 花海佑芽_BASE + 2
-    花海佑芽_TheRollingRiceball = 花海佑芽_BASE + 3
-    花海佑芽_アイドル_はじめっ = 花海佑芽_BASE + 4
-
-    花海咲季_BoomBoomPow = 花海咲季_BASE + 0
-    花海咲季_Campusmode = 花海咲季_BASE + 1
-    花海咲季_FightingMyWay = 花海咲季_BASE + 2
-    花海咲季_わたしが一番 = 花海咲季_BASE + 3
-    花海咲季_冠菊 = 花海咲季_BASE + 4
-    花海咲季_初声 = 花海咲季_BASE + 5
-    花海咲季_古今東西ちょちょいのちょい = 花海咲季_BASE + 6
-    花海咲季_学園生活 = 花海咲季_BASE + 7
-
-    葛城リーリヤ_一つ踏み出した先に = 葛城リーリヤ_BASE + 0
-    葛城リーリヤ_白線 = 葛城リーリヤ_BASE + 1
-    葛城リーリヤ_Campusmode = 葛城リーリヤ_BASE + 2
-    葛城リーリヤ_WhiteNightWhiteWish = 葛城リーリヤ_BASE + 3
-    葛城リーリヤ_冠菊 = 葛城リーリヤ_BASE + 4
-    葛城リーリヤ_初心 = 葛城リーリヤ_BASE + 5
-    葛城リーリヤ_学園生活 = 葛城リーリヤ_BASE + 6
-
-    藤田ことね_カワイイ_はじめました = 藤田ことね_BASE + 0
-    藤田ことね_世界一可愛い私 = 藤田ことね_BASE + 1
-    藤田ことね_Campusmode = 藤田ことね_BASE + 2
-    藤田ことね_YellowBigBang = 藤田ことね_BASE + 3
-    藤田ことね_WhiteNightWhiteWish = 藤田ことね_BASE + 4
-    藤田ことね_冠菊 = 藤田ことね_BASE + 5
-    藤田ことね_初声 = 藤田ことね_BASE + 6
-    藤田ことね_学園生活 = 藤田ことね_BASE + 7
-
-    def to_title(self) -> list[str]:
-        match self:
-            case PIdol.倉本千奈_Campusmode:
-                return ["倉本", "千奈", "Campus", "mode"]
-            case PIdol.倉本千奈_WonderScale:
-                return ["倉本", "千奈", "Wonder", "Scale"]
-            case PIdol.倉本千奈_ようこそ初星温泉:
-                return ["倉本", "千奈", "ようこそ初星温泉"]
-            case PIdol.倉本千奈_仮装狂騒曲:
-                return ["倉本", "千奈", "仮装狂騒曲"]
-            case PIdol.倉本千奈_初心:
-                return ["倉本", "千奈", "初心"]
-            case PIdol.倉本千奈_学園生活:
-                return ["倉本", "千奈", "学園生活"]
-            case PIdol.倉本千奈_日々_発見的ステップ:
-                return ["倉本", "千奈", "日々、発見的ステップ"]
-            case PIdol.倉本千奈_胸を張って一歩ずつ:
-                return ["倉本", "千奈", "胸を張って一歩ずつ"]
-            case PIdol.十王星南_Campusmode:
-                return ["十王", "星南", "Campus", "mode"]
-            case PIdol.十王星南_一番星:
-                return ["十王", "星南", "一番星"]
-            case PIdol.十王星南_学園生活:
-                return ["十王", "星南", "学園生活"]
-            case PIdol.十王星南_小さな野望:
-                return ["十王", "星南", "小さな野望"]
-            case PIdol.姫崎莉波_clumsytrick:
-                return ["姫崎", "莉波", "clumsy", "trick"]
-            case PIdol.姫崎莉波_私らしさのはじまり:
-                return ["姫崎", "莉波", "『私らしさ』のはじまり"]
-            case PIdol.姫崎莉波_キミとセミブルー:
-                return ["姫崎", "莉波", "キミとセミブルー"]
-            case PIdol.姫崎莉波_Campusmode:
-                return ["姫崎", "莉波", "Campus", "mode"]
-            case PIdol.姫崎莉波_LUV:
-                return ["姫崎", "莉波", "L", "U", "V"]
-            case PIdol.姫崎莉波_ようこそ初星温泉:
-                return ["姫崎", "莉波", "ようこそ初星温泉"]
-            case PIdol.姫崎莉波_ハッピーミルフィーユ:
-                return ["姫崎", "莉波", "ハッピーミルフィーユ"]
-            case PIdol.姫崎莉波_初心:
-                return ["姫崎", "莉波", "初心"]
-            case PIdol.姫崎莉波_学園生活:
-                return ["姫崎", "莉波", "学園生活"]
-            case PIdol.月村手毬_Lunasaymaybe:
-                return ["月村", "手毬", "Luna", "say", "maybe"]
-            case PIdol.月村手毬_一匹狼:
-                return ["月村", "手毬", "一匹狼"]
-            case PIdol.月村手毬_Campusmode:
-                return ["月村", "手毬", "Campus", "mode"]
-            case PIdol.月村手毬_アイヴイ:
-                return ["月村", "手毬", "アイヴイ"]
-            case PIdol.月村手毬_初声:
-                return ["月村", "手毬", "初声"]
-            case PIdol.月村手毬_学園生活:
-                return ["月村", "手毬", "学園生活"]
-            case PIdol.月村手毬_仮装狂騒曲:
-                return ["月村", "手毬", "仮装狂騒曲"]
-            case PIdol.有村麻央_Fluorite:
-                return ["有村", "麻央", "Fluorite"]
-            case PIdol.有村麻央_はじまりはカッコよく:
-                return ["有村", "麻央", "はじまりはカッコよく"]
-            case PIdol.有村麻央_Campusmode:
-                return ["有村", "麻央", "Campus", "mode"]
-            case PIdol.有村麻央_FeelJewelDream:
-                return ["有村", "麻央", "Feel", "Jewel", "Dream"]
-            case PIdol.有村麻央_キミとセミブルー:
-                return ["有村", "麻央", "キミとセミブルー"]
-            case PIdol.有村麻央_初恋:
-                return ["有村", "麻央", "初恋"]
-            case PIdol.有村麻央_学園生活:
-                return ["有村", "麻央", "学園生活"]
-            case PIdol.篠泽广_コントラスト:
-                return ["篠泽", "広", "コントラスト"]
-            case PIdol.篠泽广_一番向いていないこと:
-                return ["篠泽", "広", "一番向いていないこと"]
-            case PIdol.篠泽广_光景:
-                return ["篠泽", "広", "光景"]
-            case PIdol.篠泽广_Campusmode:
-                return ["篠泽", "広", "Campus", "mode"]
-            case PIdol.篠泽广_仮装狂騒曲:
-                return ["篠泽", "広", "仮装狂騒曲"]
-            case PIdol.篠泽广_ハッピーミルフィーユ:
-                return ["篠泽", "広", "ハッピーミルフィーユ"]
-            case PIdol.篠泽广_初恋:
-                return ["篠泽", "広", "初恋"]
-            case PIdol.篠泽广_学園生活:
-                return ["篠泽", "広", "学園生活"]
-            case PIdol.紫云清夏_TameLieOneStep:
-                return ["紫云", "清夏", "Tame", "Lie", "One", "Step"]
-            case PIdol.紫云清夏_カクシタワタシ:
-                return ["紫云", "清夏", "カクシタワタシ"]
-            case PIdol.紫云清夏_夢へのリスタート:
-                return ["紫云", "清夏", "夢へのリスタート"]
-            case PIdol.紫云清夏_Campusmode:
-                return ["紫云", "清夏", "Campus", "mode"]
-            case PIdol.紫云清夏_キミとセミブルー:
-                return ["紫云", "清夏", "キミとセミブルー"]
-            case PIdol.紫云清夏_初恋:
-                return ["紫云", "清夏", "初恋"]
-            case PIdol.紫云清夏_学園生活:
-                return ["紫云", "清夏", "学園生活"]
-            case PIdol.花海佑芽_WhiteNightWhiteWish:
-                return ["花海", "佑芽", "White", "Night", "Wish"]
-            case PIdol.花海佑芽_学園生活:
-                return ["花海", "佑芽", "学園生活"]
-            case PIdol.花海佑芽_Campusmode:
-                return ["花海", "佑芽", "Campus", "mode"]
-            case PIdol.花海佑芽_TheRollingRiceball:
-                return ["花海", "佑芽", "The", "Rolling", "Riceball"]
-            case PIdol.花海佑芽_アイドル_はじめっ:
-                return ["花海", "佑芽", "アイドル、はじめっ"]
-            case PIdol.花海咲季_BoomBoomPow:
-                return ["花海", "咲季", "Boom", "Boom", "Pow"]
-            case PIdol.花海咲季_Campusmode:
-                return ["花海", "咲季", "Campus", "mode"]
-            case PIdol.花海咲季_FightingMyWay:
-                return ["花海", "咲季", "Fighting", "My", "Way"]
-            case PIdol.花海咲季_わたしが一番:
-                return ["花海", "咲季", "わたしが一番"]
-            case PIdol.花海咲季_冠菊:
-                return ["花海", "咲季", "冠菊"]
-            case PIdol.花海咲季_初声:
-                return ["花海", "咲季", "初声"]
-            case PIdol.花海咲季_古今東西ちょちょいのちょい:
-                return ["花海", "咲季", "古今東西ちょちょいのちょい"]
-            case PIdol.花海咲季_学園生活:
-                return ["花海", "咲季", "学園生活"]
-            case PIdol.葛城リーリヤ_一つ踏み出した先に:
-                return ["葛城", "リーリヤ", "一つ踏み出した先に"]
-            case PIdol.葛城リーリヤ_白線:
-                return ["葛城", "リーリヤ", "白線"]
-            case PIdol.葛城リーリヤ_Campusmode:
-                return ["葛城", "リーリヤ", "Campus", "mode"]
-            case PIdol.葛城リーリヤ_WhiteNightWhiteWish:
-                return ["葛城", "リーリヤ", "White", "Night", "Wish"]
-            case PIdol.葛城リーリヤ_冠菊:
-                return ["葛城", "リーリヤ", "冠菊"]
-            case PIdol.葛城リーリヤ_初心:
-                return ["葛城", "リーリヤ", "初心"]
-            case PIdol.葛城リーリヤ_学園生活:
-                return ["葛城", "リーリヤ", "学園生活"]
-            case PIdol.藤田ことね_カワイイ_はじめました:
-                return ["藤田", "ことね", "カワイイ", "はじめました"]
-            case PIdol.藤田ことね_世界一可愛い私:
-                return ["藤田", "ことね", "世界一可愛い私"]
-            case PIdol.藤田ことね_Campusmode:
-                return ["藤田", "ことね", "Campus", "mode"]
-            case PIdol.藤田ことね_YellowBigBang:
-                return ["藤田", "ことね", "Yellow", "Big", "Bang"]
-            case PIdol.藤田ことね_WhiteNightWhiteWish:
-                return ["藤田", "ことね", "White", "Night", "Wish"]
-            case PIdol.藤田ことね_冠菊:
-                return ["藤田", "ことね", "冠菊"]
-            case PIdol.藤田ことね_初声:
-                return ["藤田", "ことね", "初声"]
-            case PIdol.藤田ことね_学園生活:
-                return ["藤田", "ことね", "学園生活"]
-            case _:
-                assert_never(self)
-
 class DailyMoneyShopItems(IntEnum):
     """日常商店物品"""
     Recommendations = -1
@@ -582,9 +317,9 @@ class ProduceConfig(ConfigBaseModel):
     """
     produce_count: int = 1
     """培育的次数。"""
-    idols: list[PIdol] = []
+    idols: list[str] = []
     """
-    要培育的偶像。将会按顺序循环选择培育。
+    要培育偶像的 IdolCardSkin.id。将会按顺序循环选择培育。
     若未选择任何偶像，则使用游戏默认选择的偶像（为上次培育偶像）。
     """
     memory_sets: list[int] = []
@@ -630,6 +365,10 @@ class ProduceConfig(ConfigBaseModel):
     推荐卡检测模式
     
     严格模式下，识别速度会降低，但识别准确率会提高。
+    """
+    use_ap_drink: bool = False
+    """
+    AP 不足时自动使用 AP 饮料
     """
 
 class MissionRewardConfig(ConfigBaseModel):
@@ -750,6 +489,11 @@ def upgrade_config() -> str | None:
                     user_config, msg = upgrade_v1_to_v2(user_config['options'])
                     messages.append(msg)
                     version = 2
+                case 2:
+                    logger.info('Upgrading config: v2 -> v3')
+                    user_config, msg = upgrade_v2_to_v3(user_config['options'])
+                    messages.append(msg)
+                    version = 3
                 case _:
                     logger.info('No config upgrade needed.')
                     return version
@@ -760,7 +504,114 @@ def upgrade_config() -> str | None:
     with open('config.json', 'w', encoding='utf-8') as f:
         json.dump(root, f, ensure_ascii=False, indent=4)
     return '\n'.join(messages)
+
+
+倉本千奈_BASE = 0
+十王星南_BASE = 100
+姫崎莉波_BASE = 200
+月村手毬_BASE = 300
+有村麻央_BASE = 400
+篠泽广_BASE = 500
+紫云清夏_BASE = 600
+花海佑芽_BASE = 700
+花海咲季_BASE = 800
+葛城リーリヤ_BASE = 900
+藤田ことね_BASE = 1000
+
+class PIdol(IntEnum):
+    """
+    P偶像。已废弃，仅为 upgrade_v1_to_v2()、upgrade_v2_to_v3() 而保留。
+    """
+    倉本千奈_Campusmode = 倉本千奈_BASE + 0
+    倉本千奈_WonderScale = 倉本千奈_BASE + 1
+    倉本千奈_ようこそ初星温泉 = 倉本千奈_BASE + 2
+    倉本千奈_仮装狂騒曲 = 倉本千奈_BASE + 3
+    倉本千奈_初心 = 倉本千奈_BASE + 4
+    倉本千奈_学園生活 = 倉本千奈_BASE + 5
+    倉本千奈_日々_発見的ステップ = 倉本千奈_BASE + 6
+    倉本千奈_胸を張って一歩ずつ = 倉本千奈_BASE + 7
+
+    十王星南_Campusmode = 十王星南_BASE + 0
+    十王星南_一番星 = 十王星南_BASE + 1
+    十王星南_学園生活 = 十王星南_BASE + 2
+    十王星南_小さな野望 = 十王星南_BASE + 3
+
+    姫崎莉波_clumsytrick = 姫崎莉波_BASE + 0
+    姫崎莉波_私らしさのはじまり = 姫崎莉波_BASE + 1
+    姫崎莉波_キミとセミブルー = 姫崎莉波_BASE + 2
+    姫崎莉波_Campusmode = 姫崎莉波_BASE + 3
+    姫崎莉波_LUV = 姫崎莉波_BASE + 4
+    姫崎莉波_ようこそ初星温泉 = 姫崎莉波_BASE + 5
+    姫崎莉波_ハッピーミルフィーユ = 姫崎莉波_BASE + 6
+    姫崎莉波_初心 = 姫崎莉波_BASE + 7
+    姫崎莉波_学園生活 = 姫崎莉波_BASE + 8
+
+    月村手毬_Lunasaymaybe = 月村手毬_BASE + 0
+    月村手毬_一匹狼 = 月村手毬_BASE + 1
+    月村手毬_Campusmode = 月村手毬_BASE + 2
+    月村手毬_アイヴイ = 月村手毬_BASE + 3
+    月村手毬_初声 = 月村手毬_BASE + 4
+    月村手毬_学園生活 = 月村手毬_BASE + 5
+    月村手毬_仮装狂騒曲 = 月村手毬_BASE + 6
+
+    有村麻央_Fluorite = 有村麻央_BASE + 0
+    有村麻央_はじまりはカッコよく = 有村麻央_BASE + 1
+    有村麻央_Campusmode = 有村麻央_BASE + 2
+    有村麻央_FeelJewelDream = 有村麻央_BASE + 3
+    有村麻央_キミとセミブルー = 有村麻央_BASE + 4
+    有村麻央_初恋 = 有村麻央_BASE + 5
+    有村麻央_学園生活 = 有村麻央_BASE + 6
+
+    篠泽广_コントラスト = 篠泽广_BASE + 0
+    篠泽广_一番向いていないこと = 篠泽广_BASE + 1
+    篠泽广_光景 = 篠泽广_BASE + 2
+    篠泽广_Campusmode = 篠泽广_BASE + 3
+    篠泽广_仮装狂騒曲 = 篠泽广_BASE + 4
+    篠泽广_ハッピーミルフィーユ = 篠泽广_BASE + 5
+    篠泽广_初恋 = 篠泽广_BASE + 6
+    篠泽广_学園生活 = 篠泽广_BASE + 7
+
+    紫云清夏_TameLieOneStep = 紫云清夏_BASE + 0
+    紫云清夏_カクシタワタシ = 紫云清夏_BASE + 1
+    紫云清夏_夢へのリスタート = 紫云清夏_BASE + 2
+    紫云清夏_Campusmode = 紫云清夏_BASE + 3
+    紫云清夏_キミとセミブルー = 紫云清夏_BASE + 4
+    紫云清夏_初恋 = 紫云清夏_BASE + 5
+    紫云清夏_学園生活 = 紫云清夏_BASE + 6
     
+    花海佑芽_WhiteNightWhiteWish = 花海佑芽_BASE + 0
+    花海佑芽_学園生活 = 花海佑芽_BASE + 1
+    花海佑芽_Campusmode = 花海佑芽_BASE + 2
+    花海佑芽_TheRollingRiceball = 花海佑芽_BASE + 3
+    花海佑芽_アイドル_はじめっ = 花海佑芽_BASE + 4
+
+    花海咲季_BoomBoomPow = 花海咲季_BASE + 0
+    花海咲季_Campusmode = 花海咲季_BASE + 1
+    花海咲季_FightingMyWay = 花海咲季_BASE + 2
+    花海咲季_わたしが一番 = 花海咲季_BASE + 3
+    花海咲季_冠菊 = 花海咲季_BASE + 4
+    花海咲季_初声 = 花海咲季_BASE + 5
+    花海咲季_古今東西ちょちょいのちょい = 花海咲季_BASE + 6
+    花海咲季_学園生活 = 花海咲季_BASE + 7
+
+    葛城リーリヤ_一つ踏み出した先に = 葛城リーリヤ_BASE + 0
+    葛城リーリヤ_白線 = 葛城リーリヤ_BASE + 1
+    葛城リーリヤ_Campusmode = 葛城リーリヤ_BASE + 2
+    葛城リーリヤ_WhiteNightWhiteWish = 葛城リーリヤ_BASE + 3
+    葛城リーリヤ_冠菊 = 葛城リーリヤ_BASE + 4
+    葛城リーリヤ_初心 = 葛城リーリヤ_BASE + 5
+    葛城リーリヤ_学園生活 = 葛城リーリヤ_BASE + 6
+
+    藤田ことね_カワイイ_はじめました = 藤田ことね_BASE + 0
+    藤田ことね_世界一可愛い私 = 藤田ことね_BASE + 1
+    藤田ことね_Campusmode = 藤田ことね_BASE + 2
+    藤田ことね_YellowBigBang = 藤田ことね_BASE + 3
+    藤田ことね_WhiteNightWhiteWish = 藤田ことね_BASE + 4
+    藤田ことね_冠菊 = 藤田ことね_BASE + 5
+    藤田ことね_初声 = 藤田ことね_BASE + 6
+    藤田ことね_学園生活 = 藤田ことね_BASE + 7
+
+
 def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
     """
     v1 -> v2 变更：
@@ -940,6 +791,103 @@ def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | Non
     shutil.copy('config.json', 'config.v1.json')
     return options, msg
 
+def upgrade_v2_to_v3(options: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+    """
+    v2 -> v3 变更：\n
+    引入了游戏解包数据，因此 PIdol 枚举废弃，直接改用游戏内 ID。
+    """
+    msg = ''
+    def map_idol(idol: PIdol) -> str | None:
+        match idol:
+            case PIdol.倉本千奈_Campusmode: return "i_card-skin-kcna-3-007"
+            case PIdol.倉本千奈_WonderScale: return "i_card-skin-kcna-3-000"
+            case PIdol.倉本千奈_ようこそ初星温泉: return "i_card-skin-kcna-3-005"
+            case PIdol.倉本千奈_仮装狂騒曲: return "i_card-skin-kcna-3-002"
+            case PIdol.倉本千奈_初心: return "i_card-skin-kcna-1-001"
+            case PIdol.倉本千奈_学園生活: return "i_card-skin-kcna-1-000"
+            case PIdol.倉本千奈_日々_発見的ステップ: return "i_card-skin-kcna-3-001"
+            case PIdol.倉本千奈_胸を張って一歩ずつ: return "i_card-skin-kcna-2-000"
+            case PIdol.十王星南_Campusmode: return "i_card-skin-jsna-3-002"
+            case PIdol.十王星南_一番星: return "i_card-skin-jsna-2-000"
+            case PIdol.十王星南_学園生活: return "i_card-skin-jsna-1-000"
+            case PIdol.十王星南_小さな野望: return "i_card-skin-jsna-3-000"
+            case PIdol.姫崎莉波_clumsytrick: return "i_card-skin-hrnm-3-000"
+            case PIdol.姫崎莉波_私らしさのはじまり: return "i_card-skin-hrnm-2-000"
+            case PIdol.姫崎莉波_キミとセミブルー: return "i_card-skin-hrnm-3-001"
+            case PIdol.姫崎莉波_Campusmode: return "i_card-skin-hrnm-3-007"
+            case PIdol.姫崎莉波_LUV: return "i_card-skin-hrnm-3-002"
+            case PIdol.姫崎莉波_ようこそ初星温泉: return "i_card-skin-hrnm-3-004"
+            case PIdol.姫崎莉波_ハッピーミルフィーユ: return "i_card-skin-hrnm-3-008"
+            case PIdol.姫崎莉波_初心: return "i_card-skin-hrnm-1-001"
+            case PIdol.姫崎莉波_学園生活: return "i_card-skin-hrnm-1-000"
+            case PIdol.月村手毬_Lunasaymaybe: return "i_card-skin-ttmr-3-000"
+            case PIdol.月村手毬_一匹狼: return "i_card-skin-ttmr-2-000"
+            case PIdol.月村手毬_Campusmode: return "i_card-skin-ttmr-3-007"
+            case PIdol.月村手毬_アイヴイ: return "i_card-skin-ttmr-3-001"
+            case PIdol.月村手毬_初声: return "i_card-skin-ttmr-1-001"
+            case PIdol.月村手毬_学園生活: return "i_card-skin-ttmr-1-000"
+            case PIdol.月村手毬_仮装狂騒曲: return "i_card-skin-ttmr-3-002"
+            case PIdol.有村麻央_Fluorite: return "i_card-skin-amao-3-000"
+            case PIdol.有村麻央_はじまりはカッコよく: return "i_card-skin-amao-2-000"
+            case PIdol.有村麻央_Campusmode: return "i_card-skin-amao-3-007"
+            case PIdol.有村麻央_FeelJewelDream: return "i_card-skin-amao-3-002"
+            case PIdol.有村麻央_キミとセミブルー: return "i_card-skin-amao-3-001"
+            case PIdol.有村麻央_初恋: return "i_card-skin-amao-1-001"
+            case PIdol.有村麻央_学園生活: return "i_card-skin-amao-1-000"
+            case PIdol.篠泽广_コントラスト: return "i_card-skin-shro-3-001"
+            case PIdol.篠泽广_一番向いていないこと: return "i_card-skin-shro-2-000"
+            case PIdol.篠泽广_光景: return "i_card-skin-shro-3-000"
+            case PIdol.篠泽广_Campusmode: return "i_card-skin-shro-3-007"
+            case PIdol.篠泽广_仮装狂騒曲: return "i_card-skin-shro-3-002"
+            case PIdol.篠泽广_ハッピーミルフィーユ: return "i_card-skin-shro-3-008"
+            case PIdol.篠泽广_初恋: return "i_card-skin-shro-1-001"
+            case PIdol.篠泽广_学園生活: return "i_card-skin-shro-1-000"
+            case PIdol.紫云清夏_TameLieOneStep: return "i_card-skin-ssmk-3-000"
+            case PIdol.紫云清夏_カクシタワタシ: return "i_card-skin-ssmk-3-002"
+            case PIdol.紫云清夏_夢へのリスタート: return "i_card-skin-ssmk-2-000"
+            case PIdol.紫云清夏_Campusmode: return "i_card-skin-ssmk-3-007"
+            case PIdol.紫云清夏_キミとセミブルー: return "i_card-skin-ssmk-3-001"
+            case PIdol.紫云清夏_初恋: return "i_card-skin-ssmk-1-001"
+            case PIdol.紫云清夏_学園生活: return "i_card-skin-ssmk-1-000"
+            case PIdol.花海佑芽_WhiteNightWhiteWish: return "i_card-skin-hume-3-005"
+            case PIdol.花海佑芽_学園生活: return "i_card-skin-hume-1-000"
+            case PIdol.花海佑芽_Campusmode: return "i_card-skin-hume-3-006"
+            case PIdol.花海佑芽_TheRollingRiceball: return "i_card-skin-hume-3-000"
+            case PIdol.花海佑芽_アイドル_はじめっ: return "i_card-skin-hume-2-000"
+            case PIdol.花海咲季_BoomBoomPow: return "i_card-skin-hski-3-001"
+            case PIdol.花海咲季_Campusmode: return "i_card-skin-hski-3-008"
+            case PIdol.花海咲季_FightingMyWay: return "i_card-skin-hski-3-000"
+            case PIdol.花海咲季_わたしが一番: return "i_card-skin-hski-2-000"
+            case PIdol.花海咲季_冠菊: return "i_card-skin-hski-3-002"
+            case PIdol.花海咲季_初声: return "i_card-skin-hski-1-001"
+            case PIdol.花海咲季_古今東西ちょちょいのちょい: return "i_card-skin-hski-3-006"
+            case PIdol.花海咲季_学園生活: return "i_card-skin-hski-1-000"
+            case PIdol.葛城リーリヤ_一つ踏み出した先に: return "i_card-skin-kllj-2-000"
+            case PIdol.葛城リーリヤ_白線: return "i_card-skin-kllj-3-000"
+            case PIdol.葛城リーリヤ_Campusmode: return "i_card-skin-kllj-3-006"
+            case PIdol.葛城リーリヤ_WhiteNightWhiteWish: return "i_card-skin-kllj-3-005"
+            case PIdol.葛城リーリヤ_冠菊: return "i_card-skin-kllj-3-001"
+            case PIdol.葛城リーリヤ_初心: return "i_card-skin-kllj-1-001"
+            case PIdol.葛城リーリヤ_学園生活: return "i_card-skin-kllj-1-000"
+            case PIdol.藤田ことね_カワイイ_はじめました: return "i_card-skin-fktn-2-000"
+            case PIdol.藤田ことね_世界一可愛い私: return "i_card-skin-fktn-3-000"
+            case PIdol.藤田ことね_Campusmode: return "i_card-skin-fktn-3-007"
+            case PIdol.藤田ことね_YellowBigBang: return "i_card-skin-fktn-3-001"
+            case PIdol.藤田ことね_WhiteNightWhiteWish: return "i_card-skin-fktn-3-006"
+            case PIdol.藤田ことね_冠菊: return "i_card-skin-fktn-3-002"
+            case PIdol.藤田ことね_初声: return "i_card-skin-fktn-1-001"
+            case PIdol.藤田ことね_学園生活: return "i_card-skin-fktn-1-000"
+            case _:
+                nonlocal msg
+                if msg == '':
+                    msg = '培育设置中的以下偶像升级失败。请尝试手动添加。\n'
+                msg += f'{idol} 未找到\n'
+                return None
+    old_idols = options['produce']['idols']
+    new_idols = list(filter(lambda x: x is not None, map(map_idol, old_idols)))
+    options['produce']['idols'] = new_idols
+    shutil.copy('config.json', 'config.v2.json')
+    return options, msg
 
 if __name__ == '__main__':
     print(PurchaseConfig.model_fields['money_refresh_on'].description)
