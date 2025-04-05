@@ -195,9 +195,27 @@ def do_produce(
         .until(R.Produce.TextAPInsufficient, result=False)
     ).run()
     if not result:
-        logger.info('AP insufficient. Exiting produce.')
-        device.click(image.expect_wait(R.InPurodyuusu.ButtonCancel))
-        return False
+        if conf().produce.use_ap_drink:
+            # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_1.png]
+            # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_2.png]
+            # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_3.png]
+            logger.info('AP insufficient. Try to use AP drink.')
+            it = Interval()
+            while True:
+                if image.find(R.Produce.ButtonUse):
+                    device.click()
+                elif image.find(R.Produce.ButtonRefillAP):
+                    device.click()
+                elif ocr.find(contains(mode_text)):
+                    device.click()
+                elif image.find(R.Produce.ButtonPIdolOverview):
+                    break
+                device.screenshot()
+                it.wait()
+        else:
+            logger.info('AP insufficient. Exiting produce.')
+            device.click(image.expect_wait(R.InPurodyuusu.ButtonCancel))
+            return False
     # 1. 选择 PIdol [screenshots/produce/select_p_idol.png]
     select_idol(idol_skin_id)
     device.click(image.expect_wait(R.Common.ButtonNextNoIcon))

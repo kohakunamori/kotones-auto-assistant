@@ -265,6 +265,7 @@ class KotoneBotUI:
         prefer_lesson_ap: bool,
         actions_order: List[str],
         recommend_card_detection_mode: str,
+        use_ap_drink: bool,
         mission_reward_enabled: bool,
         # club reward
         club_reward_enabled: bool,
@@ -341,7 +342,8 @@ class KotoneBotUI:
                 self_study_lesson=self_study_lesson,
                 prefer_lesson_ap=prefer_lesson_ap,
                 actions_order=[ProduceAction(action) for action in actions_order],
-                recommend_card_detection_mode=RecommendCardDetectionMode(recommend_card_detection_mode)
+                recommend_card_detection_mode=RecommendCardDetectionMode(recommend_card_detection_mode),
+                use_ap_drink=use_ap_drink
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
@@ -743,8 +745,6 @@ class KotoneBotUI:
                     info="设置每周行动的优先级顺序",
                     multiselect=True
                 )
-
-                # 添加推荐卡检测模式设置
                 recommend_card_detection_mode = gr.Dropdown(
                     choices=[
                         (RecommendCardDetectionMode.NORMAL.display_name, RecommendCardDetectionMode.NORMAL.value),
@@ -753,6 +753,11 @@ class KotoneBotUI:
                     value=self.current_config.options.produce.recommend_card_detection_mode.value,
                     label="推荐卡检测模式",
                     info=ProduceConfig.model_fields['recommend_card_detection_mode'].description
+                )
+                use_ap_drink = gr.Checkbox(
+                    label="AP 不足时自动使用 AP 饮料",
+                    value=self.current_config.options.produce.use_ap_drink,
+                    info=ProduceConfig.model_fields['use_ap_drink'].description
                 )
                 recommend_card_detection_mode.change(
                     fn=update_kotone_warning,
@@ -776,7 +781,7 @@ class KotoneBotUI:
                 inputs=[auto_set_memory],
                 outputs=[memory_sets_group]
             )
-        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode
+        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode, use_ap_drink
     
     def _create_club_reward_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown]:
         with gr.Column():

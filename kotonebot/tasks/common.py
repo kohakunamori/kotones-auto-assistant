@@ -366,6 +366,10 @@ class ProduceConfig(ConfigBaseModel):
     
     严格模式下，识别速度会降低，但识别准确率会提高。
     """
+    use_ap_drink: bool = False
+    """
+    AP 不足时自动使用 AP 饮料
+    """
 
 class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
