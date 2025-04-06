@@ -1072,7 +1072,7 @@ class KotoneBotUI:
 def main() -> None:
     ui = KotoneBotUI()
     app = ui.create_ui()
-    app.launch(inbrowser=True, show_error=True, server_name="0.0.0.0")
+    app.launch(inbrowser=True, show_error=True)
 
 if __name__ == "__main__":
     main()
