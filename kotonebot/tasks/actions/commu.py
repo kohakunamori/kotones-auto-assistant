@@ -11,10 +11,21 @@ from kotonebot import device, image, user, action, use_screenshot
 
 logger = logging.getLogger(__name__)
 
+@action('获取 SKIP 按钮', screenshot_mode='manual-inherit')
+def skip_button():
+    device.screenshot()
+    return image.find(
+        R.Common.ButtonCommuSkip,
+        threshold=0.6,
+    ) or image.find(
+        R.Common.ButtonCommuSkip,
+        threshold=0.6,
+        preprocessors=[WhiteFilter()]
+    )
 
 @action('检查是否处于交流')
 def is_at_commu():
-    return image.find(R.Common.ButtonCommuSkip, preprocessors=[WhiteFilter()]) is not None
+    return skip_button() is not None
 
 @action('跳过交流')
 def skip_commu():
@@ -43,8 +54,8 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
     cd = Countdown(3)
     while True:
         device.screenshot()
-        if image.find(R.Common.ButtonCommuSkip, preprocessors=[WhiteFilter()]):
-            device.click()
+        if skip := skip_button():
+            device.click(skip)
             logger.debug('Clicked skip button.')
         if image.find(R.Common.ButtonConfirm):
             logger.info('Unread commu found.')
@@ -68,9 +79,9 @@ if __name__ == '__main__':
     from kotonebot.backend.context import manual_context, inject_context
     from kotonebot.backend.debug.mock import MockDevice
     manual_context().begin()
-    device = MockDevice()
-    device.load_image(r"D:\current_screenshot.png")
-    inject_context(device=device)
+    _md = MockDevice()
+    _md.load_image(r"D:\a.png")
+    inject_context(device=_md)
     print(is_at_commu())
     # while True:
     #     print(handle_unread_commu())
