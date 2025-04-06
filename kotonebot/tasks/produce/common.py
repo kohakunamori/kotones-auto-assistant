@@ -237,9 +237,11 @@ def acquisitions() -> AcquisitionType | None:
 
     # 网络中断弹窗
     logger.debug("Check network error popup...")
-    if image.find(R.Common.TextNetworkError):
+    if (image.find(R.Common.TextNetworkError) 
+        and (btn_retry := image.find(R.Common.ButtonRetry))
+    ):
         logger.info("Network error popup found")
-        device.click(image.expect(R.Common.ButtonRetry))
+        device.click(btn_retry)
         return "NetworkError"
     # 跳过未读交流
     logger.debug("Check skip commu...")
