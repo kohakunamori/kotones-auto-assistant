@@ -44,8 +44,10 @@ def acquire_pdorinku(index: int):
         device.click()
         sleep(0.3)
         device.click(image.expect_wait(R.InPurodyuusu.ButtonNotAcquire))
-        sleep(0.3)
-        device.click(image.expect_wait(R.Common.ButtonConfirm))
+        # TODO: 可能超时。需要更好的处理方式。
+        sleep(0.8)
+        if image.find(R.Common.ButtonConfirm):
+            device.click()
     else:
         # 点击饮料
         drinks = list_pdorinku()
