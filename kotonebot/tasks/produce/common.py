@@ -282,6 +282,8 @@ def acquisitions() -> AcquisitionType | None:
     # [screenshots/produce/in_produce/skill_card_enhance.png]
     # 3. 技能卡移除
     # [screenshots/produce/in_produce/skill_card_removal.png]
+    # 4. 练习结束分数上升提示
+    # [screenshots\produce\in_produce\practice_end.png]
     logger.debug("Check skill card events...")
     if image.find(R.InPurodyuusu.IconSkillCardEventBubble):
         device.click() # 不能 click_center，因为中间是技能卡

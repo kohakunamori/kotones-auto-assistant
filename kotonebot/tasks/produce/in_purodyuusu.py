@@ -564,15 +564,7 @@ def practice():
         else:
             break_cd.reset()
 
-    # 结束动画
     logger.info("CLEAR/PERFECT not found. Practice finished.")
-    (SimpleDispatcher('practice.end')
-        .click(contains("上昇"), finish=True, log="Click to finish 上昇")
-        .until(contains("審査基準"))
-        # 弹出 P 饮料溢出对话框时，背景模糊，导致上面两个都检测不到
-        .until(R.InPurodyuusu.TextPDrinkMax)
-        .click('center')
-    ).run()
 
 @action('执行考试')
 def exam(type: Literal['mid', 'final']):
