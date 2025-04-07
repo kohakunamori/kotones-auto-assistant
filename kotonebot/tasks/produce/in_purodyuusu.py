@@ -17,7 +17,7 @@ from ..actions.commu import handle_unread_commu
 from ..common import ProduceAction, RecommendCardDetectionMode, conf
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.context.context import use_screenshot
-from ..produce.common import until_acquisition_clear, acquisitions, commut_event
+from ..produce.common import until_acquisition_clear, commut_event, fast_acquisitions
 from kotonebot.util import Countdown, Interval, crop, cropped
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
 from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect, wait
@@ -437,7 +437,7 @@ def until_action_scene(week_first: bool = False):
         # [screenshots/produce/in_produce/initial_commu_event.png]
         if week_first and commut_event():
             continue
-        if acquisitions():
+        if fast_acquisitions():
             continue
         sleep(0.2)
     else:
@@ -1097,7 +1097,7 @@ def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
         ctx.finish()
         return 'exam-start'
     else:
-        if acquisitions():
+        if fast_acquisitions():
             return 'unknown'
         if commut_event():
             return 'unknown'

@@ -144,10 +144,9 @@ AcquisitionType = Literal[
     "SkipCommu", # 跳过交流
     "Loading", # 加载画面
 ]
-
 @measure_time()
 @action('处理培育事件', screenshot_mode='manual')
-def acquisitions() -> AcquisitionType | None:
+def fast_acquisitions() -> AcquisitionType | None:
     """处理行动开始前和结束后可能需要处理的事件，直到到行动页面为止"""
     img = device.screenshot()
 
@@ -155,18 +154,18 @@ def acquisitions() -> AcquisitionType | None:
     bottom_pos = (int(screen_size[0] * 0.5), int(screen_size[1] * 0.7)) # 底部中间
     logger.info("Acquisition stuffs...")
 
+    # 跳过未读交流
+    logger.debug("Check skip commu...")
+    if handle_unread_commu(img):
+        return "SkipCommu"
+    device.click(0, 0)
+
     # 加载画面
     if loading():
         logger.info("Loading...")
         return "Loading"
+    device.click(0, 0)
 
-    # P饮料领取
-    logger.debug("Check PDrink acquire...")
-    if image.find(R.InPurodyuusu.PDrinkIcon):
-        logger.info("PDrink acquire found")
-        device.click_center()
-        sleep(1)
-        return "PDrinkAcquire"
     # P饮料到达上限
     logger.debug("Check PDrink max...")
     # TODO: 需要封装一个更好的实现方式。比如 wait_stable？
@@ -193,47 +192,19 @@ def acquisitions() -> AcquisitionType | None:
                 logger.info("Confirm button found")
                 device.click(confirm)
                 return "PDrinkMax"
-    # 技能卡领取
-    logger.debug("Check skill card acquisition...")
-    if image.find_multi([
-        R.InPurodyuusu.PSkillCardIconBlue,
-        R.InPurodyuusu.PSkillCardIconColorful
-    ]):
-        logger.info("Acquire skill card found")
-        device.click_center()
-        return "PSkillCardAcquire"
+    device.click(0, 0)
 
     # 技能卡自选强化
     if image.find(R.InPurodyuusu.IconTitleSkillCardEnhance):
         if hanlde_skill_card_enhance():
             return "PSkillCardEnhanceSelect"
+    device.click(0, 0)
 
     # 技能卡自选删除
     if image.find(R.InPurodyuusu.IconTitleSkillCardRemoval):
         if handle_skill_card_removal():
             return "PSkillCardRemoveSelect"
-
-    # 目标达成
-    logger.debug("Check gloal clear (達成)...")
-    if image.find(R.InPurodyuusu.IconClearBlue):
-        logger.info("Clear found")
-        logger.debug("Goal clear (達成): clicked")
-        device.click_center()
-        sleep(1)
-        return "Clear"
-    # 目标达成 NEXT
-    if image.find(R.InPurodyuusu.TextGoalClearNext, preprocessors=[WhiteFilter()]):
-        logger.info("Goal clear (達成) next found")
-        device.click_center()
-        sleep(1)
-        return "ClearNext"
-    # P物品领取
-    logger.debug("Check PItem claim...")
-    if image.find(R.InPurodyuusu.PItemIconColorful):
-        logger.info("Click to finish PItem acquisition")
-        device.click_center()
-        sleep(1)
-        return "PItemClaim"
+    device.click(0, 0)
 
     # 网络中断弹窗
     logger.debug("Check network error popup...")
@@ -243,10 +214,7 @@ def acquisitions() -> AcquisitionType | None:
         logger.info("Network error popup found")
         device.click(btn_retry)
         return "NetworkError"
-    # 跳过未读交流
-    logger.debug("Check skip commu...")
-    if handle_unread_commu(img):
-        return "SkipCommu"
+    device.click(0, 0)
 
     # === 需要 OCR 的放在最后执行 ===
 
@@ -273,31 +241,7 @@ def acquisitions() -> AcquisitionType | None:
             logger.info("Acquire PItem found")
             select_p_item()
             return "PItemSelect"
-
-    # 技能卡变更事件
-    # 包括下面这些：
-    # 1. 技能卡更换
-    # [screenshots/produce/in_produce/support_card_change.png]
-    # 2. 技能卡强化
-    # [screenshots/produce/in_produce/skill_card_enhance.png]
-    # 3. 技能卡移除
-    # [screenshots/produce/in_produce/skill_card_removal.png]
-    # 4. 练习结束分数上升提示
-    # [screenshots\produce\in_produce\practice_end.png]
-    logger.debug("Check skill card events...")
-    if image.find(R.InPurodyuusu.IconSkillCardEventBubble):
-        device.click() # 不能 click_center，因为中间是技能卡
-        return "PSkillCardEvent"
-    
-    # 技能卡获取
-    # [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_skill_card_acquired.png]
-    # 因为这个文本有缩放动画，因此暂时没法用模板匹配代替
-    if ocr.find("スキルカード獲得", rect=R.InPurodyuusu.BoxSkillCardAcquired):
-        logger.info("Acquire skill card from loot box")
-        device.click_center()
-        # 下面就是普通的技能卡选择
-        sleep(0.2)
-        return acquisitions()
+    device.click(0, 0)
 
     return None
 
@@ -309,7 +253,7 @@ def until_acquisition_clear():
     结束条件：任意
     """
     interval = Interval(0.6)
-    while acquisitions():
+    while fast_acquisitions():
         interval.wait()
 
 @action('处理交流事件', screenshot_mode='manual-inherit')

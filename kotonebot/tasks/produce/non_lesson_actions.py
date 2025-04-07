@@ -8,7 +8,7 @@ from logging import getLogger
 
 from .. import R
 from ..common import conf
-from ..produce.common import acquisitions
+from ..produce.common import fast_acquisitions
 from ..game_ui.commu_event_buttons import CommuEventButtonUI
 from kotonebot.util import Interval
 from kotonebot.errors import UnrecoverableError
@@ -48,7 +48,7 @@ def enter_study():
     # [screenshots/produce/action_study2.png]
     while not image.find(R.InPurodyuusu.IconTitleStudy):
         logger.debug("Waiting for 授業 screen.")
-        acquisitions()
+        fast_acquisitions()
     # 首先需要判断是不是自习课
     # [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_study_self_study.png]
     if image.find_multi([
@@ -91,7 +91,7 @@ def enter_study():
             device.click(target_btn)
         else:
             device.double_click(target_btn)
-        while acquisitions() is None:
+        while fast_acquisitions() is None:
             logger.info("Waiting for acquisitions finished.")
     logger.info("授業 completed.")
 
@@ -111,7 +111,7 @@ def enter_allowance():
     # 等待进入页面
     while not image.find(R.InPurodyuusu.IconTitleAllowance):
         logger.debug("Waiting for 活動支給 screen.")
-        acquisitions()
+        fast_acquisitions()
     # 领取奖励
     it = Interval()
     while True:
@@ -126,7 +126,7 @@ def enter_allowance():
             device.click()
             sleep(0.5) # 防止点击了第一个箱子后立马点击了第二个
             continue
-        if acquisitions() is not None:
+        if fast_acquisitions() is not None:
             continue
         it.wait()
     logger.info("活動支給 completed.")
@@ -179,7 +179,7 @@ def enter_outing():
     # 等待进入页面
     while not image.find(R.InPurodyuusu.TitleIconOuting):
         logger.debug("Waiting for おでかけ screen.")
-        acquisitions()
+        fast_acquisitions()
     # 固定选中第二个选项
     # TODO: 可能需要二次处理外出事件
     # [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_outing.png]
@@ -198,7 +198,7 @@ def enter_outing():
         device.screenshot()
         if at_action_scene():
             break
-        elif acquisitions():
+        elif fast_acquisitions():
             pass
         # [screenshots\produce\outing_ap_confirm.png]
         elif image.find(R.Common.ButtonSelect2):
@@ -229,6 +229,6 @@ if __name__ == '__main__':
         device.click(target_btn)
     else:
         device.double_click(target_btn)
-    while acquisitions() is None:
+    while fast_acquisitions() is None:
         logger.info("Waiting for acquisitions finished.")
     logger.info("授業 completed.")
