@@ -33,53 +33,7 @@ class SkillCard(NamedTuple):
     rect: Rect
 
 logger = logging.getLogger(__name__)
-
 ActionType = None | Literal['lesson', 'rest']
-@deprecated('OCR 方法效果不佳')
-def enter_recommended_action_ocr(final_week: bool = False) -> ActionType:
-    """
-    在行动选择页面，执行推荐行动
-
-    :param final_week: 是否是考试前复习周
-    :return: 是否成功执行推荐行动
-    """
-    # 获取课程
-    logger.debug("Waiting for recommended lesson...")
-    with cropped(device, y1=0.00, y2=0.30):
-        ret = ocr.wait_for(regex('ボーカル|ダンス|ビジュアル|休|体力'))
-    logger.debug("ocr.wait_for: %s", ret)
-    if ret is None:
-        return None
-    if not final_week:
-        if "ボーカル" in ret.text:
-            lesson_text = "Vo"
-        elif "ダンス" in ret.text:
-            lesson_text = "Da"
-        elif "ビジュアル" in ret.text:
-            lesson_text = "Vi"
-        elif "休" in ret.text or "体力" in ret.text:
-            rest()
-            return 'rest'
-        else:
-            return None
-        logger.info("Rec. lesson: %s", lesson_text)
-        # 点击课程
-        logger.debug("Try clicking lesson...")
-        lesson_ret = ocr.expect(contains(lesson_text))
-        device.double_click(lesson_ret.rect)
-        return 'lesson'
-    else:
-        if "ボーカル" in ret.text:
-            template = R.InPurodyuusu.ButtonFinalPracticeVocal
-        elif "ダンス" in ret.text:
-            template = R.InPurodyuusu.ButtonFinalPracticeDance
-        elif "ビジュアル" in ret.text:
-            template = R.InPurodyuusu.ButtonFinalPracticeVisual
-        else:
-            return None
-        logger.debug("Try clicking lesson...")
-        device.double_click(image.expect_wait(template))
-        return 'lesson'
 
 @action('执行 SP 课程')
 def handle_sp_lesson():
@@ -134,27 +88,30 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
         logger.debug("No recommended lesson found")
         return None
     recommended = None
+    # 普通周
     if not final_week:
         if result.index == 0:
-            lesson_text = regex("Da")
+            template = R.InPurodyuusu.ButtonPracticeDance
             recommended = ProduceAction.DANCE
+            logger.info("Recommend lesson is dance.")
         elif result.index == 1:
-            lesson_text = regex("Vo|V0|VO")
+            template = R.InPurodyuusu.ButtonPracticeVocal
             recommended = ProduceAction.VOCAL
+            logger.info("Recommend lesson is vocal.")
         elif result.index == 2:
-            lesson_text = regex("Vi|V1|VI")
+            template = R.InPurodyuusu.ButtonPracticeVisual
             recommended = ProduceAction.VISUAL
+            logger.info("Recommend lesson is visual.")
         elif result.index == 3:
             rest()
             return ProduceAction.REST
         else:
             return None
-        logger.info("Rec. lesson: %s", lesson_text)
         # 点击课程
         logger.debug("Try clicking lesson...")
-        lesson_ret = ocr.expect(lesson_text)
-        device.double_click(lesson_ret.rect)
+        device.double_click(image.expect_wait(template))
         return recommended
+    # 冲刺周
     else:
         if result.index == 0:
             template = R.InPurodyuusu.ButtonFinalPracticeDance
