@@ -852,9 +852,6 @@ def week_normal(week_first: bool = False):
 
 def week_final_lesson():
     until_action_scene()
-    # if handle_recommended_action(final_week=True) != 'lesson':
-    #     raise ValueError("Failed to enter recommended action on final week.")
-    # sleep(5)
     action: ProduceAction | None = None
     actions = conf().produce.actions_order
     for action in actions:
@@ -978,7 +975,6 @@ def is_exam_scene():
 ProduceStage = Literal[
     'action', # 行动场景
     'practice-ongoing', # 练习场景
-    'exam-start', # 考试开始确认页面
     'exam-ongoing', # 考试进行中
     'exam-end', # 考试结束
     'unknown', # 未知场景
@@ -1013,10 +1009,6 @@ def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
         logger.info("Detection result: At exam scene.")
         ctx.finish()
         return 'exam-ongoing'
-    elif texts.where(regex('合格条件|三位以上')):
-        logger.info("Detection result: At exam start.")
-        ctx.finish()
-        return 'exam-start'
     else:
         if fast_acquisitions():
             return 'unknown'
@@ -1024,8 +1016,8 @@ def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
             return 'unknown'
         return 'unknown'
 
-@action('开始 Regular 培育')
-def hajime_regular_from_stage(stage: ProduceStage, type: Literal['regular', 'pro'], week: int):
+@action('开始 Hajime 培育')
+def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro'], week: int):
     """
     开始 Regular 培育。
     """
@@ -1047,13 +1039,6 @@ def hajime_regular_from_stage(stage: ProduceStage, type: Literal['regular', 'pro
             function(start_from=week)
         else:
             raise UnrecoverableError("Failed to detect produce stage.")
-    elif stage == 'exam-start':
-        device.click_center()
-        until_exam_scene()
-        if type == 'regular':
-            hajime_regular(start_from=week)
-        elif type == 'pro':
-            hajime_pro(start_from=week)
     elif stage == 'exam-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Exam ongoing. Start exam.")
@@ -1063,19 +1048,19 @@ def hajime_regular_from_stage(stage: ProduceStage, type: Literal['regular', 'pro
                 return produce_end()
             else:
                 exam('mid')
-                return hajime_regular_from_stage(detect_produce_scene(), type, week)
+                return hajime_from_stage(detect_produce_scene(), type, week)
         elif type == 'pro':
             if week > 7:
                 exam('final')
                 return produce_end()
             else:
                 exam('mid')
-                return hajime_regular_from_stage(detect_produce_scene(), type, week)
+                return hajime_from_stage(detect_produce_scene(), type, week)
     elif stage == 'practice-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Practice ongoing. Start practice.")
         practice()
-        return hajime_regular_from_stage(detect_produce_scene(), type, week)
+        return hajime_from_stage(detect_produce_scene(), type, week)
     else:
         raise UnrecoverableError(f'Cannot resume produce REGULAR from stage "{stage}".')
 
@@ -1086,7 +1071,7 @@ def resume_regular_produce(week: int):
     
     :param week: 当前周数。
     """
-    hajime_regular_from_stage(detect_produce_scene(), 'regular', week)
+    hajime_from_stage(detect_produce_scene(), 'regular', week)
 
 @action('继续 PRO 培育')
 def resume_pro_produce(week: int):
@@ -1095,7 +1080,7 @@ def resume_pro_produce(week: int):
     
     :param week: 当前周数。
     """
-    hajime_regular_from_stage(detect_produce_scene(), 'pro', week)
+    hajime_from_stage(detect_produce_scene(), 'pro', week)
 
 if __name__ == '__main__':
     from logging import getLogger
@@ -1146,7 +1131,7 @@ if __name__ == '__main__':
     # hajime_pro(start_from=16)
     # exam('mid')
     stage = (detect_produce_scene())
-    hajime_regular_from_stage(stage, 'pro', 0)
+    hajime_from_stage(stage, 'pro', 0)
 
     # click_recommended_card(card_count=skill_card_count())
     # exam('mid')
