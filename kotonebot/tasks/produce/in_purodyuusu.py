@@ -18,7 +18,7 @@ from ..common import ProduceAction, RecommendCardDetectionMode, conf
 from kotonebot.errors import UnrecoverableError
 from kotonebot.backend.context.context import use_screenshot
 from ..produce.common import until_acquisition_clear, commut_event, fast_acquisitions
-from kotonebot.util import Countdown, Interval, crop, cropped
+from kotonebot.util import Countdown, Interval, crop, cropped, Stopwatch
 from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
 from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect, wait
 from ..produce.non_lesson_actions import (
@@ -34,6 +34,28 @@ class SkillCard(NamedTuple):
 
 logger = logging.getLogger(__name__)
 ActionType = None | Literal['lesson', 'rest']
+CARD_POSITIONS_1 = [
+    # 格式：(x, y, w, h, return_value)
+    (264, 883, 192, 252, 0)
+]
+CARD_POSITIONS_2 = [
+    (156, 883, 192, 252, 0),
+    (372, 883, 192, 252, 1),
+    # delta_x = 216, delta_x-width = 24
+]
+CARD_POSITIONS_3 = [
+    (47, 883, 192, 252, 0),  # 左卡片 (x, y, w, h)
+    (264, 883, 192, 252, 1),  # 中卡片
+    (481, 883, 192, 252, 2)  # 右卡片
+    # delta_x = 217, delta_x-width = 25
+]
+CARD_POSITIONS_4 = [
+    (17, 883, 192, 252, 0),
+    (182, 883, 192, 252, 1),
+    (346, 883, 192, 252, 2),
+    (511, 883, 192, 252, 3),
+    # delta_x = 165, delta_x-width = -27
+]
 
 @action('执行 SP 课程')
 def handle_sp_lesson():
@@ -165,28 +187,6 @@ def detect_recommended_card(
     """
     YELLOW_LOWER = np.array([20, 100, 100])
     YELLOW_UPPER = np.array([30, 255, 255])
-    CARD_POSITIONS_1 = [
-        # 格式：(x, y, w, h, return_value)
-        (264, 883, 192, 252, 0)
-    ]
-    CARD_POSITIONS_2 = [
-        (156, 883, 192, 252, 0),
-        (372, 883, 192, 252, 1),
-        # delta_x = 216, delta_x-width = 24
-    ]
-    CARD_POSITIONS_3 = [
-        (47, 883, 192, 252, 0),  # 左卡片 (x, y, w, h)
-        (264, 883, 192, 252, 1),  # 中卡片
-        (481, 883, 192, 252, 2)   # 右卡片
-        # delta_x = 217, delta_x-width = 25
-    ]
-    CARD_POSITIONS_4 = [
-        (17, 883, 192, 252, 0),
-        (182, 883, 192, 252, 1),
-        (346, 883, 192, 252, 2),
-        (511, 883, 192, 252, 3),
-        # delta_x = 165, delta_x-width = -27
-    ]
     SKIP_POSITION = (621, 739, 85, 85, 10)
     GLOW_EXTENSION = 15
 
@@ -416,6 +416,96 @@ def until_exam_scene():
     while ocr.find(regex("合格条件|三位以上")) is None and not is_exam_scene():
         until_acquisition_clear()
 
+@action('打牌', screenshot_mode='manual')
+def do_cards(
+        threshold_predicate: Callable[[CardDetectResult], bool],
+        end_predicate: Callable[[], bool]
+    ):
+    """
+    循环打出推荐卡，直到考试/练习结束
+
+    前置条件：考试/练习页面\n
+    结束状态：考试/练习结束的一瞬间
+
+    :param threshold_predicate: 推荐卡检测阈值判断函数
+    :param end_predicate: 结束条件判断函数
+    """
+    it = Interval(seconds=1/30)
+    timeout_cd = Countdown(sec=120).start() # 推荐卡检测超时计时器
+    break_cd = Countdown(sec=3).start() # 满足结束条件计时器
+    no_card_cd = Countdown(sec=4) # 无手牌计时器
+    detect_card_count_cd = Countdown(sec=4).start() # 刷新检测手牌数量间隔
+    tries = 1
+    card_count = -1
+
+    while True:
+        device.click(0, 0)
+        img = device.screenshot()
+        it.wait()
+
+        if image.find(R.Common.ButtonIconCheckMark):
+            logger.info("Confirmation dialog detected")
+            device.click()
+            sleep(4)  # 等待卡片刷新
+            continue
+
+        # 更新卡片数量
+        if card_count == -1 or detect_card_count_cd.expired():
+            detect_card_count_cd.reset()
+            card_count = skill_card_count(img)
+            logger.debug("Current card count: %d", card_count)
+        # 处理手牌
+        if card_count == 0:
+            # 处理本回合已无剩余手牌的情况
+            # TODO: 使用模板匹配而不是 OCR，提升速度
+            no_card_cd.start()
+            no_remaining_card = ocr.find(contains("0枚"), rect=R.InPurodyuusu.BoxNoSkillCard)
+            if no_remaining_card and no_card_cd.expired():
+                logger.debug('No remaining card detected. Skip this turn.')
+                # TODO: HARD CODEDED
+                SKIP_POSITION = (621, 739, 85, 85)
+                device.click(SKIP_POSITION)
+                no_card_cd.reset()
+                continue
+        else:
+            if handle_recommended_card(
+                card_count=card_count,
+                threshold_predicate=threshold_predicate,
+                img=img
+            ):
+                logger.info("Handle recommended card success with %d tries", tries)
+                sleep(4.5)
+                tries = 0
+                timeout_cd.reset()
+                continue
+            else:
+                tries += 1
+        # 检测超时（防止一直卡在检测）
+        if timeout_cd.expired():
+            logger.info("Recommend card detection timed out. Click first card.")
+            if card_count == 1:
+                card_rect = CARD_POSITIONS_1[0]
+            elif card_count == 2:
+                card_rect = CARD_POSITIONS_2[0]
+            elif card_count == 3:
+                card_rect = CARD_POSITIONS_3[0]
+            elif card_count == 4:
+                card_rect = CARD_POSITIONS_4[0]
+            else:
+                raise ValueError("Invalid card count: %d" % card_count)
+            device.double_click(card_rect[:4])
+            timeout_cd.reset()
+        # 结束条件
+        if card_count == 0 and end_predicate():
+            if not break_cd.started:
+                break_cd.start()
+            if break_cd.expired():
+                break
+        else:
+            break_cd.reset()
+
+    logger.info("CLEAR/PERFECT not found. Practice finished.")
+
 @action('执行练习', screenshot_mode='manual')
 def practice():
     """
@@ -440,87 +530,13 @@ def practice():
         # 严格模式下区别：
         # 提高平均阈值，且同时要求至少有 3 边达到阈值。
 
-    # 循环打出推荐卡，直到练习结束
-    wait = cycle([0.1, 0.3, 0.5]) # 见下方解释
-    tries = 1
-    break_cd = Countdown(sec=3)
-    no_card_cd = Countdown(sec=4)
-    while True:
-        start_time = time.time()
-        device.click(0, 0)
-        img = device.screenshot()
-        if image.find(R.Common.ButtonIconCheckMark):
-            logger.info("Confirmation dialog detected")
-            device.click()
-            sleep(4) # 等待卡片刷新
-            continue
+    def end_predicate():
+        return not image.find_multi([
+            R.InPurodyuusu.TextClearUntil,
+            R.InPurodyuusu.TextPerfectUntil
+        ])
 
-        card_count = skill_card_count(img)
-        if card_count == 0:
-            # 处理本回合已无剩余手牌的情况
-            # TODO: 使用模板匹配而不是 OCR，提升速度
-            no_remaining_card = ocr.find(contains("0枚"), rect=R.InPurodyuusu.BoxNoSkillCard)
-            if no_remaining_card:
-                # TODO: HARD CODEDED
-                SKIP_POSITION = (621, 739, 85, 85)
-                device.click(SKIP_POSITION)
-                no_card_cd.reset()
-                continue
-        if card_count > 0:
-            inner_tries = 0
-            # 为什么要内层循环：
-            # 在 adb 截图模式下，如果把 skill_card_count 和 handle_recommended_card 
-            # 放在同一循环中执行，循环一次大约需要 1.4~1.6s，
-            # 游戏中推荐卡的发光周期约为 1s，也就是循环一次大约是 1.5 个发光周期。
-            #
-            # 假设发光强度符合规律 y=|sin t|（t=时间），
-            # 如果第一次循环恰巧处于发光强度较弱时，
-            # 那么经过 1.5T 后，依旧是处于发光强度较弱时，
-            # 这样会导致每次循环都正好是在发光强度较弱时检测，
-            # 每次都无法达到检测阈值。
-            # 
-            # 因此：
-            # 1. 每次循环都等待随机时间
-            # 2. 将 handle_recommended_card 单独放到内循环中执行，
-            #    提高检测速度
-            while True:
-                result = handle_recommended_card(
-                    card_count=card_count,
-                    threshold_predicate=threshold_predicate,
-                    img=img
-                )
-                if result:
-                    break
-                img = device.screenshot()
-                inner_tries += 1
-                if inner_tries >= 5:
-                    break
-            if result:
-                logger.info("Handle recommended card success with %d tries", tries)
-                sleep(4.5)
-                tries = 0
-            else:
-                tries += 1
-                end_time = time.time()
-                logger.debug("Handle recommended card time: %.2f", end_time - start_time)
-                delay = next(wait)
-                logger.info("Tries: %d, Delay: %.2f", tries, delay)
-                sleep(delay)
-        
-        if (
-            card_count == 0
-            and not image.find_multi([
-                R.InPurodyuusu.TextClearUntil,
-                R.InPurodyuusu.TextPerfectUntil
-            ])
-        ):
-            if not break_cd.started:
-                break_cd.start()
-            if break_cd.expired():
-                break
-        else:
-            break_cd.reset()
-
+    do_cards(threshold_predicate, end_predicate)
     logger.info("CLEAR/PERFECT not found. Practice finished.")
 
 @action('执行考试')
@@ -580,66 +596,14 @@ def exam(type: Literal['mid', 'final']):
         # 很容易干扰检测，因此需要针对琴音专门调整阈值。
         # 主要变化是给每一边都设置了阈值。
 
-    wait = cycle([0.1, 0.3, 0.5])
-    tries = 1
-    no_card_cd = Countdown(sec=4)
-    while True:
-        start_time = time.time()
-        device.click(0, 0)
-        img = device.screenshot()
-        if image.find(R.Common.ButtonIconCheckMark):
-            logger.info("Confirmation dialog detected")
-            device.click()
-            sleep(4) # 等待卡片刷新
-            continue
-
-        card_count = skill_card_count(img)
-        if card_count == 0:
-            # 处理本回合已无剩余手牌的情况
-            # TODO: 使用模板匹配而不是 OCR，提升速度
-            no_remaining_card = ocr.find(contains("0枚"), rect=R.InPurodyuusu.BoxNoSkillCard)
-            if no_remaining_card:
-                # TODO: HARD CODEDED
-                SKIP_POSITION = (621, 739, 85, 85)
-                device.click(SKIP_POSITION)
-                no_card_cd.reset()
-                continue
-    
-        if card_count > 0:
-            inner_tries = 0
-            while True:
-                result = handle_recommended_card(
-                    card_count=card_count,
-                    threshold_predicate=threshold_predicate,
-                    img=img
-                )
-                if result:
-                    break
-                img = device.screenshot()
-                inner_tries += 1
-                if inner_tries >= 5:
-                    break
-            if result:
-                logger.info("Handle recommended card success with %d tries", tries)
-                sleep(4.5)
-                tries = 0
-            else:
-                tries += 1
-                end_time = time.time()
-                logger.debug("Handle recommended card time: %.2f", end_time - start_time)
-                delay = next(wait)
-                logger.info("Tries: %d, Delay: %.2f", tries, delay)
-                sleep(delay)
-        # 考试结束
-        elif (
-            card_count == 0
-            and not ocr.find(contains('残りターン'), rect=R.InPurodyuusu.BoxExamTop)
+    def end_predicate():
+        return bool(
+            not ocr.find(contains('残りターン'), rect=R.InPurodyuusu.BoxExamTop)
             and image.find(R.Common.ButtonNext)
-        ):
-            # 点击“次へ”
-            device.click()
-            break
+        )
 
+    do_cards(threshold_predicate, end_predicate)
+    device.click(image.expect_wait(R.Common.ButtonNext))
     if type == 'final':
         while ocr.wait_for(contains("メモリー"), timeout=7):
             device.click_center()
