@@ -13,7 +13,7 @@ from kotonebot import (
     Interval,
 )
 from kotonebot.tasks.game_ui import WhiteFilter, CommuEventButtonUI
-from .pdorinku import acquire_pdorinku
+from .p_drink import acquire_p_drink
 from kotonebot.tasks.actions.commu import handle_unread_commu
 from kotonebot.util import measure_time
 
@@ -37,16 +37,6 @@ def acquire_skill_card():
     sleep(0.2)
     logger.debug("Click acquire button")
     device.click(image.expect_wait(R.InPurodyuusu.AcquireBtnDisabled))
-    # acquisitions(['PSkillCardSelect']) 优先做这个
-    # device.screenshot()
-    # (SimpleDispatcher('acquire_skill_card')
-    #     .click(contains("受け取る"), finish=True,  log="Skill card #1 acquired")
-    #     # .click_any([
-    #     #     R.InPurodyuusu.PSkillCardIconBlue,
-    #     #     R.InPurodyuusu.PSkillCardIconColorful
-    #     # ], finish=True, log="Skill card #1 acquired")
-    # ).run()
-    # # logger.info("Skill card #1 acquired")
 
 @action('选择P物品', screenshot_mode='auto')
 def select_p_item():
@@ -147,11 +137,8 @@ AcquisitionType = Literal[
 @measure_time()
 @action('处理培育事件', screenshot_mode='manual')
 def fast_acquisitions() -> AcquisitionType | None:
-    """处理行动开始前和结束后可能需要处理的事件，直到到行动页面为止"""
+    """处理行动开始前和结束后可能需要处理的事件"""
     img = device.screenshot()
-
-    screen_size = device.screen_size
-    bottom_pos = (int(screen_size[0] * 0.5), int(screen_size[1] * 0.7)) # 底部中间
     logger.info("Acquisition stuffs...")
 
     # 跳过未读交流
@@ -184,6 +171,8 @@ def fast_acquisitions() -> AcquisitionType | None:
                 logger.info("Leave button found")
                 device.click(leave)
                 return "PDrinkMax"
+    # P饮料到达上限 确认提示框
+    # [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_pdrink_max_confirm.png]
     if image.find(R.InPurodyuusu.TextPDrinkMaxConfirmTitle):
         logger.debug("PDrink max confirm found")
         device.screenshot()
@@ -227,7 +216,7 @@ def fast_acquisitions() -> AcquisitionType | None:
         logger.debug("Check PDrink select...")
         if image.find(R.InPurodyuusu.TextPDrink):
             logger.info("PDrink select found")
-            acquire_pdorinku(index=0)
+            acquire_p_drink()
             return "PDrinkSelect"
         # 技能卡选择
         logger.debug("Check skill card select...")
