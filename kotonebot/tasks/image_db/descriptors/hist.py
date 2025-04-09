@@ -33,7 +33,8 @@ class HistDescriptor:
         return features
 
 if __name__ == '__main__':
+    from kotonebot.backend.core import cv2_imread
     d = HistDescriptor(8)
-    img = cv2.imread(r'E:\GithubRepos\KotonesAutoAssistant.worktrees\dev\kotonebot\tasks\resources\idol_cards\i_card-amao-2-000_1.png')
+    img = cv2_imread(r'E:\GithubRepos\KotonesAutoAssistant.worktrees\dev\kotonebot\tasks\resources\idol_cards\i_card-amao-2-000_1.png')
     print(d(img))
     cv2.waitKey(0)

@@ -9,6 +9,7 @@ import numpy as np
 from cv2.typing import MatLike
 
 from .descriptors import HistDescriptor
+from kotonebot.backend.core import cv2_imread
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class FileDataSource(DataSource):
         for file in os.listdir(self.path):
             if not self.keep_ext:
                 file = os.path.splitext(file)[0]
-            yield file, cv2.imread(os.path.join(self.path, file))
+            yield file, cv2_imread(os.path.join(self.path, file))
 
 class DatabaseQueryResult(NamedTuple):
     key: str
@@ -117,7 +118,7 @@ class ImageDatabase:
         :param overwrite: 是否覆盖已存在的记录。
         """
         if isinstance(image, str):
-            image = cv2.imread(image)
+            image = cv2_imread(image)
         if overwrite or key not in self.db.data:
             self.db.insert(key, self.descriptor(image))
             logger.debug('Inserted image: %s', key)
@@ -173,6 +174,6 @@ if __name__ == '__main__':
     db = ImageDatabase(FileDataSource(imgs_path), r'D:\idols.pkl', HistDescriptor(8), name='idols')
     # if db.db.count() == 0:
     #     db.insert({file: os.path.join(imgs_path, file) for file in os.listdir(imgs_path)})
-    needle = cv2.imread(needle_path)
+    needle = cv2_imread(needle_path)
     result = db.match(needle)
     print(result)
