@@ -52,7 +52,7 @@ def wait_for_home():
             pass
 
         if should_click and click_cd.expired():
-            device.click_center()
+            device.click(0, 0)
             click_cd.reset()
         it.wait()
 
