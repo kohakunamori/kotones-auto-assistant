@@ -140,17 +140,17 @@ def fast_acquisitions() -> AcquisitionType | None:
     """处理行动开始前和结束后可能需要处理的事件"""
     img = device.screenshot()
     logger.info("Acquisition stuffs...")
+    
+    # 加载画面
+    if loading():
+        logger.info("Loading...")
+        return "Loading"
+    device.click(0, 0)
 
     # 跳过未读交流
     logger.debug("Check skip commu...")
     if handle_unread_commu(img):
         return "SkipCommu"
-    device.click(0, 0)
-
-    # 加载画面
-    if loading():
-        logger.info("Loading...")
-        return "Loading"
     device.click(0, 0)
 
     # P饮料到达上限
@@ -204,8 +204,6 @@ def fast_acquisitions() -> AcquisitionType | None:
         device.click(btn_retry)
         return "NetworkError"
     device.click(0, 0)
-
-    # === 需要 OCR 的放在最后执行 ===
 
     # 物品选择对话框
     logger.debug("Check award select dialog...")
