@@ -10,6 +10,7 @@ from kotonebot.backend.dispatch import SimpleDispatcher
 
 from .. import R
 from ..common import conf
+from ..game_ui import dialog
 from ..actions.scenes import at_home, goto_home
 from ..game_ui.idols_overview import locate_idol
 from ..produce.in_purodyuusu import hajime_pro, hajime_regular, resume_pro_produce, resume_regular_produce
@@ -218,7 +219,16 @@ def do_produce(
             return False
     # 1. 选择 PIdol [screenshots/produce/select_p_idol.png]
     select_idol(idol_skin_id)
-    device.click(image.expect_wait(R.Common.ButtonNextNoIcon))
+    it = Interval()
+    while True:
+        it.wait()
+        device.screenshot()
+        if image.find(R.Produce.TextAnotherIdolAvailableDialog):
+            dialog.no()
+        elif image.find(R.Common.ButtonNextNoIcon):
+            device.click()
+        elif ocr.find(contains('サポート'), rect=R.Produce.BoxStepIndicator):
+            break
     # 2. 选择支援卡 自动编成 [screenshots/produce/select_support_card.png]
     ocr.expect_wait(contains('サポート'), rect=R.Produce.BoxStepIndicator)
     it = Interval()
