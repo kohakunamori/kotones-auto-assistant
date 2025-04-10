@@ -2,6 +2,7 @@ import logging
 
 from .. import R
 from kotonebot.util import Interval
+from kotonebot.tasks.game_ui import dialog
 from kotonebot.tasks.game_ui import toolbar_home
 from kotonebot import device, image, action, until, sleep
 
@@ -58,7 +59,7 @@ def goto_home():
         logger.debug(f"Trying to go home...")
         it.wait()
 
-@action('前往商店页面')
+@action('前往商店页面', screenshot_mode='manual-inherit')
 def goto_shop():
     """
     从首页进入 ショップ。
@@ -69,9 +70,17 @@ def goto_shop():
     logger.info("Going to shop.")
     if not at_home():
         goto_home()
-    device.click(image.expect(R.Daily.ButtonShop))
-    until(at_daily_shop, critical=True)
-
+    it = Interval()
+    while True:
+        it.wait()
+        device.screenshot()
+        if at_daily_shop():
+            break
+        elif image.find(R.Daily.ButtonShop):
+            device.click()
+        # 可以设置默认购买数量为 MAX 的提示框
+        elif image.find(R.Daily.TextDefaultExchangeCountChangeDialog):
+            dialog.yes()
 if __name__ == "__main__":
     goto_home()
 
