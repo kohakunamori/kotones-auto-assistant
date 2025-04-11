@@ -1,7 +1,6 @@
 import os
 import zipfile
 import logging
-import importlib.metadata
 from functools import partial
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Literal, Generator
@@ -9,8 +8,8 @@ from typing import List, Dict, Tuple, Literal, Generator
 import cv2
 import gradio as gr
 
+from kotonebot.tasks.main import Kaa
 from kotonebot.tasks.db import IdolCard
-from kotonebot.backend.bot import KotoneBot
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.context import task_registry, ContextStackVars
@@ -19,32 +18,12 @@ from kotonebot.tasks.common import (
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, DailyMoneyShopItems, ProduceAction,
     RecommendCardDetectionMode, TraceConfig, StartGameConfig, UpgradeSupportCardConfig,
-    upgrade_config
 )
-
-# 初始化日志
-os.makedirs('logs', exist_ok=True)
-log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
-log_filename = datetime.now().strftime('logs/%y-%m-%d-%H-%M-%S.log')
-
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(log_formatter)
-file_handler = logging.FileHandler(log_filename, encoding='utf-8')
-file_handler.setFormatter(log_formatter)
-
-root_logger = logging.getLogger()
-root_logger.setLevel(logging.INFO)
-root_logger.addHandler(console_handler)
-root_logger.addHandler(file_handler)
-
-logging.getLogger("kotonebot").setLevel(logging.DEBUG)
-
-# 升级配置
-upgrade_msg = upgrade_config()
 
 logger = logging.getLogger(__name__)
 
 def _save_bug_report(
+    version: str,
     path: str | None = None
 ) -> Generator[str, None, str]:
     """
@@ -109,7 +88,7 @@ def _save_bug_report(
         zipf.writestr('version.txt', version)
     
     # 上传报告
-    from .file_host.sensio import upload
+    from kotonebot.ui.file_host.sensio import upload
     yield "### 上传报告..."
     url = ''
     try:
@@ -129,19 +108,17 @@ def _save_bug_report(
     yield final_msg
     return path
 
-version = importlib.metadata.version('ksaa')
 class KotoneBotUI:
-    def __init__(self) -> None:
+    def __init__(self, kaa: Kaa) -> None:
         self.is_running: bool = False
-        self.kaa: KotoneBot = KotoneBot(module='kotonebot.tasks', config_type=BaseConfig)
+        self._kaa = kaa
         self._load_config()
         self._setup_kaa()
         
     def _setup_kaa(self) -> None:
         from kotonebot.backend.debug.vars import debug, clear_saved
-        logger.info('Version: %s', version)
 
-        self.kaa.initialize()
+        self._kaa.initialize()
         if self.current_config.keep_screenshots:
             debug.auto_save_to_folder = 'dumps'
             debug.enabled = True
@@ -218,12 +195,12 @@ class KotoneBotUI:
     
     def start_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = True
-        self.run_status = self.kaa.start_all()
+        self.run_status = self._kaa.start_all()
         return "停止", self.update_task_status()
 
     def stop_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = False
-        if self.kaa:
+        if self._kaa:
             self.run_status.interrupt()
         return "启动", self.update_task_status()
 
@@ -389,9 +366,9 @@ class KotoneBotUI:
             
             with gr.Row():
                 run_btn = gr.Button("启动", scale=1)
-            if upgrade_msg:
+            if self._kaa.upgrade_msg:
                 gr.Markdown('### 配置升级报告')
-                gr.Markdown(upgrade_msg)
+                gr.Markdown(self._kaa.upgrade_msg)
             gr.Markdown('脚本报错或者卡住？点击"日志"选项卡中的"一键导出报告"可以快速反馈！')
             
             task_status = gr.Dataframe(
@@ -450,7 +427,7 @@ class KotoneBotUI:
                     gr.Warning(f"任务 {task_name} 未找到")
                     return ""
                 gr.Info(f"任务 {task_name} 开始执行。执行结束前，请勿重复点击执行。")
-                self.kaa.run([task])
+                self._kaa.run([task])
                 gr.Success(f"任务 {task_name} 执行完毕")
                 return ""
             
@@ -1005,7 +982,7 @@ class KotoneBotUI:
                 outputs=[result_text]
             )
             save_report_btn.click(
-                fn=partial(_save_bug_report),
+                fn=partial(_save_bug_report, version=self._kaa.version),
                 outputs=[result_text]
             )
 
@@ -1057,7 +1034,7 @@ class KotoneBotUI:
     def create_ui(self) -> gr.Blocks:
         with gr.Blocks(title="琴音小助手", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
             with gr.Column(elem_id="container"):
-                gr.Markdown(f"# 琴音小助手 v{version}")
+                gr.Markdown(f"# 琴音小助手 v{self._kaa.version}")
                 
                 with gr.Tabs():
                     self._create_status_tab()
@@ -1069,8 +1046,9 @@ class KotoneBotUI:
             
         return app
 
-def main() -> None:
-    ui = KotoneBotUI()
+def main(kaa: Kaa | None = None) -> None:
+    kaa = kaa or Kaa()
+    ui = KotoneBotUI(kaa)
     app = ui.create_ui()
     app.launch(inbrowser=True, show_error=True)
 
