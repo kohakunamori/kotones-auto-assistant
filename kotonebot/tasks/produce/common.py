@@ -79,11 +79,8 @@ def hanlde_skill_card_enhance():
     while True:
         device.screenshot()
         if image.find(R.InPurodyuusu.ButtonEnhance, colored=True):
-            device.click()
             logger.debug("Enhance button found")
-        elif image.find(R.InPurodyuusu.IconSkillCardEventBubble):
-            device.click_center()
-            logger.debug("Skill card event bubble found")
+            device.click()
             break
         it.wait()
     logger.debug("Handle skill card enhance finished.")
@@ -109,9 +106,6 @@ def handle_skill_card_removal():
         if image.find(R.InPurodyuusu.ButtonRemove):
             device.click()
             logger.debug("Remove button clicked.")
-        elif image.find(R.InPurodyuusu.IconSkillCardEventBubble):
-            device.click_center()
-            logger.debug("Skill card event bubble found")
             break
         it.wait()
     logger.debug("Handle skill card removal finished.")
