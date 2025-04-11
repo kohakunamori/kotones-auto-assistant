@@ -287,31 +287,18 @@ def do_produce(
     return True
 
 @task('培育')
-def produce_task(
-    mode: Optional[Literal['regular', 'pro']] = None,
-    count: Optional[int] = None,
-    idols: Optional[list[str]] = None,
-    memory_sets: Optional[list[int]] = None
-):
+def produce():
     """
     培育任务
-
-    :param mode: 培育模式。若为 None，则从配置文件中读入。
-    :param count: 培育次数。若为 None，则从配置文件中读入。
-    :param idols: 要培育的偶像的 IdolCardSkin.id。若为 None，则从配置文件中读入。
     """
     if not conf().produce.enabled:
         logger.info('Produce is disabled.')
         return
     import time
-    if count is None:
-        count = conf().produce.produce_count
-    if idols is None:
-        idols = conf().produce.idols
-    if memory_sets is None:
-        memory_sets = conf().produce.memory_sets
-    if mode is None:
-        mode = conf().produce.mode
+    count = conf().produce.produce_count
+    idols = conf().produce.idols
+    memory_sets = conf().produce.memory_sets
+    mode = conf().produce.mode
     # 数据验证
     if count < 0:
         user.warning('配置有误', '培育次数不能小于 0。将跳过本次培育。')
