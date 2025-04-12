@@ -13,11 +13,10 @@ logger = logging.getLogger(__name__)
 def upgrade_support_card():
     """
     升级一张支援卡，优先升级低等级支援卡
-
-    自动化思路是这样的：
-    进入支援卡页面后，一直往下滑，滑倒底部（低等级支援卡区域）；
-    然后点击左上角第一张支援卡，将左上角第一张支援卡提升一级。
     """
+    # 自动化思路是这样的：
+    # 进入支援卡页面后，一直往下滑，滑倒底部（低等级支援卡区域）；
+    # 然后点击左上角第一张支援卡，将左上角第一张支援卡提升一级。
 
     if not conf().upgrade_support_card.enabled:
         logger.info('"Upgrade support card" is disabled.')

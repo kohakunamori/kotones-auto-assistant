@@ -218,6 +218,30 @@ class Countdown:
     def reset(self):
         self.start_time = time.time()
 
+class Stopwatch:
+    def __init__(self):
+        self.start_time: float | None = None
+        self.seconds: float = 0
+
+    def start(self):
+        if self.start_time is not None:
+            logger.warning('Stopwatch already started.')
+        else:
+            self.start_time = time.time()
+        return self
+
+    def stop(self):
+        if self.start_time is None:
+            logger.warning('Stopwatch not started.')
+        else:
+            self.seconds = time.time() - self.start_time
+            self.start_time = None
+        return self
+        
+    @property
+    def milliseconds(self) -> int:
+        return int(self.seconds * 1000)
+
 class Interval:
     def __init__(self, seconds: float = 0.3):
         self.seconds = seconds

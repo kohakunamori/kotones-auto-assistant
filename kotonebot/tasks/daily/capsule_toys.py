@@ -71,16 +71,16 @@ def get_capsule_toys_draw_buttons():
 def capsule_toys():
     """
     扭蛋机，支持任意次数的任意扭蛋类型
-
-    自动化思路：\n
-    进入扭蛋机页面后，可以发现扭蛋机总共有4种类型。\n
-    通过硬编码的滑动翻页，把每两种扭蛋分为同一页。
-    第一页：好友扭蛋+感性扭蛋；
-    第二页：逻辑扭蛋+非凡扭蛋。\n
-    划到某一页之后，识别截图中所有“抽扭蛋”按钮，再按照y轴排序，即可以实现选择扭蛋类型。
     """
-    #[screenshots/shop/capsule_toys_upper.png]
-    #[screenshots/shop/capsule_toys_lower.png]
+    # 自动化思路：
+    # 进入扭蛋机页面后，可以发现扭蛋机总共有4种类型。
+    # 通过硬编码的滑动翻页，把每两种扭蛋分为同一页。
+    # 第一页：好友扭蛋+感性扭蛋；
+    # 第二页：逻辑扭蛋+非凡扭蛋。
+    # 划到某一页之后，识别截图中所有“抽扭蛋”按钮，再按照y轴排序，即可以实现选择扭蛋类型。
+    
+    # [screenshots/shop/capsule_toys_upper.png]
+    # [screenshots/shop/capsule_toys_lower.png]
 
     if not conf().capsule_toys.enabled:
         logger.info('"Capsule Toys" is disabled.')

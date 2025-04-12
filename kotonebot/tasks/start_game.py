@@ -36,8 +36,8 @@ def wait_for_home():
             pass
         # 热更新
         # [screenshots/startup/update.png]
-        elif image.find(R.Common.TextGameUpdate):
-            device.click(image.expect(R.Common.ButtonConfirm))
+        elif image.find(R.Common.TextGameUpdate) and image.find(R.Common.ButtonConfirm):
+            device.click()
         # 本体更新
         # [kotonebot-resource/sprites/jp/daily/screenshot_apk_update.png]
         elif ocr.find('アップデート', rect=R.Daily.BoxApkUpdateDialogTitle):
@@ -52,7 +52,7 @@ def wait_for_home():
             pass
 
         if should_click and click_cd.expired():
-            device.click_center()
+            device.click(0, 0)
             click_cd.reset()
         it.wait()
 
