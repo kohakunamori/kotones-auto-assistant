@@ -32,8 +32,9 @@ def acquire_p_drink():
         logger.debug(f"PDrink clicked: {POSTIONS[0]}")
         sleep(0.3)
         # 确定按钮
-        device.click(image.expect_wait(R.InPurodyuusu.AcquireBtnDisabled))
-        logger.debug("受け取る clicked")
+        if image.find(R.InPurodyuusu.AcquireBtnDisabled):
+            device.click()
+            logger.debug("受け取る clicked")
 
 
 if __name__ == '__main__':
