@@ -139,13 +139,13 @@ def fast_acquisitions() -> AcquisitionType | None:
     if loading():
         logger.info("Loading...")
         return "Loading"
-    device.click(0, 0)
+    device.click(10, 10)
 
     # 跳过未读交流
     logger.debug("Check skip commu...")
     if handle_unread_commu(img):
         return "SkipCommu"
-    device.click(0, 0)
+    device.click(10, 10)
 
     # P饮料到达上限
     logger.debug("Check PDrink max...")
@@ -175,19 +175,19 @@ def fast_acquisitions() -> AcquisitionType | None:
                 logger.info("Confirm button found")
                 device.click(confirm)
                 return "PDrinkMax"
-    device.click(0, 0)
+    device.click(10, 10)
 
     # 技能卡自选强化
     if image.find(R.InPurodyuusu.IconTitleSkillCardEnhance):
         if hanlde_skill_card_enhance():
             return "PSkillCardEnhanceSelect"
-    device.click(0, 0)
+    device.click(10, 10)
 
     # 技能卡自选删除
     if image.find(R.InPurodyuusu.IconTitleSkillCardRemoval):
         if handle_skill_card_removal():
             return "PSkillCardRemoveSelect"
-    device.click(0, 0)
+    device.click(10, 10)
 
     # 网络中断弹窗
     logger.debug("Check network error popup...")
@@ -197,7 +197,7 @@ def fast_acquisitions() -> AcquisitionType | None:
         logger.info("Network error popup found")
         device.click(btn_retry)
         return "NetworkError"
-    device.click(0, 0)
+    device.click(10, 10)
 
     # 物品选择对话框
     logger.debug("Check award select dialog...")
@@ -222,7 +222,7 @@ def fast_acquisitions() -> AcquisitionType | None:
             logger.info("Acquire PItem found")
             select_p_item()
             return "PItemSelect"
-    device.click(0, 0)
+    device.click(10, 10)
 
     return None
 
