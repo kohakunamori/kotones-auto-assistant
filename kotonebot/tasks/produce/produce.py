@@ -143,14 +143,26 @@ def resume_produce():
     else:
         mode = 'pro'
     logger.info(f'Produce mode: {mode}')
-    week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks).squash().regex(r'\d+/\d+')
-    if not week_text:
-        raise ValueError('Failed to detect weeks(1).')
-    weeks = week_text[0].split('/')
-    if len(weeks) < 2:
-        raise ValueError('Failed to detect weeks(2).')
-    current_week = int(weeks[0])
-    logger.info(f'Current week: {weeks[0]}/{weeks[1]}')
+    retry_count = 0
+    max_retries = 5
+    current_week = None
+    while retry_count < max_retries:
+        week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks).squash().regex(r'\d+/\d+')
+        if week_text:
+            weeks = week_text[0].split('/')
+            logger.info(f'Current week: {weeks[0]}/{weeks[1]}')
+            if len(weeks) >= 2:
+                current_week = int(weeks[0])
+                break
+        retry_count += 1
+        logger.warning(f'Failed to detect weeks. Retrying... ({retry_count}/{max_retries})')
+        sleep(0.5)
+        device.screenshot()
+    
+    if retry_count >= max_retries:
+        raise ValueError('Failed to detect weeks after multiple retries.')
+    if current_week is None:
+        raise ValueError('Failed to detect current_week.')
     # 点击 再開する
     # [kotonebot-resource/sprites/jp/produce/produce_resume.png]
     logger.info('Click resume button.')
@@ -345,11 +357,11 @@ if __name__ == '__main__':
     conf().produce.enabled = True
     conf().produce.mode = 'pro'
     conf().produce.produce_count = 1
-    conf().produce.idols = ['i_card-skin-hski-3-002']
-    conf().produce.memory_sets = [5]
+    # conf().produce.idols = ['i_card-skin-hski-3-002']
+    conf().produce.memory_sets = [1]
     conf().produce.auto_set_memory = False
     # do_produce(PIdol.月村手毬_初声, 'pro', 5)
-    produce_task()
+    produce()
     # a()
     # select_idol()
     # select_set(10)
