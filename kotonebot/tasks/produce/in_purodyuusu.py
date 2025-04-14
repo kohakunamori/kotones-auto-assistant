@@ -12,7 +12,7 @@ from .. import R
 from ..actions import loading
 from ..actions.scenes import at_home
 from ..util.trace import trace
-from ..game_ui import WhiteFilter
+from ..game_ui import WhiteFilter, dialog
 from ..actions.commu import handle_unread_commu
 from ..common import ProduceAction, RecommendCardDetectionMode, conf
 from kotonebot.errors import UnrecoverableError
@@ -416,6 +416,43 @@ def until_exam_scene():
     while ocr.find(regex("合格条件|三位以上")) is None and not is_exam_scene():
         until_acquisition_clear()
 
+
+@action("技能卡移动")
+def handle_skill_card_move():
+    """
+    前置条件：技能卡移动对话框\n
+    结束状态：对话框结束瞬间
+    """
+    cards = image.find_all_multi([
+        R.InPurodyuusu.A,
+        R.InPurodyuusu.M
+    ])
+    if not cards:
+        logger.info("No skill cards found")
+        return False
+
+    it = Interval()
+    cd = Countdown(sec=3)
+    while True:
+        device.screenshot()
+        # 判断对话框是否关闭
+        # 已关闭，开始计时
+        if not image.find(R.InPurodyuusu.IconTitleSkillCardMove):
+            cd.start()
+            if cd.expired():
+                logger.info("Skill card move dialog closed.")
+                break
+        # 没有，要继续选择并确定
+        else:
+            cd.reset()
+            card = cards.pop()
+            device.double_click(card)
+            sleep(1)
+            dialog.yes()
+
+        it.wait()
+    logger.debug("Handle skill card move finished.")
+
 @action('打牌', screenshot_mode='manual')
 def do_cards(
         threshold_predicate: Callable[[CardDetectResult], bool],
@@ -443,6 +480,12 @@ def do_cards(
         img = device.screenshot()
         it.wait()
 
+        # 技能卡自选移动对话框
+        if image.find(R.InPurodyuusu.IconTitleSkillCardMove):
+            if handle_skill_card_move():
+                sleep(4)  # 等待卡片刷新
+                continue
+        # 技能卡效果无法发动对话框
         if image.find(R.Common.ButtonIconCheckMark):
             logger.info("Confirmation dialog detected")
             device.click()
