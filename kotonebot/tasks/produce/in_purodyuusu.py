@@ -1,26 +1,19 @@
-import time
 import logging
-from typing_extensions import deprecated, assert_never
-from itertools import cycle
-from typing import Generic, Iterable, Literal, NamedTuple, Callable, Generator, TypeVar, ParamSpec, cast
-
-import cv2
-import numpy as np
-from cv2.typing import MatLike
+from typing_extensions import assert_never
+from typing import Literal, NamedTuple
 
 from .. import R
 from ..actions import loading
+from ..game_ui import WhiteFilter
 from ..actions.scenes import at_home
-from ..util.trace import trace
-from ..game_ui import WhiteFilter, dialog
+from .cards import do_cards, CardDetectResult
 from ..actions.commu import handle_unread_commu
-from ..common import ProduceAction, RecommendCardDetectionMode, conf
 from kotonebot.errors import UnrecoverableError
-from kotonebot.backend.context.context import use_screenshot
+from kotonebot.util import Countdown, Interval, cropped
+from kotonebot.backend.dispatch import DispatcherContext
+from ..common import ProduceAction, RecommendCardDetectionMode, conf
 from ..produce.common import until_acquisition_clear, commut_event, fast_acquisitions
-from kotonebot.util import Countdown, Interval, crop, cropped, Stopwatch
-from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher
-from kotonebot import ocr, device, contains, image, regex, action, sleep, color, Rect, wait
+from kotonebot import ocr, device, contains, image, regex, action, sleep, Rect, wait
 from ..produce.non_lesson_actions import (
     enter_allowance, allowance_available,
     study_available, enter_study,
@@ -28,34 +21,8 @@ from ..produce.non_lesson_actions import (
     outing_available, enter_outing
 )
 
-class SkillCard(NamedTuple):
-    available: bool
-    rect: Rect
-
 logger = logging.getLogger(__name__)
 ActionType = None | Literal['lesson', 'rest']
-CARD_POSITIONS_1 = [
-    # 格式：(x, y, w, h, return_value)
-    (264, 883, 192, 252, 0)
-]
-CARD_POSITIONS_2 = [
-    (156, 883, 192, 252, 0),
-    (372, 883, 192, 252, 1),
-    # delta_x = 216, delta_x-width = 24
-]
-CARD_POSITIONS_3 = [
-    (47, 883, 192, 252, 0),  # 左卡片 (x, y, w, h)
-    (264, 883, 192, 252, 1),  # 中卡片
-    (481, 883, 192, 252, 2)  # 右卡片
-    # delta_x = 217, delta_x-width = 25
-]
-CARD_POSITIONS_4 = [
-    (17, 883, 192, 252, 0),
-    (182, 883, 192, 252, 1),
-    (346, 883, 192, 252, 2),
-    (511, 883, 192, 252, 3),
-    # delta_x = 165, delta_x-width = -27
-]
 
 @action('执行 SP 课程')
 def handle_sp_lesson():
@@ -150,232 +117,6 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
         device.double_click(image.expect(template))
         return recommended
 
-class CardDetectResult(NamedTuple):
-    type: int
-    """
-    点击的卡片类型。
-
-    0=第一张卡片，1=第二张卡片，2=第三张卡片，3=第四张卡片，10=SKIP。
-    """
-    score: float
-    """总分数"""
-    left_score: float
-    """左边分数"""
-    right_score: float
-    """右边分数"""
-    top_score: float
-    """上边分数"""
-    bottom_score: float
-    """下边分数"""
-    rect: Rect
-
-def detect_recommended_card(
-        card_count: int,
-        threshold_predicate: Callable[[CardDetectResult], bool],
-        *,
-        img: MatLike | None = None,
-    ):
-    """
-    识别推荐卡片
-
-    前置条件：练习或考试中\n
-    结束状态：-
-
-    :param card_count: 卡片数量(2-4)
-    :param threshold_predicate: 阈值判断函数
-    :return: 执行结果。若返回 None，表示未识别到推荐卡片。
-    """
-    YELLOW_LOWER = np.array([20, 100, 100])
-    YELLOW_UPPER = np.array([30, 255, 255])
-    SKIP_POSITION = (621, 739, 85, 85, 10)
-    GLOW_EXTENSION = 15
-
-    if card_count == 4:
-        logger.info("4 cards detected. Currently not supported. Use 1st card.")
-        return CardDetectResult(
-            type=0,
-            score=1,
-            left_score=1,
-            right_score=1,
-            top_score=1,
-            bottom_score=1,
-            rect=(17, 883, 192, 252)
-        )
-    
-    if card_count == 5:
-        logger.info("5 cards detected. Currently not supported. Use 1st card.")
-        return CardDetectResult(
-            type=0,
-            score=1,
-            left_score=1,
-            right_score=1,
-            top_score=1,
-            bottom_score=1,
-            rect=R.InPurodyuusu.BoxLessonCards5_1
-        )
-
-    if card_count == 1:
-        cards = CARD_POSITIONS_1
-    elif card_count == 2:
-        cards = CARD_POSITIONS_2
-    elif card_count == 3:
-        cards = CARD_POSITIONS_3
-    elif card_count == 4:
-        cards = CARD_POSITIONS_4
-    else:
-        raise ValueError(f"Unsupported card count: {card_count}")
-    cards.append(SKIP_POSITION)
-
-    image = use_screenshot(img)
-    original_image = image.copy()
-    results: list[CardDetectResult] = []
-    for x, y, w, h, return_value in cards:
-        outer = (max(0, x - GLOW_EXTENSION), max(0, y - GLOW_EXTENSION))
-        # 裁剪出检测区域
-        glow_area = image[outer[1]:y + h + GLOW_EXTENSION, outer[0]:x + w + GLOW_EXTENSION]
-        area_h = glow_area.shape[0]
-        area_w = glow_area.shape[1]
-        glow_area[GLOW_EXTENSION:area_h-GLOW_EXTENSION, GLOW_EXTENSION:area_w-GLOW_EXTENSION] = 0
-
-        # 过滤出目标黄色
-        glow_area = cv2.cvtColor(glow_area, cv2.COLOR_BGR2HSV)
-        yellow_mask = cv2.inRange(glow_area, YELLOW_LOWER, YELLOW_UPPER)
-        
-        # 分割出每一边
-        left_border = yellow_mask[:, 0:GLOW_EXTENSION]
-        right_border = yellow_mask[:, area_w-GLOW_EXTENSION:area_w]
-        top_border = yellow_mask[0:GLOW_EXTENSION, :]
-        bottom_border = yellow_mask[area_h-GLOW_EXTENSION:area_h, :]
-        y_border_pixels = area_h * GLOW_EXTENSION
-        x_border_pixels = area_w * GLOW_EXTENSION
-
-        # 计算每一边的分数
-        left_score = np.count_nonzero(left_border) / y_border_pixels
-        right_score = np.count_nonzero(right_border) / y_border_pixels
-        top_score = np.count_nonzero(top_border) / x_border_pixels
-        bottom_score = np.count_nonzero(bottom_border) / x_border_pixels
-
-        result = (left_score + right_score + top_score + bottom_score) / 4
-        results.append(CardDetectResult(
-            return_value,
-            result,
-            left_score,
-            right_score,
-            top_score,
-            bottom_score,
-            (x, y, w, h)
-        ))
-
-    filtered_results = list(filter(threshold_predicate, results))
-    if not filtered_results:
-        max_result = max(results, key=lambda x: x.score)
-        logger.info("Max card detect result (discarded): value=%d score=%.4f borders=(%.4f, %.4f, %.4f, %.4f)",
-            max_result.type,
-            max_result.score,
-            max_result.left_score,
-            max_result.right_score,
-            max_result.top_score,
-            max_result.bottom_score
-        )
-        return None
-    filtered_results.sort(key=lambda x: x.score, reverse=True)
-    logger.info("Max card detect result: value=%d score=%.4f borders=(%.4f, %.4f, %.4f, %.4f)",
-        filtered_results[0].type,
-        filtered_results[0].score,
-        filtered_results[0].left_score,
-        filtered_results[0].right_score,
-        filtered_results[0].top_score,
-        filtered_results[0].bottom_score
-    )
-    # 跟踪检测结果
-    if conf().trace.recommend_card_detection:
-        x, y, w, h = filtered_results[0].rect
-        cv2.rectangle(original_image, (x, y), (x+w, y+h), (0, 0, 255), 3)
-        trace('rec-card', original_image, {
-            'card_count': card_count,
-            'type': filtered_results[0].type,
-            'score': filtered_results[0].score,
-            'borders': (
-                filtered_results[0].left_score,
-                filtered_results[0].right_score,
-                filtered_results[0].top_score,
-                filtered_results[0].bottom_score
-            )
-        })
-    return filtered_results[0]
-
-def handle_recommended_card(
-        card_count: int, timeout: float = 7,
-        threshold_predicate: Callable[[CardDetectResult], bool] = lambda _: True,
-        *,
-        img: MatLike | None = None,
-    ):
-    result = detect_recommended_card(card_count, threshold_predicate, img=img)
-    if result is not None:
-        device.double_click(result)
-        return result
-    return None
-
-
-@action('获取当前卡片数量', screenshot_mode='manual-inherit')
-def skill_card_count(img: MatLike | None = None):
-    """获取当前持有的技能卡数量"""
-    img = use_screenshot(img)
-    img = crop(img, y1=0.83, y2=0.90)
-    count = image.raw().count(img, R.InPurodyuusu.A)
-    count += image.raw().count(img, R.InPurodyuusu.M)
-    count += image.raw().count(img, R.InPurodyuusu.T)
-    logger.info("Current skill card count: %d", count)
-    return count
-
-
-Yield = TypeVar('Yield')
-Send = TypeVar('Send')
-Return = TypeVar('Return')
-P = ParamSpec('P')
-class GeneratorWrapper(Iterable[Yield], Generic[P, Yield, Send, Return]):
-    def __init__(
-        self,
-        generator_func: Callable[P, Generator[Yield, Send, Return]],
-        *args: P.args,
-        **kwargs: P.kwargs
-    ):
-        self.generator_func = generator_func
-        self.generator = generator_func(*args, **kwargs)
-        self.args = args
-        self.kwargs = kwargs
-
-    def __iter__(self):
-        return self
-
-    def __call__(self):
-        return next(self.generator)
-
-    def reset(self):
-        self.generator = self.generator_func(*self.args, **self.kwargs)
-
-    def loop(self) -> Return:
-        while True:
-            try:
-                next(self.generator)
-            except StopIteration as e:
-                return cast(Return, e.value)
-
-@action('获取当前卡牌信息', screenshot_mode='manual-inherit')
-def obtain_cards(img: MatLike | None = None):
-    img = use_screenshot(img)
-    cards_rects = image.find_all_multi([
-        R.InPurodyuusu.A,
-        R.InPurodyuusu.M,
-        R.InPurodyuusu.T
-    ])
-    logger.info("Current cards: %s", len(cards_rects))
-    cards = []
-    for result in cards_rects:
-        available = color.find('#7a7d7d', rect=result.rect) is None
-        cards.append(SkillCard(available=available, rect=result.rect))
-    return cards
-
 
 @action('等待进入行动场景')
 def until_action_scene(week_first: bool = False):
@@ -416,139 +157,6 @@ def until_exam_scene():
     while ocr.find(regex("合格条件|三位以上")) is None and not is_exam_scene():
         until_acquisition_clear()
 
-
-@action("技能卡移动")
-def handle_skill_card_move():
-    """
-    前置条件：技能卡移动对话框\n
-    结束状态：对话框结束瞬间
-    """
-    cards = image.find_all_multi([
-        R.InPurodyuusu.A,
-        R.InPurodyuusu.M
-    ])
-    if not cards:
-        logger.info("No skill cards found")
-        return False
-
-    it = Interval()
-    cd = Countdown(sec=3)
-    while True:
-        device.screenshot()
-        # 判断对话框是否关闭
-        # 已关闭，开始计时
-        if not image.find(R.InPurodyuusu.IconTitleSkillCardMove):
-            cd.start()
-            if cd.expired():
-                logger.info("Skill card move dialog closed.")
-                break
-        # 没有，要继续选择并确定
-        else:
-            cd.reset()
-            card = cards.pop()
-            device.double_click(card)
-            sleep(1)
-            dialog.yes()
-
-        it.wait()
-    logger.debug("Handle skill card move finished.")
-
-@action('打牌', screenshot_mode='manual')
-def do_cards(
-        threshold_predicate: Callable[[CardDetectResult], bool],
-        end_predicate: Callable[[], bool]
-    ):
-    """
-    循环打出推荐卡，直到考试/练习结束
-
-    前置条件：考试/练习页面\n
-    结束状态：考试/练习结束的一瞬间
-
-    :param threshold_predicate: 推荐卡检测阈值判断函数
-    :param end_predicate: 结束条件判断函数
-    """
-    it = Interval(seconds=1/30)
-    timeout_cd = Countdown(sec=120).start() # 推荐卡检测超时计时器
-    break_cd = Countdown(sec=3).start() # 满足结束条件计时器
-    no_card_cd = Countdown(sec=4) # 无手牌计时器
-    detect_card_count_cd = Countdown(sec=4).start() # 刷新检测手牌数量间隔
-    tries = 1
-    card_count = -1
-
-    while True:
-        device.click(0, 0)
-        img = device.screenshot()
-        it.wait()
-
-        # 技能卡自选移动对话框
-        if image.find(R.InPurodyuusu.IconTitleSkillCardMove):
-            if handle_skill_card_move():
-                sleep(4)  # 等待卡片刷新
-                continue
-        # 技能卡效果无法发动对话框
-        if image.find(R.Common.ButtonIconCheckMark):
-            logger.info("Confirmation dialog detected")
-            device.click()
-            sleep(4)  # 等待卡片刷新
-            continue
-
-        # 更新卡片数量
-        if card_count == -1 or detect_card_count_cd.expired():
-            detect_card_count_cd.reset()
-            card_count = skill_card_count(img)
-            logger.debug("Current card count: %d", card_count)
-        # 处理手牌
-        if card_count == 0:
-            # 处理本回合已无剩余手牌的情况
-            # TODO: 使用模板匹配而不是 OCR，提升速度
-            no_card_cd.start()
-            no_remaining_card = ocr.find(contains("0枚"), rect=R.InPurodyuusu.BoxNoSkillCard)
-            if no_remaining_card and no_card_cd.expired():
-                logger.debug('No remaining card detected. Skip this turn.')
-                # TODO: HARD CODEDED
-                SKIP_POSITION = (621, 739, 85, 85)
-                device.click(SKIP_POSITION)
-                no_card_cd.reset()
-                continue
-        else:
-            if handle_recommended_card(
-                card_count=card_count,
-                threshold_predicate=threshold_predicate,
-                img=img
-            ):
-                logger.info("Handle recommended card success with %d tries", tries)
-                sleep(4.5)
-                tries = 0
-                timeout_cd.reset()
-                continue
-            else:
-                tries += 1
-        # 检测超时（防止一直卡在检测）
-        if timeout_cd.expired():
-            logger.info("Recommend card detection timed out. Click first card.")
-            if card_count == 1:
-                card_rect = CARD_POSITIONS_1[0]
-            elif card_count == 2:
-                card_rect = CARD_POSITIONS_2[0]
-            elif card_count == 3:
-                card_rect = CARD_POSITIONS_3[0]
-            elif card_count == 4:
-                card_rect = CARD_POSITIONS_4[0]
-            else:
-                raise ValueError("Invalid card count: %d" % card_count)
-            device.double_click(card_rect[:4])
-            timeout_cd.reset()
-        # 结束条件
-        if card_count == 0 and end_predicate():
-            if not break_cd.started:
-                break_cd.start()
-            if break_cd.expired():
-                break
-        else:
-            break_cd.reset()
-
-    logger.info("CLEAR/PERFECT not found. Practice finished.")
-
 @action('执行练习', screenshot_mode='manual')
 def practice():
     """
@@ -559,7 +167,7 @@ def practice():
     """
     logger.info("Practice started")
 
-    def threshold_predicate(result: CardDetectResult):
+    def threshold_predicate(card_count: int, result: CardDetectResult):
         border_scores = (result.left_score, result.right_score, result.top_score, result.bottom_score)
         is_strict_mode = conf().produce.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
         if is_strict_mode:
@@ -592,36 +200,40 @@ def exam(type: Literal['mid', 'final']):
     """
     logger.info("Exam started")
 
-    def threshold_predicate(result: CardDetectResult):
+    def threshold_predicate(card_count: int, result: CardDetectResult):
         is_strict_mode = conf().produce.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
+        total = lambda t: result.score >= t
+        def borders(t):
+            # 卡片数量小于三时无遮挡，以及最后一张卡片也总是无遮挡
+            if card_count <= 3 or (result.type == card_count - 1):
+                return (
+                    result.left_score >= t
+                    and result.right_score >= t
+                    and result.top_score >= t
+                    and result.bottom_score >= t
+                )
+            # 其他情况下，卡片的右侧会被挡住，并不会发光
+            else:
+                return (
+                    result.left_score >= t
+                    and result.top_score >= t
+                    and result.bottom_score >= t
+                )
+
         if is_strict_mode:
             if type == 'final':
-                return (
-                    result.score >= 0.4
-                    and result.left_score >= 0.2
-                    and result.right_score >= 0.2
-                    and result.top_score >= 0.2
-                    and result.bottom_score >= 0.2
-                )
+                return total(0.4) and borders(0.2)
             else:
-                return (
-                    result.score >= 0.10
-                    and result.left_score >= 0.01
-                    and result.right_score >= 0.01
-                    and result.top_score >= 0.01
-                    and result.bottom_score >= 0.01
-                )
+                return total(0.10) and borders(0.01)
         else:
             if type == 'final':
-                return (
-                    result.score >= 0.4
-                    and result.left_score >= 0.2
-                    and result.right_score >= 0.2
-                    and result.top_score >= 0.2
-                    and result.bottom_score >= 0.2
-                )
+                if result.type == 10: # SKIP
+                    return total(0.4) and borders(0.02)
+                else:
+                    return total(0.2) and borders(0.02)
             else:
-                return result.score >= 0.10
+                return total(0.10) and borders(0.01)
+
         # 关于上面阈值的解释：
         # 所有阈值均指卡片周围的“黄色度”，
         # score 指卡片四边的平均黄色度阈值，
