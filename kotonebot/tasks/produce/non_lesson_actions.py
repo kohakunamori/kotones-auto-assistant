@@ -84,8 +84,8 @@ def enter_study():
         # 选中 +30 的选项
         target_btn = next((btn for btn in buttons if '+30' in btn.description), None)
         if target_btn is None:
-            logger.error("Failed to find +30 option. Pick the first button instead.")
-            target_btn = buttons[0]
+            logger.error("Failed to find +30 option. Pick the second button instead.")
+            target_btn = buttons[1]
         logger.debug('Clicking "%s".', target_btn.description)
         if target_btn.selected:
             device.click(target_btn)
