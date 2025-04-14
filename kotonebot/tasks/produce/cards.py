@@ -267,7 +267,8 @@ def handle_recommended_card(
 def skill_card_count(img: MatLike | None = None):
     """获取当前持有的技能卡数量"""
     img = use_screenshot(img)
-    img = crop(img, y1=0.83, y2=0.90)
+    x, y, w, h = R.InPurodyuusu.BoxCardLetter
+    img = img[y:y+h, x:x+w]
     count = image.raw().count(img, R.InPurodyuusu.A)
     count += image.raw().count(img, R.InPurodyuusu.M)
     count += image.raw().count(img, R.InPurodyuusu.T)
@@ -379,3 +380,8 @@ def detect_recommended_card(
             )
         })
     return filtered_results[0]
+
+if __name__ == '__main__':
+    import cv2
+    img = cv2.imread(r'E:\GithubRepos\KotonesAutoAssistant.worktrees\dev\kotonebot-resource\sprites\jp\in_purodyuusu\produce_exam_1.png')
+    print(skill_card_count(img))
