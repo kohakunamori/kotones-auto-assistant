@@ -30,6 +30,9 @@ def acquire_skill_card():
         R.InPurodyuusu.A,
         R.InPurodyuusu.M
     ])
+    if not cards:
+        logger.warning("No skill cards found. Skip acquire.")
+        return
     cards = sorted(cards, key=lambda x: (x.position[0], x.position[1]))
     logger.info(f"Found {len(cards)} skill cards")
     logger.debug("Click first skill card")
