@@ -9,7 +9,7 @@ from kotonebot.util import Countdown, Interval
 from .actions.scenes import at_home, goto_home
 from .actions.commu import handle_unread_commu
 from kotonebot.errors import GameUpdateNeededError
-from kotonebot import task, action, device, image, ocr
+from kotonebot import task, action, sleep, device, image, ocr
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +84,8 @@ def android_launch():
         device.launch_app('org.kuyo.game')
         # 点击"加速"
         device.click(image.expect_wait(R.Kuyo.ButtonTab3Speedup, timeout=10))
+        # Kuyo会延迟加入广告，导致识别后，原位置突然弹出广告，导致进入广告页面
+        sleep(2)
         # 点击"K空间启动"
         device.click(image.expect_wait(R.Kuyo.ButtonStartGame, timeout=10))
 
