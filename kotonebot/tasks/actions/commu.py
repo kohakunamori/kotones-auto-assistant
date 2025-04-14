@@ -5,6 +5,7 @@ from cv2.typing import MatLike
 
 
 from .. import R
+from ..game_ui import dialog
 from kotonebot.util import Interval, Countdown
 from kotonebot.tasks.game_ui import WhiteFilter
 from kotonebot import device, image, user, action, use_screenshot
@@ -59,14 +60,21 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
     if fastforward := fastforward_button():
         device.click(fastforward)
         logger.debug('Clicked fastforward button.')
-        return True
-    if image.find(R.Common.TextSkipCommuComfirmation):
+        # 即使点了跳过，画面上也有可能还有其他东西需要处理
+        # 因此返回 False 而不是 True
+        return False
+    if image.find_multi([
+        R.Common.TextSkipCommuComfirmation,
+        R.Common.TextFastforwardCommuDialogTitle
+    ]):
         logger.info('Unread commu found.')
-        device.click(image.expect(R.Common.ButtonConfirm))
-        logger.debug('Clicked confirm button.')
-        logger.debug('Pushing notification...')
-        user.info('发现未读交流', images=[img])
-        return True
+        if dialog.yes():
+            logger.debug('Clicked confirm button.')
+            logger.debug('Pushing notification...')
+            user.info('发现未读交流', images=[img])
+            return True
+        else:
+            return False
     return False
 
 
