@@ -104,9 +104,13 @@ def windows_launch():
 
     from ahk import AHK
     from importlib import resources
-
     ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
     ahk = AHK(executable_path=ahk_path)
+
+    if ahk.find_window(title='gakumas'):
+        logger.debug('Game already started.')
+        return
+    
     logger.info('Starting game...')
     os.startfile('dmmgameplayer://play/GCL/gakumas/cl/win')
     # 等待游戏窗口出现
