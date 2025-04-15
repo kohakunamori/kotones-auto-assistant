@@ -93,6 +93,15 @@ def windows_launch():
     前置条件：-
     结束状态：游戏窗口出现
     """
+    # 检查管理员权限
+    import ctypes, os
+    try:
+        is_admin = os.getuid() == 0 # type: ignore
+    except AttributeError:
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    if not is_admin:
+        raise PermissionError("Please run as administrator.")
+
     from ahk import AHK
     from importlib import resources
 
