@@ -12,7 +12,7 @@ from kotonebot import (
     sleep,
     Interval,
 )
-from kotonebot.tasks.game_ui import WhiteFilter, CommuEventButtonUI
+from kotonebot.tasks.game_ui import WhiteFilter, CommuEventButtonUI, web2cv
 from .p_drink import acquire_p_drink
 from kotonebot.tasks.actions.commu import handle_unread_commu
 from kotonebot.util import measure_time
@@ -240,16 +240,17 @@ def until_acquisition_clear():
     while fast_acquisitions():
         interval.wait()
 
+ORANGE_RANGE = ((14, 87, 23)), ((37, 211, 255))
 @action('处理交流事件', screenshot_mode='manual-inherit')
-def commut_event():
-    ui = CommuEventButtonUI()
+def commu_event():
+    ui = CommuEventButtonUI([ORANGE_RANGE])
     buttons = ui.all(description=False, title=True)
-    if buttons:
+    if len(buttons) > 1:
         for button in buttons:
             # 冲刺课程，跳过处理
             if '重点' in button.title:
                 return False
-        logger.info(f"Found commu event: {button.title}")
+        logger.info(f"Found commu event: {buttons}")
         logger.info("Select first choice")
         if buttons[0].selected:
             device.click(buttons[0])

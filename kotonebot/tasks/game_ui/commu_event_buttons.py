@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Sequence
 
 from kotonebot.tasks import R
 from kotonebot.backend.core import HintBox
@@ -47,7 +48,7 @@ class CommuEventButtonUI:
     """
     def __init__(
         self,
-        selected_colors: list[tuple[HsvColor, HsvColor]] = DEFAULT_COLORS,
+        selected_colors: Sequence[tuple[HsvColor, HsvColor]] = DEFAULT_COLORS,
         rect: HintBox = R.InPurodyuusu.BoxCommuEventButtonsArea
     ):
         """

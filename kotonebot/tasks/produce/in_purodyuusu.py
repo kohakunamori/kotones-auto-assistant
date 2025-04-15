@@ -12,7 +12,7 @@ from kotonebot.errors import UnrecoverableError
 from kotonebot.util import Countdown, Interval, cropped
 from kotonebot.backend.dispatch import DispatcherContext
 from ..common import ProduceAction, RecommendCardDetectionMode, conf
-from ..produce.common import until_acquisition_clear, commut_event, fast_acquisitions
+from ..produce.common import until_acquisition_clear, commu_event, fast_acquisitions
 from kotonebot import ocr, device, contains, image, regex, action, sleep, Rect, wait
 from ..produce.non_lesson_actions import (
     enter_allowance, allowance_available,
@@ -133,7 +133,7 @@ def until_action_scene(week_first: bool = False):
         # 会因为命中交流而 continue，commut_event() 永远
         # 不会执行。
         # [screenshots/produce/in_produce/initial_commu_event.png]
-        if week_first and commut_event():
+        if week_first and commu_event():
             continue
         if fast_acquisitions():
             continue
@@ -667,7 +667,7 @@ def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
     else:
         if fast_acquisitions():
             return 'unknown'
-        if commut_event():
+        if commu_event():
             return 'unknown'
         return 'unknown'
 
