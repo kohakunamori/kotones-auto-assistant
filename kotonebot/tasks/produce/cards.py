@@ -205,7 +205,8 @@ def handle_skill_card_move():
     """
     cards = image.find_all_multi([
         R.InPurodyuusu.A,
-        R.InPurodyuusu.M
+        R.InPurodyuusu.M,
+        R.InPurodyuusu.T,
     ])
     if not cards:
         logger.info("No skill cards found")
@@ -225,6 +226,13 @@ def handle_skill_card_move():
         # 没有，要继续选择并确定
         else:
             cd.reset()
+            if not cards:
+                logger.info("No skill cards left. Retrying...")
+                cards = image.find_all_multi([
+                    R.InPurodyuusu.A,
+                    R.InPurodyuusu.M,
+                    R.InPurodyuusu.T,
+                ])
             card = cards.pop()
             device.double_click(card)
             sleep(1)
@@ -232,7 +240,6 @@ def handle_skill_card_move():
 
         it.wait()
     logger.debug("Handle skill card move finished.")
-
 
 @action('获取当前卡牌信息', screenshot_mode='manual-inherit')
 def obtain_cards(img: MatLike | None = None):
