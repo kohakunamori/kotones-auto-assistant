@@ -3,7 +3,6 @@ import logging
 
 from cv2.typing import MatLike
 
-
 from .. import R
 from ..game_ui import dialog
 from kotonebot.util import Interval, Countdown
@@ -52,6 +51,13 @@ def handle_unread_commu(img: MatLike | None = None) -> bool:
     img = use_screenshot(img)
 
     if skip := skip_button():
+        # SKIP 按钮至少出现 3s 才处理
+        hit_cd = Countdown(sec=3).start()
+        while not hit_cd.expired():
+            device.screenshot()
+            if skip_button() is None:
+                logger.info('Commu disappeared.')
+                return False
         device.click(skip)
         logger.debug('Clicked skip button.')
         return True
