@@ -181,6 +181,10 @@ def do_cards(
         # 检测超时（防止一直卡在检测）
         if timeout_cd.expired():
             logger.info("Recommend card detection timed out. Click first card.")
+            if card_count == 0:
+                logger.warning("Recommend card detection timeout but no card found.")
+                timeout_cd.reset()
+                continue
             card_rects = calc_card_position(card_count)
             card_rect = card_rects[0]
             device.double_click(card_rect[:4])
