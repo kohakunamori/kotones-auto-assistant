@@ -1,8 +1,6 @@
 from typing import Literal
 from logging import getLogger
 
-from kotonebot.tasks.actions.loading import loading
-
 from .. import R
 from kotonebot import (
     ocr,
@@ -12,10 +10,12 @@ from kotonebot import (
     sleep,
     Interval,
 )
-from kotonebot.tasks.game_ui import WhiteFilter, CommuEventButtonUI, web2cv
 from .p_drink import acquire_p_drink
-from kotonebot.tasks.actions.commu import handle_unread_commu
 from kotonebot.util import measure_time
+from kotonebot.tasks.common import conf
+from kotonebot.tasks.actions.loading import loading
+from kotonebot.tasks.game_ui import CommuEventButtonUI
+from kotonebot.tasks.actions.commu import handle_unread_commu
 
 logger = getLogger(__name__)
 
@@ -146,7 +146,7 @@ def fast_acquisitions() -> AcquisitionType | None:
 
     # 跳过未读交流
     logger.debug("Check skip commu...")
-    if handle_unread_commu(img):
+    if conf().produce.skip_commu and handle_unread_commu(img):
         return "SkipCommu"
     device.click(10, 10)
 

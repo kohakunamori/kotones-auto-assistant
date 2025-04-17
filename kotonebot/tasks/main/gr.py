@@ -243,6 +243,7 @@ class KotoneBotUI:
         actions_order: List[str],
         recommend_card_detection_mode: str,
         use_ap_drink: bool,
+        skip_commu: bool,
         mission_reward_enabled: bool,
         # club reward
         club_reward_enabled: bool,
@@ -320,7 +321,8 @@ class KotoneBotUI:
                 prefer_lesson_ap=prefer_lesson_ap,
                 actions_order=[ProduceAction(action) for action in actions_order],
                 recommend_card_detection_mode=RecommendCardDetectionMode(recommend_card_detection_mode),
-                use_ap_drink=use_ap_drink
+                use_ap_drink=use_ap_drink,
+                skip_commu=skip_commu
             ),
             mission_reward=MissionRewardConfig(
                 enabled=mission_reward_enabled
@@ -736,6 +738,11 @@ class KotoneBotUI:
                     value=self.current_config.options.produce.use_ap_drink,
                     info=ProduceConfig.model_fields['use_ap_drink'].description
                 )
+                skip_commu = gr.Checkbox(
+                    label="检测并跳过交流",
+                    value=self.current_config.options.produce.skip_commu,
+                    info=ProduceConfig.model_fields['skip_commu'].description
+                )
                 recommend_card_detection_mode.change(
                     fn=update_kotone_warning,
                     inputs=[produce_idols, recommend_card_detection_mode],
@@ -758,7 +765,7 @@ class KotoneBotUI:
                 inputs=[auto_set_memory],
                 outputs=[memory_sets_group]
             )
-        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode, use_ap_drink
+        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode, use_ap_drink, skip_commu
     
     def _create_club_reward_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown]:
         with gr.Column():

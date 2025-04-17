@@ -370,6 +370,8 @@ class ProduceConfig(ConfigBaseModel):
     """
     AP 不足时自动使用 AP 饮料
     """
+    skip_commu: bool = True
+    """检测并跳过交流"""
 
 class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
