@@ -229,7 +229,7 @@ def do_produce(
             logger.info('AP insufficient. Exiting produce.')
             device.click(image.expect_wait(R.InPurodyuusu.ButtonCancel))
             return False
-    # 1. 选择 PIdol [screenshots/produce/select_p_idol.png]
+    # 1. 选择 PIdol [screenshots/produce/screenshot_produce_start_1_p_idol.png]
     select_idol(idol_skin_id)
     it = Interval()
     while True:
@@ -239,10 +239,10 @@ def do_produce(
             dialog.no()
         elif image.find(R.Common.ButtonNextNoIcon):
             device.click()
-        elif ocr.find(contains('サポート'), rect=R.Produce.BoxStepIndicator):
+        elif image.find(R.Produce.TextStepIndicator2):
             break
-    # 2. 选择支援卡 自动编成 [screenshots/produce/select_support_card.png]
-    ocr.expect_wait(contains('サポート'), rect=R.Produce.BoxStepIndicator)
+    # 2. 选择支援卡 自动编成 [screenshots/produce/screenshot_produce_start_2_support_card.png]
+    image.expect_wait(R.Produce.TextStepIndicator2)
     it = Interval()
     while True:
         if image.find(R.Common.ButtonNextNoIcon, colored=True):
@@ -255,8 +255,8 @@ def do_produce(
             device.click()
         device.screenshot()
         it.wait()
-    # 3. 选择回忆 自动编成 [screenshots/produce/select_memory.png]
-    ocr.expect_wait(contains('メモリー'), rect=R.Produce.BoxStepIndicator)
+    # 3. 选择回忆 自动编成 [screenshots/produce/screenshot_produce_start_3_memory.png]
+    image.expect_wait(R.Produce.TextStepIndicator3)
     # 自动编成
     if memory_set_index is not None and not 1 <= memory_set_index <= 10:
         raise ValueError('`memory_set_index` must be in range [1, 10].')
@@ -268,12 +268,12 @@ def do_produce(
     else:
         select_set(memory_set_index)
     (SimpleDispatcher('do_produce.step_3')
+        .until(R.Produce.TextStepIndicator4)
         .click(R.Common.ButtonNextNoIcon)
         .click(R.Common.ButtonConfirm)
-        .until(contains('開始確認'), rect=R.Produce.BoxStepIndicator)
     ).run()
 
-    # 4. 选择道具 [screenshots/produce/select_end.png]
+    # 4. 选择道具 [screenshots/produce/screenshot_produce_start_4_end.png]
     # TODO: 如果道具不足，这里加入推送提醒
     if conf().produce.use_note_boost:
         if image.find(R.Produce.CheckboxIconNoteBoost):

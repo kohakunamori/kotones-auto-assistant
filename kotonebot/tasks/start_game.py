@@ -95,11 +95,24 @@ def windows_launch():
     前置条件：-
     结束状态：游戏窗口出现
     """
+    # 检查管理员权限
+    import ctypes, os
+    try:
+        is_admin = os.getuid() == 0 # type: ignore
+    except AttributeError:
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    if not is_admin:
+        raise PermissionError("Please run as administrator.")
+
     from ahk import AHK
     from importlib import resources
-
     ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
     ahk = AHK(executable_path=ahk_path)
+
+    if ahk.find_window(title='gakumas'):
+        logger.debug('Game already started.')
+        return
+    
     logger.info('Starting game...')
     os.startfile('dmmgameplayer://play/GCL/gakumas/cl/win')
     # 等待游戏窗口出现
