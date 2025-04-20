@@ -415,7 +415,7 @@ class StartGameConfig(ConfigBaseModel):
     start_through_kuyo: bool = False
     """是否通过Kuyo来启动游戏"""
 
-    game_package_name: str = 'com.bandinamcoent.idolmaster_gakuen'
+    game_package_name: str = 'com.bandainamcoent.idolmaster_gakuen'
     """游戏包名"""
 
     kuyo_package_name: str = 'org.kuyo.game'
@@ -496,6 +496,11 @@ def upgrade_config() -> str | None:
                     user_config, msg = upgrade_v2_to_v3(user_config['options'])
                     messages.append(msg)
                     version = 3
+                case 3:
+                    logger.info('Upgrading config: v3 -> v4')
+                    user_config, msg = upgrade_v3_to_v4(user_config['options'])
+                    messages.append(msg)
+                    version = 4
                 case _:
                     logger.info('No config upgrade needed.')
                     return version
@@ -614,7 +619,7 @@ class PIdol(IntEnum):
     藤田ことね_学園生活 = 藤田ことね_BASE + 7
 
 
-def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str]:
     """
     v1 -> v2 变更：
 
@@ -793,7 +798,7 @@ def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | Non
     shutil.copy('config.json', 'config.v1.json')
     return options, msg
 
-def upgrade_v2_to_v3(options: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+def upgrade_v2_to_v3(options: dict[str, Any]) -> tuple[dict[str, Any], str]:
     """
     v2 -> v3 变更：\n
     引入了游戏解包数据，因此 PIdol 枚举废弃，直接改用游戏内 ID。
@@ -890,6 +895,17 @@ def upgrade_v2_to_v3(options: dict[str, Any]) -> tuple[dict[str, Any], str | Non
     options['produce']['idols'] = new_idols
     shutil.copy('config.json', 'config.v2.json')
     return options, msg
+
+def upgrade_v3_to_v4(options: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    """
+    v3 -> v4 变更：
+    自动纠正错误游戏包名
+    """
+    shutil.copy('config.json', 'config.v3.json')
+    if options['start_game']['game_package_name'] == 'com.bandinamcoent.idolmaster_gakuen':
+        options['start_game']['game_package_name'] = 'com.bandainamcoent.idolmaster_gakuen'
+        logger.info('Corrected game package name to com.bandainamcoent.idolmaster_gakuen')
+    return options, ''
 
 if __name__ == '__main__':
     print(PurchaseConfig.model_fields['money_refresh_on'].description)
