@@ -20,10 +20,13 @@ class ConfigEnum(Enum):
         return self.value[1]
 
 class Priority(IntEnum):
+    """
+    任务优先级。数字越大，优先级越高，越先执行。
+    """
     START_GAME = 1
     DEFAULT = 0
     CLAIM_MISSION_REWARD = -1
-
+    END_GAME = -2
 
 class APShopItems(IntEnum):
     PRODUCE_PT_UP = 0
@@ -142,17 +145,17 @@ class DailyMoneyShopItems(IntEnum):
                 return "月村手毬 Luna say maybe 碎片"
             case _:
                 assert_never(item)
-    
+
     @classmethod
     def all(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
         """获取所有枚举值及其对应的UI显示文本"""
         return [(cls.to_ui_text(item), item) for item in cls]
-    
+
     @classmethod
     def _is_note(cls, item: 'DailyMoneyShopItems') -> bool:
         """判断是否为笔记"""
         return 'Note' in item.name and not item.name.startswith('Note') and not item.name.endswith('Note')
-    
+
     @classmethod
     def note_items(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
         """获取所有枚举值及其对应的UI显示文本"""
@@ -341,7 +344,7 @@ class ProduceConfig(ConfigBaseModel):
     prefer_lesson_ap: bool = False
     """
     优先 SP 课程。
-    
+
     启用后，若出现 SP 课程，则会优先执行 SP 课程，而不是推荐课程。
     若出现多个 SP 课程，随机选择一个。
     """
@@ -357,13 +360,13 @@ class ProduceConfig(ConfigBaseModel):
     ]
     """
     行动优先级
-    
+
     每一周的行动将会按这里设置的优先级执行。
     """
     recommend_card_detection_mode: RecommendCardDetectionMode = RecommendCardDetectionMode.NORMAL
     """
     推荐卡检测模式
-    
+
     严格模式下，识别速度会降低，但识别准确率会提高。
     """
     use_ap_drink: bool = False
@@ -403,7 +406,7 @@ class CapsuleToysConfig(ConfigBaseModel):
 
     anomaly_capsule_toys_count: int = 0
     """非凡扭蛋机次数"""
-    
+
 class TraceConfig(ConfigBaseModel):
     recommend_card_detection: bool = False
     """跟踪推荐卡检测"""
@@ -420,6 +423,20 @@ class StartGameConfig(ConfigBaseModel):
 
     kuyo_package_name: str = 'org.kuyo.game'
     """Kuyo包名"""
+
+class EndGameConfig(ConfigBaseModel):
+    exit_kaa: bool = False
+    """退出 kaa"""
+    kill_game: bool = False
+    """关闭游戏"""
+    kill_dmm: bool = False
+    """关闭 DMMGamePlayer"""
+    kill_emulator: bool = False
+    """关闭模拟器"""
+    shutdown: bool = False
+    """关闭系统"""
+    hibernate: bool = False
+    """休眠系统"""
 
 class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
@@ -458,6 +475,9 @@ class BaseConfig(ConfigBaseModel):
     start_game: StartGameConfig = StartGameConfig()
     """启动游戏配置"""
 
+    end_game: EndGameConfig = EndGameConfig()
+    """关闭游戏配置"""
+
 
 def conf() -> BaseConfig:
     """获取当前配置数据"""
@@ -478,7 +498,7 @@ def upgrade_config() -> str | None:
         return None
     with open('config.json', 'r', encoding='utf-8') as f:
         root = json.load(f)
-    
+
     user_configs = root['user_configs']
     old_version = root['version']
     messages = []
@@ -585,7 +605,7 @@ class PIdol(IntEnum):
     紫云清夏_キミとセミブルー = 紫云清夏_BASE + 4
     紫云清夏_初恋 = 紫云清夏_BASE + 5
     紫云清夏_学園生活 = 紫云清夏_BASE + 6
-    
+
     花海佑芽_WhiteNightWhiteWish = 花海佑芽_BASE + 0
     花海佑芽_学園生活 = 花海佑芽_BASE + 1
     花海佑芽_Campusmode = 花海佑芽_BASE + 2

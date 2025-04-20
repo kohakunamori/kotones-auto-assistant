@@ -17,7 +17,7 @@ from kotonebot.tasks.common import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, DailyMoneyShopItems, ProduceAction,
-    RecommendCardDetectionMode, TraceConfig, StartGameConfig, UpgradeSupportCardConfig,
+    RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ def _save_bug_report(
     """
     from kotonebot import device
     from kotonebot.backend.context import ContextStackVars
-    
+
     # 确保目录存在
     os.makedirs('logs', exist_ok=True)
     os.makedirs('reports', exist_ok=True)
@@ -86,7 +86,7 @@ def _save_bug_report(
 
         # 写出版本号
         zipf.writestr('version.txt', version)
-    
+
     # 上传报告
     from kotonebot.ui.file_host.sensio import upload
     yield "### 上传报告..."
@@ -114,7 +114,7 @@ class KotoneBotUI:
         self._kaa = kaa
         self._load_config()
         self._setup_kaa()
-        
+
     def _setup_kaa(self) -> None:
         from kotonebot.backend.debug.vars import debug, clear_saved
 
@@ -131,40 +131,40 @@ class KotoneBotUI:
         """导出 dumps 文件夹为 zip 文件"""
         if not os.path.exists('dumps'):
             return "dumps 文件夹不存在"
-        
+
         timestamp = datetime.now().strftime('%y-%m-%d-%H-%M-%S')
         zip_filename = f'dumps-{timestamp}.zip'
-        
+
         with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
             for root, dirs, files in os.walk('dumps'):
                 for file in files:
                     file_path = os.path.join(root, file)
                     arcname = os.path.relpath(file_path, 'dumps')
                     zipf.write(file_path, arcname)
-        
+
         return f"已导出到 {zip_filename}"
 
     def export_logs(self) -> str:
         """导出 logs 文件夹为 zip 文件"""
         if not os.path.exists('logs'):
             return "logs 文件夹不存在"
-        
+
         timestamp = datetime.now().strftime('%y-%m-%d-%H-%M-%S')
         zip_filename = f'logs-{timestamp}.zip'
-        
+
         with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
             for root, dirs, files in os.walk('logs'):
                 for file in files:
                     file_path = os.path.join(root, file)
                     arcname = os.path.relpath(file_path, 'logs')
                     zipf.write(file_path, arcname)
-        
+
         return f"已导出到 {zip_filename}"
 
     def get_button_status(self) -> str:
         if not hasattr(self, 'run_status'):
             return "启动"
-        
+
         if not self.run_status.running:
             self.is_running = False
             return "启动"
@@ -176,7 +176,7 @@ class KotoneBotUI:
             for task_name, task in task_registry.items():
                 status_list.append([task.name, "等待中"])
             return status_list
-        
+
         for task_status in self.run_status.tasks:
             status_text = {
                 'pending': '等待中',
@@ -192,7 +192,7 @@ class KotoneBotUI:
         if not self.is_running:
             return self.start_run()
         return self.stop_run()
-    
+
     def start_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = True
         self.run_status = self._kaa.start_all()
@@ -261,6 +261,13 @@ class KotoneBotUI:
         start_through_kuyo: bool,
         game_package_name: str,
         kuyo_package_name: str,
+        # end game
+        exit_kaa: bool,
+        kill_game: bool,
+        kill_dmm: bool,
+        kill_emulator: bool,
+        shutdown: bool,
+        hibernate: bool,
     ) -> str:
         ap_items_enum: List[Literal[0, 1, 2, 3]] = []
         ap_items_map: Dict[str, APShopItems] = {
@@ -272,7 +279,7 @@ class KotoneBotUI:
         for item in ap_items:
             if item in ap_items_map:
                 ap_items_enum.append(ap_items_map[item].value)  # type: ignore
-        
+
         self.current_config.backend.adb_ip = adb_ip
         self.current_config.backend.adb_port = adb_port
         self.current_config.backend.adb_emulator_name = adb_emulator_name
@@ -280,7 +287,7 @@ class KotoneBotUI:
         self.current_config.keep_screenshots = keep_screenshots
         self.current_config.backend.check_emulator = check_emulator
         self.current_config.backend.emulator_path = emulator_path
-        
+
         options = BaseConfig(
             purchase=PurchaseConfig(
                 enabled=purchase_enabled,
@@ -347,13 +354,21 @@ class KotoneBotUI:
                 game_package_name=game_package_name,
                 kuyo_package_name=kuyo_package_name
             ),
+            end_game=EndGameConfig(
+                exit_kaa=exit_kaa,
+                kill_game=kill_game,
+                kill_dmm=kill_dmm,
+                kill_emulator=kill_emulator,
+                shutdown=shutdown,
+                hibernate=hibernate
+            ),
             trace=TraceConfig(
                 recommend_card_detection=trace_recommend_card_detection
             )
         )
-        
+
         self.current_config.options = options
-        
+
         try:
             save_config(self.config, "config.json")
             gr.Success("设置已保存，请重启程序！")
@@ -365,23 +380,23 @@ class KotoneBotUI:
     def _create_status_tab(self) -> None:
         with gr.Tab("状态"):
             gr.Markdown("## 状态")
-            
+
             with gr.Row():
                 run_btn = gr.Button("启动", scale=1)
             if self._kaa.upgrade_msg:
                 gr.Markdown('### 配置升级报告')
                 gr.Markdown(self._kaa.upgrade_msg)
             gr.Markdown('脚本报错或者卡住？点击"日志"选项卡中的"一键导出报告"可以快速反馈！')
-            
+
             task_status = gr.Dataframe(
                 headers=["任务", "状态"],
                 value=self.update_task_status(),
                 label="任务状态"
             )
-            
+
             def on_run_click(evt: gr.EventData) -> Tuple[str, List[List[str]]]:
                 return self.toggle_run()
-            
+
             run_btn.click(
                 fn=on_run_click,
                 outputs=[run_btn, task_status]
@@ -400,7 +415,7 @@ class KotoneBotUI:
     def _create_task_tab(self) -> None:
         with gr.Tab("任务"):
             gr.Markdown("## 执行任务")
-            
+
             # 创建任务选择下拉框
             task_choices = [task.name for task in task_registry.values()]
             task_dropdown = gr.Dropdown(
@@ -410,11 +425,11 @@ class KotoneBotUI:
                 type="value",
                 value=None
             )
-            
+
             # 创建执行按钮
             execute_btn = gr.Button("执行任务")
             task_result = gr.Markdown("")
-            
+
             # TODO: 实现任务执行逻辑
             def execute_single_task(task_name: str) -> str:
                 if not task_name:
@@ -432,7 +447,7 @@ class KotoneBotUI:
                 self._kaa.run([task])
                 gr.Success(f"任务 {task_name} 执行完毕")
                 return ""
-            
+
             execute_btn.click(
                 fn=execute_single_task,
                 inputs=[task_dropdown],
@@ -510,7 +525,7 @@ class KotoneBotUI:
                     value=self.current_config.options.purchase.money_enabled,
                     info=PurchaseConfig.model_fields['money_enabled'].description
                 )
-                
+
                 # 添加金币商店商品选择
                 money_items = gr.Dropdown(
                     multiselect=True,
@@ -519,13 +534,13 @@ class KotoneBotUI:
                     label="金币商店购买物品",
                     info=PurchaseConfig.model_fields['money_items'].description
                 )
-                
+
                 ap_enabled = gr.Checkbox(
                     label="启用AP购买",
                     value=self.current_config.options.purchase.ap_enabled,
                     info=PurchaseConfig.model_fields['ap_enabled'].description
                 )
-                
+
                 # 转换枚举值为显示文本
                 selected_items: List[str] = []
                 ap_items_map = {
@@ -538,7 +553,7 @@ class KotoneBotUI:
                     item_enum = APShopItems(item_value)
                     if item_enum in ap_items_map:
                         selected_items.append(ap_items_map[item_enum])
-                
+
                 ap_items = gr.Dropdown(
                     multiselect=True,
                     choices=list(ap_items_map.values()),
@@ -546,7 +561,7 @@ class KotoneBotUI:
                     label="AP商店购买物品",
                     info=PurchaseConfig.model_fields['ap_items'].description
                 )
-            
+
             purchase_enabled.change(
                 fn=lambda x: gr.Group(visible=x),
                 inputs=[purchase_enabled],
@@ -590,14 +605,14 @@ class KotoneBotUI:
                             interactive=True,
                             info=AssignmentConfig.model_fields['online_live_duration'].description
                         )
-            
+
             assignment_enabled.change(
                 fn=lambda x: gr.Group(visible=x),
                 inputs=[assignment_enabled],
                 outputs=[work_group]
             )
         return assignment_enabled, mini_live_reassign, mini_live_duration, online_live_reassign, online_live_duration
-    
+
     def _create_contest_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown]:
         with gr.Column():
             gr.Markdown("### 竞赛设置")
@@ -679,13 +694,13 @@ class KotoneBotUI:
                         interactive=True,
                         info=ProduceConfig.model_fields['memory_sets'].description
                     )
-                
+
                 # 添加偶像选择变化时的回调
                 def update_kotone_warning(selected_idols, recommend_card_detection_mode):
                     has_kotone = any("藤田ことね" in idol for idol in selected_idols)
                     is_strict_mode = recommend_card_detection_mode == RecommendCardDetectionMode.STRICT.value
                     return gr.Markdown(visible=has_kotone and not is_strict_mode)
-                
+
                 auto_set_support = gr.Checkbox(
                     label="自动编成支援卡",
                     value=self.current_config.options.produce.auto_set_support_card,
@@ -759,14 +774,14 @@ class KotoneBotUI:
                 inputs=[produce_enabled],
                 outputs=[produce_group]
             )
-            
+
             auto_set_memory.change(
                 fn=lambda x: gr.Group(visible=not x),
                 inputs=[auto_set_memory],
                 outputs=[memory_sets_group]
             )
         return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode, use_ap_drink, skip_commu
-    
+
     def _create_club_reward_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown]:
         with gr.Column():
             gr.Markdown("### 社团奖励设置")
@@ -868,16 +883,52 @@ class KotoneBotUI:
             )
         return start_game_enabled, start_through_kuyo, game_package_name, kuyo_package_name
 
+    def _create_end_game_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox]:
+        with gr.Column():
+            gr.Markdown("### 关闭游戏设置")
+            gr.Markdown("在所有任务执行后执行下面这些操作：\n（执行单个任务时不会触发）")
+            exit_kaa = gr.Checkbox(
+                label="退出 kaa",
+                value=self.current_config.options.end_game.exit_kaa,
+                info=EndGameConfig.model_fields['exit_kaa'].description
+            )
+            kill_game = gr.Checkbox(
+                label="关闭游戏",
+                value=self.current_config.options.end_game.kill_game,
+                info=EndGameConfig.model_fields['kill_game'].description
+            )
+            kill_dmm = gr.Checkbox(
+                label="关闭 DMM",
+                value=self.current_config.options.end_game.kill_dmm,
+                info=EndGameConfig.model_fields['kill_dmm'].description
+            )
+            kill_emulator = gr.Checkbox(
+                label="关闭模拟器",
+                value=self.current_config.options.end_game.kill_emulator,
+                info=EndGameConfig.model_fields['kill_emulator'].description
+            )
+            shutdown = gr.Checkbox(
+                label="关闭系统",
+                value=self.current_config.options.end_game.shutdown,
+                info=EndGameConfig.model_fields['shutdown'].description
+            )
+            hibernate = gr.Checkbox(
+                label="休眠系统",
+                value=self.current_config.options.end_game.hibernate,
+                info=EndGameConfig.model_fields['hibernate'].description
+            )
+        return exit_kaa, kill_game, kill_dmm, kill_emulator, shutdown, hibernate
+
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
             gr.Markdown("## 设置")
-            
+
             # 模拟器设置
             emulator_settings = self._create_emulator_settings()
-            
+
             # 商店购买设置
             purchase_settings = self._create_purchase_settings()
-            
+
             # 活动费设置
             with gr.Column():
                 gr.Markdown("### 活动费设置")
@@ -886,7 +937,7 @@ class KotoneBotUI:
                     value=self.current_config.options.activity_funds.enabled,
                     info=ActivityFundsConfig.model_fields['enabled'].description
                 )
-            
+
             # 礼物设置
             with gr.Column():
                 gr.Markdown("### 礼物设置")
@@ -895,16 +946,16 @@ class KotoneBotUI:
                     value=self.current_config.options.presents.enabled,
                     info=PresentsConfig.model_fields['enabled'].description
                 )
-            
+
             # 工作设置
             work_settings = self._create_work_settings()
-            
+
             # 竞赛设置
             contest_settings = self._create_contest_settings()
-            
+
             # 培育设置
             produce_settings = self._create_produce_settings()
-            
+
             # 任务奖励设置
             with gr.Column():
                 gr.Markdown("### 任务奖励设置")
@@ -913,7 +964,7 @@ class KotoneBotUI:
                     value=self.current_config.options.mission_reward.enabled,
                     info=MissionRewardConfig.model_fields['enabled'].description
                 )
-            
+
             # 社团奖励设置
             club_reward_settings = self._create_club_reward_settings()
 
@@ -925,9 +976,9 @@ class KotoneBotUI:
                     value=self.current_config.options.upgrade_support_card.enabled,
                     info=UpgradeSupportCardConfig.model_fields['enabled'].description
                 )
-            
+
             capsule_toys_settings = self._create_capsule_toys_settings()
-            
+
             # 跟踪设置
             with gr.Column():
                 gr.Markdown("### 跟踪设置")
@@ -941,10 +992,13 @@ class KotoneBotUI:
 
             # 启动游戏设置
             start_game_settings = self._create_start_game_settings()
-            
+
+            # 关闭游戏设置
+            end_game_settings = self._create_end_game_settings()
+
             save_btn = gr.Button("保存设置")
             result = gr.Markdown()
-            
+
             # 收集所有设置组件
             all_settings = [
                 *emulator_settings,
@@ -959,9 +1013,10 @@ class KotoneBotUI:
                 *club_reward_settings,
                 upgrade_support_card_enabled,
                 *capsule_toys_settings,
-                *start_game_settings
+                *start_game_settings,
+                *end_game_settings
             ]
-            
+
             save_btn.click(
                 fn=self.save_settings,
                 inputs=all_settings,
@@ -971,7 +1026,7 @@ class KotoneBotUI:
     def _create_log_tab(self) -> None:
         with gr.Tab("日志"):
             gr.Markdown("## 日志")
-            
+
             with gr.Column():
                 with gr.Row():
                     export_dumps_btn = gr.Button("导出 dump")
@@ -979,7 +1034,7 @@ class KotoneBotUI:
                 with gr.Row():
                     save_report_btn = gr.Button("一键导出报告")
                 result_text = gr.Markdown("等待操作\n\n\n")
-            
+
             export_dumps_btn.click(
                 fn=self.export_dumps,
                 outputs=[result_text]
@@ -1042,7 +1097,7 @@ class KotoneBotUI:
         with gr.Blocks(title="琴音小助手", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
             with gr.Column(elem_id="container"):
                 gr.Markdown(f"# 琴音小助手 v{self._kaa.version}")
-                
+
                 with gr.Tabs():
                     self._create_status_tab()
                     self._create_task_tab()
@@ -1050,7 +1105,7 @@ class KotoneBotUI:
                     self._create_log_tab()
                     self._create_whats_new_tab()
                     self._create_screen_tab()
-            
+
         return app
 
 def main(kaa: Kaa | None = None) -> None:
