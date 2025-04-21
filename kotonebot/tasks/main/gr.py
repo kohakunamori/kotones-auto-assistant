@@ -111,6 +111,7 @@ def _save_bug_report(
 class KotoneBotUI:
     def __init__(self, kaa: Kaa) -> None:
         self.is_running: bool = False
+        self.single_task_running: bool = False
         self._kaa = kaa
         self._load_config()
         self._setup_kaa()
@@ -203,6 +204,31 @@ class KotoneBotUI:
         if self._kaa:
             self.run_status.interrupt()
         return "启动", self.update_task_status()
+
+    def start_single_task(self, task_name: str) -> Tuple[str, str]:
+        if not task_name:
+            gr.Warning("请先选择一个任务")
+            return "执行任务", ""
+        task = None
+        for name, t in task_registry.items():
+            if name == task_name:
+                task = t
+                break
+        if task is None:
+            gr.Warning(f"任务 {task_name} 未找到")
+            return "执行任务", ""
+
+        gr.Info(f"任务 {task_name} 开始执行")
+        self.single_task_running = True
+        self.run_status = self._kaa.start([task])
+        return "停止任务", f"正在执行任务: {task_name}"
+
+    def stop_single_task(self) -> Tuple[str, str]:
+        self.single_task_running = False
+        if hasattr(self, 'run_status') and self._kaa:
+            self.run_status.interrupt()
+            gr.Info("任务已停止")
+        return "执行任务", "任务已停止"
 
     def save_settings(
         self,
@@ -430,27 +456,62 @@ class KotoneBotUI:
             execute_btn = gr.Button("执行任务")
             task_result = gr.Markdown("")
 
-            # TODO: 实现任务执行逻辑
-            def execute_single_task(task_name: str) -> str:
-                if not task_name:
-                    gr.Warning("请先选择一个任务")
+            def toggle_single_task(task_name: str) -> Tuple[str, str]:
+                if self.single_task_running:
+                    return self.stop_single_task()
+                else:
+                    return self.start_single_task(task_name)
+
+            def get_task_button_status() -> str:
+                if not hasattr(self, 'run_status') or not self.run_status.running:
+                    self.single_task_running = False
+                    return "执行任务"
+                return "停止任务"
+
+            def get_single_task_status() -> str:
+                if not hasattr(self, 'run_status'):
                     return ""
-                task = None
-                for name, task in task_registry.items():
-                    if name == task_name:
-                        task = task
-                        break
-                if task is None:
-                    gr.Warning(f"任务 {task_name} 未找到")
-                    return ""
-                gr.Info(f"任务 {task_name} 开始执行。执行结束前，请勿重复点击执行。")
-                self._kaa.run([task])
-                gr.Success(f"任务 {task_name} 执行完毕")
+
+                if not self.run_status.running and self.single_task_running:
+                    # 任务已结束但状态未更新
+                    self.single_task_running = False
+
+                    # 检查任务状态
+                    for task_status in self.run_status.tasks:
+                        status = task_status.status
+                        task_name = task_status.task.name
+
+                        if status == 'finished':
+                            return f"任务 {task_name} 已完成"
+                        elif status == 'error':
+                            return f"任务 {task_name} 出错"
+                        elif status == 'cancelled':
+                            return f"任务 {task_name} 已取消"
+
+                    return "任务已结束"
+
+                if self.single_task_running:
+                    for task_status in self.run_status.tasks:
+                        if task_status.status == 'running':
+                            return f"正在执行任务: {task_status.task.name}"
+
+                    return "正在准备执行任务..."
+
                 return ""
 
             execute_btn.click(
-                fn=execute_single_task,
+                fn=toggle_single_task,
                 inputs=[task_dropdown],
+                outputs=[execute_btn, task_result]
+            )
+
+            # 添加定时器更新按钮状态和任务状态
+            gr.Timer(1.0).tick(
+                fn=get_task_button_status,
+                outputs=[execute_btn]
+            )
+            gr.Timer(1.0).tick(
+                fn=get_single_task_status,
                 outputs=[task_result]
             )
 
@@ -886,7 +947,7 @@ class KotoneBotUI:
     def _create_end_game_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox]:
         with gr.Column():
             gr.Markdown("### 关闭游戏设置")
-            gr.Markdown("在所有任务执行后执行下面这些操作：\n（执行单个任务时不会触发）")
+            gr.Markdown("在所有任务执行完毕后执行下面这些操作：\n（执行单个任务时不会触发）")
             exit_kaa = gr.Checkbox(
                 label="退出 kaa",
                 value=self.current_config.options.end_game.exit_kaa,
