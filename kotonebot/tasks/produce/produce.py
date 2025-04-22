@@ -1,11 +1,11 @@
 import logging
 from itertools import cycle
 from typing import Optional, Literal
+from typing_extensions import assert_never
 
-from kotonebot.backend.context.context import wait
-from kotonebot.tasks.game_ui.scrollable import Scrollable
 from kotonebot.ui import user
 from kotonebot.util import Countdown, Interval
+from kotonebot.backend.context.context import wait
 from kotonebot.backend.dispatch import SimpleDispatcher
 
 from .. import R
@@ -13,7 +13,8 @@ from ..common import conf
 from ..game_ui import dialog
 from ..actions.scenes import at_home, goto_home
 from ..game_ui.idols_overview import locate_idol
-from ..produce.in_purodyuusu import hajime_pro, hajime_regular, resume_pro_produce, resume_regular_produce
+from ..produce.in_purodyuusu import hajime_pro, hajime_regular, hajime_master, resume_pro_produce, resume_regular_produce, \
+    resume_master_produce
 from kotonebot import device, image, ocr, task, action, sleep, contains
 
 logger = logging.getLogger(__name__)
@@ -135,13 +136,16 @@ def resume_produce():
     mode_result = image.find_multi([
         R.Produce.ResumeDialogRegular,
         R.Produce.ResumeDialogPro,
+        R.Produce.ResumeDialogMaster
     ])
     if not mode_result:
         raise ValueError('Failed to detect produce mode.')
     if mode_result.index == 0:
         mode = 'regular'
-    else:
+    elif mode_result.index == 1:
         mode = 'pro'
+    else:
+        mode = 'master'
     logger.info(f'Produce mode: {mode}')
     retry_count = 0
     max_retries = 5
@@ -167,16 +171,20 @@ def resume_produce():
     # [kotonebot-resource/sprites/jp/produce/produce_resume.png]
     logger.info('Click resume button.')
     device.click(btn_resume)
-    # 继续流程
-    if mode == 'regular':
-        resume_regular_produce(current_week)
-    else:
-        resume_pro_produce(current_week)
+    match mode:
+        case 'regular':
+            resume_regular_produce(current_week)
+        case 'pro':
+            resume_pro_produce(current_week)
+        case 'master':
+            resume_master_produce(current_week)
+        case _:
+            assert_never(mode)
 
 @action('执行培育', screenshot_mode='manual-inherit')
 def do_produce(
     idol_skin_id: str,
-    mode: Literal['regular', 'pro'],
+    mode: Literal['regular', 'pro', 'master'],
     memory_set_index: Optional[int] = None
 ) -> bool:
     """
@@ -200,7 +208,8 @@ def do_produce(
         return True
 
     # 0. 进入培育页面
-    mode_text = 'REGULAR' if mode == 'regular' else 'PRO'
+    mode_text = mode.upper()
+    logger.info(f'Enter produce page. Mode: {mode_text}')
     result = (SimpleDispatcher('enter_produce')
         .click(R.Produce.ButtonProduce)
         .click(contains(mode_text))
@@ -292,10 +301,15 @@ def do_produce(
             device.click()
         if image.find(R.Common.ButtonConfirmNoIcon):
             device.click()
-    if mode == 'regular':
-        hajime_regular()
-    else:
-        hajime_pro()
+    match mode:
+        case 'regular':
+            hajime_regular()
+        case 'pro':
+            hajime_pro()
+        case 'master':
+            hajime_master()
+        case _:
+            assert_never(mode)
     return True
 
 @task('培育')

@@ -313,10 +313,10 @@ class RecommendCardDetectionMode(Enum):
 class ProduceConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用培育"""
-    mode: Literal['regular', 'pro'] = 'regular'
+    mode: Literal['regular', 'pro', 'master'] = 'regular'
     """
     培育模式。
-    进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h。
+    进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h（具体视设备性能而定）。
     """
     produce_count: int = 1
     """培育的次数。"""
