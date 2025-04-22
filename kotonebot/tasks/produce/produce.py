@@ -270,7 +270,7 @@ def do_produce(
     (SimpleDispatcher('do_produce.step_3')
         .until(R.Produce.TextStepIndicator4)
         .click(R.Common.ButtonNextNoIcon)
-        .click(R.Common.ButtonConfirm)
+        .click(R.Common.IconButtonCheck)
     ).run()
 
     # 4. 选择道具 [screenshots/produce/screenshot_produce_start_4_end.png]
