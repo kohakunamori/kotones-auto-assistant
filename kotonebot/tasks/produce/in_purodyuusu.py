@@ -4,7 +4,7 @@ from typing import Literal, NamedTuple
 
 from .. import R
 from ..actions import loading
-from ..game_ui import WhiteFilter
+from ..game_ui import WhiteFilter, dialog
 from ..actions.scenes import at_home
 from .cards import do_cards, CardDetectResult
 from ..actions.commu import handle_unread_commu
@@ -375,6 +375,9 @@ def produce_end():
             device.click(image.expect_wait(R.InPurodyuusu.ButtonComplete))
             wait(0.5, before='screenshot')
             break
+        # 培育得硬币活动时，弹出的硬币获得对话框
+        elif dialog.no():
+            pass
 
     # 点击结束后可能还会弹出来：
     # 活动进度、关注提示
