@@ -283,6 +283,7 @@ class ProduceAction(Enum):
     STUDY = 'study'
     ALLOWANCE = 'allowance'
     REST = 'rest'
+    CONSULT = 'consult'
 
     @property
     def display_name(self):
@@ -295,6 +296,7 @@ class ProduceAction(Enum):
             ProduceAction.STUDY: '文化课（授業）',
             ProduceAction.ALLOWANCE: '活动支给（活動支給）',
             ProduceAction.REST: '休息',
+            ProduceAction.CONSULT: '咨询（相談）',
         }
         return MAP[self]
 
@@ -323,7 +325,6 @@ class ProduceConfig(ConfigBaseModel):
     idols: list[str] = []
     """
     要培育偶像的 IdolCardSkin.id。将会按顺序循环选择培育。
-    若未选择任何偶像，则使用游戏默认选择的偶像（为上次培育偶像）。
     """
     memory_sets: list[int] = []
     """要使用的回忆编成编号，从 1 开始。将会按顺序循环选择使用。"""

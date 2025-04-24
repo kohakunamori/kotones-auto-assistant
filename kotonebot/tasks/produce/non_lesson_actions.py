@@ -5,12 +5,14 @@
 """
 from logging import getLogger
 
+from kotonebot.tasks.game_ui import dialog
+
 
 from .. import R
 from ..common import conf
 from ..produce.common import fast_acquisitions
 from ..game_ui.commu_event_buttons import CommuEventButtonUI
-from kotonebot.util import Interval
+from kotonebot.util import Countdown, Interval
 from kotonebot.errors import UnrecoverableError
 from kotonebot import device, image, action, sleep
 from kotonebot.backend.dispatch import SimpleDispatcher
@@ -32,6 +34,14 @@ def study_available():
     # [screenshots/produce/action_study1.png]
     return image.find(R.InPurodyuusu.ButtonIconStudy) is not None
 
+@action('检测是否可以执行相談')
+def consult_available():
+    """
+    判断是否可以执行相談。
+    """
+    return image.find(R.InPurodyuusu.ButtonIconConsult) is not None
+
+# TODO: 把进入授業的逻辑和执行授業的逻辑分离
 @action('执行授業')
 def enter_study():
     """
@@ -131,6 +141,87 @@ def enter_allowance():
         it.wait()
     logger.info("活動支給 completed.")
 
+# TODO: 将逻辑用循环改写
+@action('执行相談', screenshot_mode='manual-inherit')
+def enter_consult():
+    """
+    执行相談。
+    
+    前置条件：位于行动页面，且所有行动按钮清晰可见 \n
+    结束状态：位于行动页面
+    """
+    logger.info("Executing 相談.")
+    logger.info("Double clicking on 相談.")
+    device.screenshot()
+    device.double_click(image.expect(R.InPurodyuusu.ButtonIconConsult), interval=1)
+    
+    # 等待进入页面
+    while not image.find(R.InPurodyuusu.IconTitleConsult):
+        device.screenshot()
+        logger.debug("Waiting for 相談 screen.")
+        fast_acquisitions()
+    # # 尝试固定购买第一个物品
+    # device.click(R.InPurodyuusu.PointConsultFirstItem)
+    # sleep(0.5)
+    # device.click(image.expect(R.InPurodyuusu.ButtonIconExchange))
+    # # 等待弹窗
+    # timeout_cd = Countdown(sec=5).start()
+    # while not timeout_cd.expired():
+    #     if dialog.yes():
+    #         break
+    # # 结束
+    # while not image.find(R.InPurodyuusu.ButtonEndConsult):
+    #     fast_acquisitions()
+    # device.click(image.expect_wait(R.InPurodyuusu.ButtonEndConsult))
+    # # 可能会弹出确认对话框
+    # timeout_cd.reset().start()
+    # while not timeout_cd.expired():
+    #     dialog.yes()
+    device.click(R.InPurodyuusu.PointConsultFirstItem)
+    sleep(0.3)
+    it = Interval()
+    wait_purchase_cd = Countdown(sec=5)
+    exit_cd = Countdown(sec=5)
+    purchase_clicked = False
+    purchase_confirmed = False
+    exit_clicked = False
+    while True:
+        device.screenshot()
+        it.wait()
+        if wait_purchase_cd.expired():
+            # 等待购买确认对话框超时后直接认为购买完成
+            purchase_confirmed = True
+
+        if dialog.yes():
+            if purchase_clicked:
+                purchase_confirmed = True
+                continue
+            elif purchase_confirmed:
+                continue
+            elif exit_clicked:
+                break
+        if image.find(R.InPurodyuusu.ButtonIconExchange, colored=True):
+            device.click()
+            purchase_clicked = True
+            continue
+        if purchase_confirmed and image.find(R.InPurodyuusu.ButtonEndConsult):
+            device.click()
+            exit_clicked = True
+            exit_cd.start()
+            continue
+
+        # 等待退出对话框超时，直接退出
+        if exit_cd.expired():
+            break
+
+        if not purchase_confirmed:
+            device.click(R.InPurodyuusu.PointConsultFirstItem)
+            # 处理不能购买的情况（超时）
+            # TODO: 应当检测画面文字/图标而不是用超时
+            wait_purchase_cd.start()
+
+    logger.info("相談 completed.")
+
 @action('判断是否可以休息')
 def is_rest_available():
     """
@@ -213,22 +304,4 @@ if __name__ == '__main__':
     from kotonebot.backend.context import manual_context, init_context
     init_context()
     manual_context().begin()
-    # 获取三个选项的内容
-    ui = CommuEventButtonUI()
-    buttons = ui.all()
-    if not buttons:
-        raise UnrecoverableError("Failed to find any buttons.")
-    # 选中 +30 的选项
-    target_btn = next((btn for btn in buttons if btn.description == '+30'), None)
-    if target_btn is None:
-        logger.error("Failed to find +30 option. Pick the first button instead.")
-        target_btn = buttons[0]
-    # 固定点击 Vi. 选项
-    logger.debug('Clicking "%s".', target_btn.description)
-    if target_btn.selected:
-        device.click(target_btn)
-    else:
-        device.double_click(target_btn)
-    while fast_acquisitions() is None:
-        logger.info("Waiting for acquisitions finished.")
-    logger.info("授業 completed.")
+    enter_consult()

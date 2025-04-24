@@ -18,7 +18,8 @@ from ..produce.non_lesson_actions import (
     enter_allowance, allowance_available,
     study_available, enter_study,
     is_rest_available, rest,
-    outing_available, enter_outing
+    outing_available, enter_outing,
+    consult_available, enter_consult
 )
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,7 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
                 R.InPurodyuusu.TextSenseiTipVocal,
                 R.InPurodyuusu.TextSenseiTipVisual,
                 R.InPurodyuusu.TextSenseiTipRest,
+                R.InPurodyuusu.TextSenseiTipConsult,
             ]):
                 break
         it.wait()
@@ -94,6 +96,9 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
         elif result.index == 3:
             rest()
             return ProduceAction.REST
+        elif result.index == 4:
+            enter_consult()
+            return ProduceAction.CONSULT
         else:
             return None
         # 点击课程
@@ -469,6 +474,10 @@ def handle_action(action: ProduceAction, final_week: bool = False) -> ProduceAct
             if allowance_available():
                 enter_allowance()
                 return ProduceAction.ALLOWANCE
+        case ProduceAction.CONSULT:
+            if consult_available():
+                enter_consult()
+                return ProduceAction.CONSULT
         case _:
             logger.warning("Unknown action: %s", action)
             return None
@@ -493,7 +502,7 @@ def week_normal(week_first: bool = False):
     match action:
         case (
             ProduceAction.REST |
-            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE
+            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE | ProduceAction.CONSULT
         ):
             # 什么都不需要做
             pass
@@ -521,7 +530,8 @@ def week_final_lesson():
     match action:
         case (
             ProduceAction.REST |
-            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE
+            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE |
+            ProduceAction.CONSULT
         ):
             # 什么都不需要做
             pass
@@ -829,43 +839,3 @@ if __name__ == '__main__':
     manual_context().begin()
     debug.auto_save_to_folder = 'dumps'
     debug.enabled = True
-
-    # hajime_regular(start_from=1)
-    
-    # pf = Profiler('profiler')
-    # pf.begin()
-    # # do_produce(conf().produce.idols[0], 'pro')
-    # practice()
-    # hajime_pro(start_from=16)
-    # pf.end()
-    # pf.snakeviz()
-
-
-    # while True:
-    #     cards = obtain_cards()
-    #     print(cards)
-    #     sleep(1)
-
-
-    # practice()
-    # week_mid_exam()
-    # week_final_exam()
-    # exam('final')
-    # produce_end()
-
-
-    # hajime_pro(start_from=16)
-    # exam('mid')
-    stage = (detect_produce_scene())
-    hajime_from_stage(stage, 'pro', 0)
-
-    # click_recommended_card(card_count=skill_card_count())
-    # exam('mid')
-
-    # hajime_regular(start_from=7)
-
-    # import cv2
-    # while True:
-    #     img = device.screenshot()
-    #     cv2.imshow('123', img)
-    #     cv2.waitKey(1)
