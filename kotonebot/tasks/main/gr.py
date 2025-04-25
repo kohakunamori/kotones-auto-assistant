@@ -534,7 +534,7 @@ class KotoneBotUI:
                 interactive=True
             )
             screenshot_impl = gr.Dropdown(
-                choices=['adb', 'adb_raw', 'uiautomator2', 'windows'],
+                choices=['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows'],
                 value=self.current_config.backend.screenshot_impl,
                 label="截图方法",
                 info=BackendConfig.model_fields['screenshot_impl'].description,
