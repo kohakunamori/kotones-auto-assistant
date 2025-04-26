@@ -1,5 +1,6 @@
 """启动游戏，领取登录奖励，直到首页为止"""
 import os
+import ctypes
 import logging
 
 from . import R
@@ -9,7 +10,7 @@ from kotonebot.util import Countdown, Interval
 from .actions.scenes import at_home, goto_home
 from .actions.commu import handle_unread_commu
 from kotonebot.errors import GameUpdateNeededError
-from kotonebot import task, action, sleep, device, image, ocr
+from kotonebot import task, action, sleep, device, image, ocr, config
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,9 @@ def windows_launch():
     结束状态：游戏窗口出现
     """
     # 检查管理员权限
-    import ctypes, os
+    # TODO: 检查截图类型不应该依赖配置文件，而是直接检查 device 实例
+    if config.current.backend.screenshot_impl == 'remote_windows':
+        raise NotImplementedError("Task `start_game` is not supported on remote_windows.")
     try:
         is_admin = os.getuid() == 0 # type: ignore
     except AttributeError:

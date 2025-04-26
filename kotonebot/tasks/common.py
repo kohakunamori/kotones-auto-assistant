@@ -20,10 +20,13 @@ class ConfigEnum(Enum):
         return self.value[1]
 
 class Priority(IntEnum):
+    """
+    任务优先级。数字越大，优先级越高，越先执行。
+    """
     START_GAME = 1
     DEFAULT = 0
     CLAIM_MISSION_REWARD = -1
-
+    END_GAME = -2
 
 class APShopItems(IntEnum):
     PRODUCE_PT_UP = 0
@@ -142,17 +145,17 @@ class DailyMoneyShopItems(IntEnum):
                 return "月村手毬 Luna say maybe 碎片"
             case _:
                 assert_never(item)
-    
+
     @classmethod
     def all(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
         """获取所有枚举值及其对应的UI显示文本"""
         return [(cls.to_ui_text(item), item) for item in cls]
-    
+
     @classmethod
     def _is_note(cls, item: 'DailyMoneyShopItems') -> bool:
         """判断是否为笔记"""
         return 'Note' in item.name and not item.name.startswith('Note') and not item.name.endswith('Note')
-    
+
     @classmethod
     def note_items(cls) -> list[tuple[str, 'DailyMoneyShopItems']]:
         """获取所有枚举值及其对应的UI显示文本"""
@@ -280,6 +283,7 @@ class ProduceAction(Enum):
     STUDY = 'study'
     ALLOWANCE = 'allowance'
     REST = 'rest'
+    CONSULT = 'consult'
 
     @property
     def display_name(self):
@@ -292,6 +296,7 @@ class ProduceAction(Enum):
             ProduceAction.STUDY: '文化课（授業）',
             ProduceAction.ALLOWANCE: '活动支给（活動支給）',
             ProduceAction.REST: '休息',
+            ProduceAction.CONSULT: '咨询（相談）',
         }
         return MAP[self]
 
@@ -310,17 +315,16 @@ class RecommendCardDetectionMode(Enum):
 class ProduceConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用培育"""
-    mode: Literal['regular', 'pro'] = 'regular'
+    mode: Literal['regular', 'pro', 'master'] = 'regular'
     """
     培育模式。
-    进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h。
+    进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h（具体视设备性能而定）。
     """
     produce_count: int = 1
     """培育的次数。"""
     idols: list[str] = []
     """
     要培育偶像的 IdolCardSkin.id。将会按顺序循环选择培育。
-    若未选择任何偶像，则使用游戏默认选择的偶像（为上次培育偶像）。
     """
     memory_sets: list[int] = []
     """要使用的回忆编成编号，从 1 开始。将会按顺序循环选择使用。"""
@@ -341,7 +345,7 @@ class ProduceConfig(ConfigBaseModel):
     prefer_lesson_ap: bool = False
     """
     优先 SP 课程。
-    
+
     启用后，若出现 SP 课程，则会优先执行 SP 课程，而不是推荐课程。
     若出现多个 SP 课程，随机选择一个。
     """
@@ -357,13 +361,13 @@ class ProduceConfig(ConfigBaseModel):
     ]
     """
     行动优先级
-    
+
     每一周的行动将会按这里设置的优先级执行。
     """
     recommend_card_detection_mode: RecommendCardDetectionMode = RecommendCardDetectionMode.NORMAL
     """
     推荐卡检测模式
-    
+
     严格模式下，识别速度会降低，但识别准确率会提高。
     """
     use_ap_drink: bool = False
@@ -403,7 +407,7 @@ class CapsuleToysConfig(ConfigBaseModel):
 
     anomaly_capsule_toys_count: int = 0
     """非凡扭蛋机次数"""
-    
+
 class TraceConfig(ConfigBaseModel):
     recommend_card_detection: bool = False
     """跟踪推荐卡检测"""
@@ -415,11 +419,25 @@ class StartGameConfig(ConfigBaseModel):
     start_through_kuyo: bool = False
     """是否通过Kuyo来启动游戏"""
 
-    game_package_name: str = 'com.bandinamcoent.idolmaster_gakuen'
+    game_package_name: str = 'com.bandainamcoent.idolmaster_gakuen'
     """游戏包名"""
 
     kuyo_package_name: str = 'org.kuyo.game'
     """Kuyo包名"""
+
+class EndGameConfig(ConfigBaseModel):
+    exit_kaa: bool = False
+    """退出 kaa"""
+    kill_game: bool = False
+    """关闭游戏"""
+    kill_dmm: bool = False
+    """关闭 DMMGamePlayer"""
+    kill_emulator: bool = False
+    """关闭模拟器"""
+    shutdown: bool = False
+    """关闭系统"""
+    hibernate: bool = False
+    """休眠系统"""
 
 class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
@@ -458,6 +476,9 @@ class BaseConfig(ConfigBaseModel):
     start_game: StartGameConfig = StartGameConfig()
     """启动游戏配置"""
 
+    end_game: EndGameConfig = EndGameConfig()
+    """关闭游戏配置"""
+
 
 def conf() -> BaseConfig:
     """获取当前配置数据"""
@@ -478,7 +499,7 @@ def upgrade_config() -> str | None:
         return None
     with open('config.json', 'r', encoding='utf-8') as f:
         root = json.load(f)
-    
+
     user_configs = root['user_configs']
     old_version = root['version']
     messages = []
@@ -496,6 +517,11 @@ def upgrade_config() -> str | None:
                     user_config, msg = upgrade_v2_to_v3(user_config['options'])
                     messages.append(msg)
                     version = 3
+                case 3:
+                    logger.info('Upgrading config: v3 -> v4')
+                    user_config, msg = upgrade_v3_to_v4(user_config['options'])
+                    messages.append(msg)
+                    version = 4
                 case _:
                     logger.info('No config upgrade needed.')
                     return version
@@ -580,7 +606,7 @@ class PIdol(IntEnum):
     紫云清夏_キミとセミブルー = 紫云清夏_BASE + 4
     紫云清夏_初恋 = 紫云清夏_BASE + 5
     紫云清夏_学園生活 = 紫云清夏_BASE + 6
-    
+
     花海佑芽_WhiteNightWhiteWish = 花海佑芽_BASE + 0
     花海佑芽_学園生活 = 花海佑芽_BASE + 1
     花海佑芽_Campusmode = 花海佑芽_BASE + 2
@@ -614,7 +640,7 @@ class PIdol(IntEnum):
     藤田ことね_学園生活 = 藤田ことね_BASE + 7
 
 
-def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str]:
     """
     v1 -> v2 变更：
 
@@ -793,7 +819,7 @@ def upgrade_v1_to_v2(options: dict[str, Any]) -> tuple[dict[str, Any], str | Non
     shutil.copy('config.json', 'config.v1.json')
     return options, msg
 
-def upgrade_v2_to_v3(options: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+def upgrade_v2_to_v3(options: dict[str, Any]) -> tuple[dict[str, Any], str]:
     """
     v2 -> v3 变更：\n
     引入了游戏解包数据，因此 PIdol 枚举废弃，直接改用游戏内 ID。
@@ -890,6 +916,17 @@ def upgrade_v2_to_v3(options: dict[str, Any]) -> tuple[dict[str, Any], str | Non
     options['produce']['idols'] = new_idols
     shutil.copy('config.json', 'config.v2.json')
     return options, msg
+
+def upgrade_v3_to_v4(options: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    """
+    v3 -> v4 变更：
+    自动纠正错误游戏包名
+    """
+    shutil.copy('config.json', 'config.v3.json')
+    if options['start_game']['game_package_name'] == 'com.bandinamcoent.idolmaster_gakuen':
+        options['start_game']['game_package_name'] = 'com.bandainamcoent.idolmaster_gakuen'
+        logger.info('Corrected game package name to com.bandainamcoent.idolmaster_gakuen')
+    return options, ''
 
 if __name__ == '__main__':
     print(PurchaseConfig.model_fields['money_refresh_on'].description)

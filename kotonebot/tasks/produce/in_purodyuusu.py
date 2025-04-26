@@ -18,7 +18,8 @@ from ..produce.non_lesson_actions import (
     enter_allowance, allowance_available,
     study_available, enter_study,
     is_rest_available, rest,
-    outing_available, enter_outing
+    outing_available, enter_outing,
+    consult_available, enter_consult
 )
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,7 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
                 R.InPurodyuusu.TextSenseiTipVocal,
                 R.InPurodyuusu.TextSenseiTipVisual,
                 R.InPurodyuusu.TextSenseiTipRest,
+                R.InPurodyuusu.TextSenseiTipConsult,
             ]):
                 break
         it.wait()
@@ -94,6 +96,9 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
         elif result.index == 3:
             rest()
             return ProduceAction.REST
+        elif result.index == 4:
+            enter_consult()
+            return ProduceAction.CONSULT
         else:
             return None
         # 点击课程
@@ -375,7 +380,8 @@ def produce_end():
             device.click(image.expect_wait(R.InPurodyuusu.ButtonComplete))
             wait(0.5, before='screenshot')
             break
-        # 培育得硬币活动时，弹出的硬币获得对话框
+        # 1. P任务解锁提示
+        # 2. 培育得硬币活动时，弹出的硬币获得对话框
         elif dialog.no():
             pass
 
@@ -468,6 +474,10 @@ def handle_action(action: ProduceAction, final_week: bool = False) -> ProduceAct
             if allowance_available():
                 enter_allowance()
                 return ProduceAction.ALLOWANCE
+        case ProduceAction.CONSULT:
+            if consult_available():
+                enter_consult()
+                return ProduceAction.CONSULT
         case _:
             logger.warning("Unknown action: %s", action)
             return None
@@ -492,7 +502,7 @@ def week_normal(week_first: bool = False):
     match action:
         case (
             ProduceAction.REST |
-            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE
+            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE | ProduceAction.CONSULT
         ):
             # 什么都不需要做
             pass
@@ -520,7 +530,8 @@ def week_final_lesson():
     match action:
         case (
             ProduceAction.REST |
-            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE
+            ProduceAction.OUTING | ProduceAction.STUDY | ProduceAction.ALLOWANCE |
+            ProduceAction.CONSULT
         ):
             # 什么都不需要做
             pass
@@ -625,6 +636,42 @@ def hajime_pro(week: int = -1, start_from: int = 1):
             logger.info("Week %d started.", i + start_from)
             w()
 
+@action("执行 MASTER 培育")
+def hajime_master(week: int = -1, start_from: int = 1):
+    """
+    「初」 MASTER 模式
+    
+    :param week: 第几周，从1开始，-1表示全部
+    :param start_from: 从第几周开始，从1开始。
+    """
+    weeks = [
+        lambda: week_normal(True), # 1
+        week_normal, # 2
+        week_normal, # 3
+        week_normal, # 4
+        week_normal, # 5
+        week_normal, # 6
+        week_final_lesson, # 7
+        week_mid_exam, # 8
+        week_normal, # 9
+        week_normal, # 10
+        week_normal, # 11
+        week_normal, # 12
+        week_normal, # 13
+        week_normal, # 14
+        week_normal, # 15
+        week_normal, # 16
+        week_final_lesson, # 17
+        week_final_exam, # 18
+    ]
+    if week != -1:
+        logger.info("Week %d started.", week)
+        weeks[week - 1]()
+    else:
+        for i, w in enumerate(weeks[start_from-1:]):
+            logger.info("Week %d started.", i + start_from)
+            w()
+
 @action('是否在考试场景')
 def is_exam_scene():
     """是否在考试场景"""
@@ -675,7 +722,7 @@ def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
         return 'unknown'
 
 @action('开始 Hajime 培育')
-def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro'], week: int):
+def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro', 'master'], week: int):
     """
     开始 Regular 培育。
     """
@@ -684,11 +731,23 @@ def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro'], week
         # 提取周数
         remaining_week = texts.squash().replace('ó', '6').numbers()
         if not remaining_week:
-            raise UnrecoverableError("Failed to detect week.")
+            raise UnrecoverableError("Failed to detect week. text=" + repr(texts.squash()))
         # 判断阶段
-        MID_WEEK = 6 if type == 'regular' else 7
-        FINAL_WEEK = 13 if type == 'regular' else 16
-        function = hajime_regular if type == 'regular' else hajime_pro
+        match type:
+            case 'regular':
+                MID_WEEK = 6
+                FINAL_WEEK = 13
+                function = hajime_regular
+            case 'pro':
+                MID_WEEK = 7
+                FINAL_WEEK = 16
+                function = hajime_pro
+            case 'master':
+                MID_WEEK = 8
+                FINAL_WEEK = 18
+                function = hajime_master
+            case _:
+                assert_never(type)
         if texts.where(contains('中間')):
             week = MID_WEEK - remaining_week[0]
             function(start_from=week)
@@ -700,27 +759,37 @@ def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro'], week
     elif stage == 'exam-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Exam ongoing. Start exam.")
-        if type == 'regular':
-            if week > 6: # 第六周为期中考试
-                exam('final')
-                return produce_end()
-            else:
-                exam('mid')
-                return hajime_from_stage(detect_produce_scene(), type, week)
-        elif type == 'pro':
-            if week > 7:
-                exam('final')
-                return produce_end()
-            else:
-                exam('mid')
-                return hajime_from_stage(detect_produce_scene(), type, week)
+        match type:
+            case 'regular':
+                if week > 6: # 第六周为期中考试
+                    exam('final')
+                    return produce_end()
+                else:
+                    exam('mid')
+                    return hajime_from_stage(detect_produce_scene(), type, week)
+            case 'pro':
+                if week > 7:
+                    exam('final')
+                    return produce_end()
+                else:
+                    exam('mid')
+                    return hajime_from_stage(detect_produce_scene(), type, week)
+            case 'master':
+                if week > 8:
+                    exam('final')
+                    return produce_end()
+                else:
+                    exam('mid')
+                    return hajime_from_stage(detect_produce_scene(), type, week)
+            case _:
+                assert_never(type)
     elif stage == 'practice-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Practice ongoing. Start practice.")
         practice()
         return hajime_from_stage(detect_produce_scene(), type, week)
     else:
-        raise UnrecoverableError(f'Cannot resume produce REGULAR from stage "{stage}".')
+        raise UnrecoverableError(f'Cannot resume produce from stage "{stage}".')
 
 @action('继续 Regular 培育')
 def resume_regular_produce(week: int):
@@ -739,6 +808,15 @@ def resume_pro_produce(week: int):
     :param week: 当前周数。
     """
     hajime_from_stage(detect_produce_scene(), 'pro', week)
+
+@action('继续 MASTER 培育')
+def resume_master_produce(week: int):
+    """
+    继续 MASTER 培育。
+    
+    :param week: 当前周数。
+    """
+    hajime_from_stage(detect_produce_scene(), 'master', week)
 
 if __name__ == '__main__':
     from logging import getLogger
@@ -761,43 +839,3 @@ if __name__ == '__main__':
     manual_context().begin()
     debug.auto_save_to_folder = 'dumps'
     debug.enabled = True
-
-    # hajime_regular(start_from=1)
-    
-    # pf = Profiler('profiler')
-    # pf.begin()
-    # # do_produce(conf().produce.idols[0], 'pro')
-    # practice()
-    # hajime_pro(start_from=16)
-    # pf.end()
-    # pf.snakeviz()
-
-
-    # while True:
-    #     cards = obtain_cards()
-    #     print(cards)
-    #     sleep(1)
-
-
-    # practice()
-    # week_mid_exam()
-    # week_final_exam()
-    # exam('final')
-    # produce_end()
-
-
-    # hajime_pro(start_from=16)
-    # exam('mid')
-    stage = (detect_produce_scene())
-    hajime_from_stage(stage, 'pro', 0)
-
-    # click_recommended_card(card_count=skill_card_count())
-    # exam('mid')
-
-    # hajime_regular(start_from=7)
-
-    # import cv2
-    # while True:
-    #     img = device.screenshot()
-    #     cv2.imshow('123', img)
-    #     cv2.waitKey(1)
