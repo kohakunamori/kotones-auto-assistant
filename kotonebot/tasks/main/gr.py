@@ -239,6 +239,7 @@ class KotoneBotUI:
         check_emulator: bool,
         emulator_path: str,
         adb_emulator_name: str,
+        emulator_args: str,
         trace_recommend_card_detection: bool,
         purchase_enabled: bool,
         money_enabled: bool,
@@ -313,6 +314,7 @@ class KotoneBotUI:
         self.current_config.keep_screenshots = keep_screenshots
         self.current_config.backend.check_emulator = check_emulator
         self.current_config.backend.emulator_path = emulator_path
+        self.current_config.backend.emulator_args = emulator_args
 
         options = BaseConfig(
             purchase=PurchaseConfig(
@@ -515,7 +517,7 @@ class KotoneBotUI:
                 outputs=[task_result]
             )
 
-    def _create_emulator_settings(self) -> Tuple[gr.Textbox, gr.Number, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Textbox, gr.Textbox]:
+    def _create_emulator_settings(self) -> Tuple[gr.Textbox, gr.Number, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Textbox, gr.Textbox, gr.Textbox]:
         with gr.Column():
             gr.Markdown("### 模拟器设置")
             adb_ip = gr.Textbox(
@@ -565,12 +567,18 @@ class KotoneBotUI:
                     info=BackendConfig.model_fields['adb_emulator_name'].description,
                     interactive=True
                 )
+                emulator_args = gr.Textbox(
+                    value=self.current_config.backend.emulator_args,
+                    label="模拟器启动参数",
+                    info=BackendConfig.model_fields['emulator_args'].description,
+                    interactive=True
+                )
             check_emulator.change(
                 fn=lambda x: gr.Group(visible=x),
                 inputs=[check_emulator],
                 outputs=[check_emulator_group]
             )
-        return adb_ip, adb_port, screenshot_impl, keep_screenshots, check_emulator, emulator_path, adb_emulator_name
+        return adb_ip, adb_port, screenshot_impl, keep_screenshots, check_emulator, emulator_path, adb_emulator_name, emulator_args
 
     def _create_purchase_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Dropdown, gr.Dropdown]:
         with gr.Column():
