@@ -38,6 +38,7 @@ pip show ksaa
 
 echo =========== ÔËÐÐ KAA ===========
 :RUN
+set no_proxy=localhost, 127.0.0.1, ::1
 kaa
 if errorlevel 1 (
     goto ERROR
