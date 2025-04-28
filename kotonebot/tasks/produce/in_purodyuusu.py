@@ -569,7 +569,7 @@ def week_final_exam():
     exam('final')
     produce_end()
 
-@action('执行 Regular 培育')
+@action('执行 Regular 培育', screenshot_mode='manual-inherit')
 def hajime_regular(week: int = -1, start_from: int = 1):
     """
     「初」 Regular 模式
@@ -602,7 +602,7 @@ def hajime_regular(week: int = -1, start_from: int = 1):
             logger.info("Week %d started.", i + start_from)
             w()
 
-@action('执行 PRO 培育')
+@action('执行 PRO 培育', screenshot_mode='manual-inherit')
 def hajime_pro(week: int = -1, start_from: int = 1):
     """
     「初」 PRO 模式
@@ -636,7 +636,7 @@ def hajime_pro(week: int = -1, start_from: int = 1):
             logger.info("Week %d started.", i + start_from)
             w()
 
-@action("执行 MASTER 培育")
+@action("执行 MASTER 培育", screenshot_mode='manual-inherit')
 def hajime_master(week: int = -1, start_from: int = 1):
     """
     「初」 MASTER 模式

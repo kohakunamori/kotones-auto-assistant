@@ -14,7 +14,7 @@ from .p_drink import acquire_p_drink
 from kotonebot.util import measure_time
 from kotonebot.tasks.common import conf
 from kotonebot.tasks.actions.loading import loading
-from kotonebot.tasks.game_ui import CommuEventButtonUI, dialog
+from kotonebot.tasks.game_ui import CommuEventButtonUI, dialog, badge
 from kotonebot.tasks.actions.commu import handle_unread_commu
 
 logger = getLogger(__name__)
@@ -29,6 +29,7 @@ def acquire_skill_card():
     it = Interval()
     cards = None
     card_clicked = False
+    target_card = None
     
     while True:
         device.screenshot()
@@ -50,10 +51,26 @@ def acquire_skill_card():
                 return
             cards = sorted(cards, key=lambda x: (x.position[0], x.position[1]))
             logger.info(f"Found {len(cards)} skill cards")
+            # 判断是否有推荐卡
+            rec_badges = image.find_all(R.InPurodyuusu.TextRecommend)
+            rec_badges = [card.rect for card in rec_badges]
+            if rec_badges:
+                cards = [card.rect for card in cards]
+                matches = badge.match(cards, rec_badges, 'mb')
+                logger.debug("Recommend card badge matches: %s", matches)
+                # 选第一个推荐卡
+                target_match = next(filter(lambda m: m.badge is not None, matches), None)
+                if target_match:
+                    target_card = target_match.object
+                else:
+                    target_card = cards[0]
+            else:
+                logger.debug("No recommend badge found. Pick first card.")
+                target_card = cards[0].rect
             continue
-        if not card_clicked:
-            logger.debug("Click first skill card")
-            device.click(cards[0].rect)
+        if not card_clicked and target_card is not None:
+            logger.debug("Click target skill card")
+            device.click(target_card)
             card_clicked = True
             sleep(0.2)
             continue
