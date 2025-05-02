@@ -124,7 +124,7 @@ def do_cards(
     """
     it = Interval(seconds=1/30)
     timeout_cd = Countdown(sec=120).start() # 推荐卡检测超时计时器
-    break_cd = Countdown(sec=3).start() # 满足结束条件计时器
+    break_cd = Countdown(sec=5).start() # 满足结束条件计时器
     no_card_cd = Countdown(sec=4) # 无手牌计时器
     detect_card_count_cd = Countdown(sec=4).start() # 刷新检测手牌数量间隔
     tries = 1
@@ -192,14 +192,14 @@ def do_cards(
         # 结束条件
         if card_count == 0 and end_predicate():
             if not break_cd.started:
-                break_cd.start()
+                logger.debug('start break_cd')
+                break_cd.reset().start()
             if break_cd.expired():
+                logger.info("End condition met. do_cards finished.")
                 break
         else:
+            logger.debug('reset break_cd')
             break_cd.reset()
-
-    logger.info("CLEAR/PERFECT not found. Practice finished.")
-
 
 @action("技能卡移动")
 def handle_skill_card_move():

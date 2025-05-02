@@ -33,8 +33,11 @@ def handle_sp_lesson():
     前置条件：行动页面\n
     结束状态：练习场景，以及中间可能出现的加载、支援卡奖励、交流等
     """
-    if image.find(R.InPurodyuusu.IconSp) is not None:
-        device.double_click(image.expect(R.InPurodyuusu.IconSp))
+    if (sp := image.find(R.InPurodyuusu.IconSp)) is not None:
+        # 取 SP 图标中心点向左、向下偏移 30px
+        rect = sp.rect
+        pt = (rect[0] + rect[2] // 2, rect[1] + rect[3] // 2)
+        device.click(pt[0] - 30, pt[1] + 30)
         return True
     else:
         return False
@@ -569,7 +572,7 @@ def week_final_exam():
     exam('final')
     produce_end()
 
-@action('执行 Regular 培育')
+@action('执行 Regular 培育', screenshot_mode='manual-inherit')
 def hajime_regular(week: int = -1, start_from: int = 1):
     """
     「初」 Regular 模式
@@ -602,7 +605,7 @@ def hajime_regular(week: int = -1, start_from: int = 1):
             logger.info("Week %d started.", i + start_from)
             w()
 
-@action('执行 PRO 培育')
+@action('执行 PRO 培育', screenshot_mode='manual-inherit')
 def hajime_pro(week: int = -1, start_from: int = 1):
     """
     「初」 PRO 模式
@@ -636,7 +639,7 @@ def hajime_pro(week: int = -1, start_from: int = 1):
             logger.info("Week %d started.", i + start_from)
             w()
 
-@action("执行 MASTER 培育")
+@action("执行 MASTER 培育", screenshot_mode='manual-inherit')
 def hajime_master(week: int = -1, start_from: int = 1):
     """
     「初」 MASTER 模式
