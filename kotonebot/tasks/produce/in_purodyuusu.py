@@ -37,7 +37,7 @@ def handle_sp_lesson():
         # 取 SP 图标中心点向左、向下偏移 30px
         rect = sp.rect
         pt = (rect[0] + rect[2] // 2, rect[1] + rect[3] // 2)
-        device.click(pt[0] - 30, pt[1] + 30)
+        device.double_click(pt[0] + 30, pt[1] + 30)
         return True
     else:
         return False
