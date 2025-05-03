@@ -11,7 +11,6 @@ from .. import R
 from ..common import conf
 from ..game_ui import dialog
 from ..util.trace import trace
-from kotonebot.util import crop
 from kotonebot import action, Interval, Countdown, device, image, sleep, ocr, contains, use_screenshot, color, Rect
 
 class SkillCard(NamedTuple):
@@ -124,7 +123,7 @@ def do_cards(
     """
     it = Interval(seconds=1/30)
     timeout_cd = Countdown(sec=120).start() # 推荐卡检测超时计时器
-    break_cd = Countdown(sec=5).start() # 满足结束条件计时器
+    break_cd = Countdown(sec=5) # 满足结束条件计时器
     no_card_cd = Countdown(sec=4) # 无手牌计时器
     detect_card_count_cd = Countdown(sec=4).start() # 刷新检测手牌数量间隔
     tries = 1
@@ -199,7 +198,7 @@ def do_cards(
                 break
         else:
             logger.debug('reset break_cd')
-            break_cd.reset()
+            break_cd.stop()
 
 @action("技能卡移动")
 def handle_skill_card_move():
