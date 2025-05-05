@@ -7,13 +7,13 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from kotonebot.tasks import R
-from kotonebot.tasks.util import paths
+from kotonebot.kaa import R
+from kotonebot.kaa.util import paths
 from kotonebot.util import Rect, cv2_imread
-from kotonebot.tasks.game_ui import Scrollable
+from kotonebot.kaa.game_ui import Scrollable
 from kotonebot.backend.debug import result, img
 from kotonebot import device, color, action, sleep, contains
-from kotonebot.tasks.image_db import ImageDatabase, HistDescriptor, FileDataSource
+from kotonebot.kaa.image_db import ImageDatabase, HistDescriptor, FileDataSource
 from kotonebot.backend.preprocessor import HsvColorRemover, HsvColorsRemover
 
 logger = logging.getLogger(__name__)

@@ -1,7 +1,7 @@
 import os
 from typing import cast
 
-from kotonebot.tasks import resources as res
+from kotonebot.kaa import resources as res
 
 CACHE = os.path.join('cache')
 RESOURCE = cast(list[str], res.__path__)[0]

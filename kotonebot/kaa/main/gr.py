@@ -8,12 +8,12 @@ from typing import List, Dict, Tuple, Literal, Generator
 import cv2
 import gradio as gr
 
-from kotonebot.tasks.main import Kaa
-from kotonebot.tasks.db import IdolCard
+from kotonebot.kaa.main import Kaa
+from kotonebot.kaa.db import IdolCard
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.context import task_registry, ContextStackVars
-from kotonebot.tasks.common import (
+from kotonebot.kaa.common import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, DailyMoneyShopItems, ProduceAction,
@@ -1120,7 +1120,7 @@ class KotoneBotUI:
     def _create_whats_new_tab(self) -> None:
         """创建更新日志标签页，并显示最新版本更新内容"""
         with gr.Tab("更新日志"):
-            from kotonebot.tasks.metadata import WHATS_NEW
+            from kotonebot.kaa.metadata import WHATS_NEW
             gr.Markdown(WHATS_NEW)
 
     def _create_screen_tab(self) -> None:

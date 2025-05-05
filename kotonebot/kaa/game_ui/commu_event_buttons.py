@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Sequence
 
-from kotonebot.tasks import R
+from kotonebot.kaa import R
 from kotonebot.backend.core import HintBox
 from kotonebot.backend.color import HsvColor
 from kotonebot import action, device, ocr, sleep, Rect

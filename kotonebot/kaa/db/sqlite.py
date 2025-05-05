@@ -2,7 +2,7 @@ import os
 import sqlite3
 from typing import Any, cast
 
-from kotonebot.tasks import resources as res
+from kotonebot.kaa import resources as res
 
 _db: sqlite3.Connection | None = None
 _db_path = cast(str, res.__path__)[0] + '/game.db'

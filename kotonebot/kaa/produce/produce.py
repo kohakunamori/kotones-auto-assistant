@@ -365,7 +365,7 @@ if __name__ == '__main__':
     
     import time
     from kotonebot.backend.context import init_context, manual_context
-    from kotonebot.tasks.common import BaseConfig
+    from kotonebot.kaa.common import BaseConfig
     from kotonebot.util import Profiler
     init_context(config_type=BaseConfig)
     conf().produce.enabled = True

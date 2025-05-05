@@ -7,7 +7,7 @@ from cv2.typing import MatLike
 
 from kotonebot.backend.image import TemplateMatchResult
 
-from kotonebot.tasks import R
+from kotonebot.kaa import R
 from kotonebot import action, color, image
 from kotonebot.backend.color import HsvColor
 from kotonebot.util import Rect

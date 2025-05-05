@@ -5,7 +5,7 @@
 """
 from logging import getLogger
 
-from kotonebot.tasks.game_ui import dialog
+from kotonebot.kaa.game_ui import dialog
 
 
 from .. import R
