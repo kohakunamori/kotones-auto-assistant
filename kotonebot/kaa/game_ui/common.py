@@ -1,13 +1,7 @@
-from dataclasses import dataclass
-from typing import Literal, overload
-
 import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from kotonebot.backend.image import TemplateMatchResult
-
-from kotonebot.kaa import R
 from kotonebot import action, color, image
 from kotonebot.backend.color import HsvColor
 from kotonebot.util import Rect
@@ -94,7 +88,6 @@ class WhiteFilter(HsvColorFilter):
 
 
 if __name__ == '__main__':
-    from pprint import pprint as print
     from kotonebot.backend.context import init_context, manual_context, device
 
     init_context()

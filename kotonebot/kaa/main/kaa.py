@@ -34,7 +34,7 @@ class Kaa(KotoneBot):
     琴音小助手 kaa 主类。由其他 GUI/TUI 调用。
     """
     def __init__(self):
-        super().__init__(module='kotonebot.tasks', config_type=BaseConfig)
+        super().__init__(module='kotonebot.kaa.tasks', config_type=BaseConfig)
         self.upgrade_msg = upgrade_msg
         self.version = importlib.metadata.version('ksaa')
         logger.info('Version: %s', self.version)

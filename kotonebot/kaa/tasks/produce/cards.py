@@ -4,13 +4,12 @@ from typing import Callable, NamedTuple, Literal
 
 import cv2
 import numpy as np
-
 from cv2.typing import MatLike
 
-from .. import R
-from ..common import conf
-from ..game_ui import dialog
-from ..util.trace import trace
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf
+from kotonebot.kaa.game_ui import dialog
+from kotonebot.kaa.util.trace import trace
 from kotonebot import action, Interval, Countdown, device, image, sleep, ocr, contains, use_screenshot, color, Rect
 
 class SkillCard(NamedTuple):
@@ -392,6 +391,5 @@ def detect_recommended_card(
     return filtered_results[0]
 
 if __name__ == '__main__':
-    import cv2
-    img = cv2.imread(r'E:\GithubRepos\KotonesAutoAssistant.worktrees\dev\kotonebot-resource\sprites\jp\in_purodyuusu\produce_exam_1.png')
+    img = cv2.imread(r'/kotonebot-resource/sprites/jp/in_purodyuusu/produce_exam_1.png')
     print(skill_card_count(img))

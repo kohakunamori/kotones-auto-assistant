@@ -1,9 +1,9 @@
 """领取社团奖励，并尽可能地给其他人送礼物"""
 import logging
 
-from .. import R
-from ..common import conf
-from ..game_ui import toolbar_menu
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf
+from kotonebot.kaa.game_ui import toolbar_menu
 from ..actions.scenes import at_home, goto_home
 from kotonebot import task, device, image, sleep, ocr
 

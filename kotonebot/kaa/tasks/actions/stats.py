@@ -1,8 +1,8 @@
 import logging
 from typing import NamedTuple
 from datetime import timedelta
-from .. import R
-from kotonebot import action, ocr, device, regex
+from kotonebot.kaa.tasks import R
+from kotonebot import action, ocr, regex
 
 logger = logging.getLogger(__name__)
 

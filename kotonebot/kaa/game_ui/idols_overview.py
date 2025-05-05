@@ -1,20 +1,17 @@
 import os
 import logging
-from typing import cast
-from importlib import resources
 
 import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from kotonebot.kaa import R
+from kotonebot.kaa.tasks import R
 from kotonebot.kaa.util import paths
-from kotonebot.util import Rect, cv2_imread
+from kotonebot.util import Rect
 from kotonebot.kaa.game_ui import Scrollable
-from kotonebot.backend.debug import result, img
-from kotonebot import device, color, action, sleep, contains
+from kotonebot import device, action
 from kotonebot.kaa.image_db import ImageDatabase, HistDescriptor, FileDataSource
-from kotonebot.backend.preprocessor import HsvColorRemover, HsvColorsRemover
+from kotonebot.backend.preprocessor import HsvColorsRemover
 
 logger = logging.getLogger(__name__)
 _db: ImageDatabase | None = None
@@ -152,15 +149,12 @@ def locate_idol(skin_id: str):
     
 
 def test():
-    from kotonebot.backend.context import init_context, manual_context, device
+    from kotonebot.backend.context import init_context, manual_context
     init_context()
     manual_context().begin()
     locate_idol('i_card-skin-fktn-3-006')
 
 if __name__ == '__main__':
-    from pprint import pprint as print
-
     from kotonebot.util import cv2_imread
-    from kotonebot.backend.preprocessor import HsvColorFilter
 
     test()

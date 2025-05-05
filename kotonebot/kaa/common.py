@@ -2,7 +2,7 @@ import os
 import json
 import shutil
 from importlib import resources
-from typing import Literal, Dict, NamedTuple, Tuple, TypeVar, Generic, Any
+from typing import Literal, TypeVar, Any
 from typing_extensions import assert_never
 from enum import IntEnum, Enum
 
@@ -162,7 +162,7 @@ class DailyMoneyShopItems(IntEnum):
         return [(cls.to_ui_text(item), item) for item in cls if cls._is_note(item)]
 
     def to_resource(self):
-        from . import R
+        from kotonebot.kaa.tasks import R
         match self:
             case DailyMoneyShopItems.Recommendations:
                 return R.Daily.TextShopRecommended
@@ -486,10 +486,10 @@ def conf() -> BaseConfig:
     return c.options
 
 def sprite_path(path: str) -> str:
-    standalone = os.path.join('kotonebot/tasks/sprites', path)
+    standalone = os.path.join('kotonebot/kaa/sprites', path)
     if os.path.exists(standalone):
         return standalone
-    return str(resources.files('kotonebot.tasks.sprites') / path)
+    return str(resources.files('kotonebot.kaa.sprites') / path)
 
 def upgrade_config() -> str | None:
     """

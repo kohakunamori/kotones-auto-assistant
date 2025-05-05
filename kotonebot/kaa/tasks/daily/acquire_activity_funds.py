@@ -1,8 +1,8 @@
 """收取活动费"""
 import logging
 
-from .. import R
-from ..common import conf
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf
 from ..actions.scenes import at_home, goto_home
 from kotonebot import task, device, image, color
 

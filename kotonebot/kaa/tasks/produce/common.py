@@ -1,7 +1,7 @@
 from typing import Literal
 from logging import getLogger
 
-from .. import R
+from kotonebot.kaa.tasks import R
 from kotonebot import (
     ocr,
     device,
@@ -13,9 +13,9 @@ from kotonebot import (
 from .p_drink import acquire_p_drink
 from kotonebot.util import measure_time
 from kotonebot.kaa.common import conf
-from kotonebot.kaa.actions.loading import loading
+from kotonebot.kaa.tasks.actions.loading import loading
 from kotonebot.kaa.game_ui import CommuEventButtonUI, dialog, badge
-from kotonebot.kaa.actions.commu import handle_unread_commu
+from kotonebot.kaa.tasks.actions.commu import handle_unread_commu
 
 logger = getLogger(__name__)
 

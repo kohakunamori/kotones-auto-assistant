@@ -8,11 +8,11 @@ from kotonebot.util import Countdown, Interval
 from kotonebot.backend.context.context import wait
 from kotonebot.backend.dispatch import SimpleDispatcher
 
-from .. import R
-from ..common import conf
-from ..game_ui import dialog
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf
+from kotonebot.kaa.game_ui import dialog
 from ..actions.scenes import at_home, goto_home
-from ..game_ui.idols_overview import locate_idol
+from kotonebot.kaa.game_ui.idols_overview import locate_idol
 from ..produce.in_purodyuusu import hajime_pro, hajime_regular, hajime_master, resume_pro_produce, resume_regular_produce, \
     resume_master_produce
 from kotonebot import device, image, ocr, task, action, sleep, contains
@@ -364,9 +364,9 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(file_handler)
     
     import time
-    from kotonebot.backend.context import init_context, manual_context
+    from kotonebot.backend.context import init_context
     from kotonebot.kaa.common import BaseConfig
-    from kotonebot.util import Profiler
+
     init_context(config_type=BaseConfig)
     conf().produce.enabled = True
     conf().produce.mode = 'pro'

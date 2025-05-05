@@ -7,11 +7,10 @@ from logging import getLogger
 
 from kotonebot.kaa.game_ui import dialog
 
-
-from .. import R
-from ..common import conf
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf
 from ..produce.common import fast_acquisitions
-from ..game_ui.commu_event_buttons import CommuEventButtonUI
+from kotonebot.kaa.game_ui.commu_event_buttons import CommuEventButtonUI
 from kotonebot.util import Countdown, Interval
 from kotonebot.errors import UnrecoverableError
 from kotonebot import device, image, action, sleep

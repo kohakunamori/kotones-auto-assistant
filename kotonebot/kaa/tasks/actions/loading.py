@@ -4,9 +4,9 @@ from logging import getLogger
 import cv2
 import numpy as np
 
-from kotonebot import image, device, debug, action, sleep
+from kotonebot import image, device, action, sleep
 from kotonebot.backend.debug import result
-from .. import R
+from kotonebot.kaa.tasks import R
 
 logger = getLogger(__name__)
 

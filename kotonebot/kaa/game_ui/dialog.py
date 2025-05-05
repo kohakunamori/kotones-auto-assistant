@@ -1,4 +1,4 @@
-from kotonebot.kaa import R
+from kotonebot.kaa.tasks import R
 from kotonebot import device, image
 
 def expect_yes():

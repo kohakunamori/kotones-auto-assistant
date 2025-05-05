@@ -1,10 +1,10 @@
 import logging
 
-from .. import R
+from kotonebot.kaa.tasks import R
 from kotonebot.util import Interval
 from kotonebot.kaa.game_ui import dialog
 from kotonebot.kaa.game_ui import toolbar_home
-from kotonebot import device, image, action, until, sleep
+from kotonebot import device, image, action, sleep
 
 logger = logging.getLogger(__name__)
 

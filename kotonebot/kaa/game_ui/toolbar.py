@@ -2,7 +2,7 @@ from typing import Literal, overload
 
 from kotonebot.backend.image import TemplateMatchResult
 
-from kotonebot.kaa import R
+from ..tasks import R
 from .common import WhiteFilter
 from kotonebot import action, device, image
 

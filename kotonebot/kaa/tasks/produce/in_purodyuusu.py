@@ -1,19 +1,19 @@
 import logging
 from typing_extensions import assert_never
-from typing import Literal, NamedTuple
+from typing import Literal
 
-from .. import R
+from kotonebot.kaa.tasks import R
 from ..actions import loading
-from ..game_ui import WhiteFilter, dialog
+from kotonebot.kaa.game_ui import WhiteFilter, dialog
 from ..actions.scenes import at_home
 from .cards import do_cards, CardDetectResult
 from ..actions.commu import handle_unread_commu
 from kotonebot.errors import UnrecoverableError
 from kotonebot.util import Countdown, Interval, cropped
 from kotonebot.backend.dispatch import DispatcherContext
-from ..common import ProduceAction, RecommendCardDetectionMode, conf
+from kotonebot.kaa.common import ProduceAction, RecommendCardDetectionMode, conf
 from ..produce.common import until_acquisition_clear, commu_event, fast_acquisitions
-from kotonebot import ocr, device, contains, image, regex, action, sleep, Rect, wait
+from kotonebot import ocr, device, contains, image, regex, action, sleep, wait
 from ..produce.non_lesson_actions import (
     enter_allowance, allowance_available,
     study_available, enter_study,
@@ -836,7 +836,7 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(file_handler)
 
     from kotonebot.backend.context import init_context, manual_context
-    from ..common import BaseConfig
+    from kotonebot.kaa.common import BaseConfig
     from kotonebot.backend.debug import debug
     init_context(config_type=BaseConfig)
     manual_context().begin()

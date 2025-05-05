@@ -1,8 +1,8 @@
 """领取礼物（邮箱）"""
 import logging
 
-from .. import R
-from ..common import conf
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf
 from ..actions.scenes import at_home, goto_home
 from kotonebot import device, image, task, color, rect_expand, sleep
 

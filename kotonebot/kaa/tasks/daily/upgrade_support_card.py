@@ -1,9 +1,9 @@
 """升级一张支援卡，优先升级低等级支援卡"""
 import logging
 
-from .. import R
-from ..common import conf
-from ..game_ui.scrollable import Scrollable
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf
+from kotonebot.kaa.game_ui.scrollable import Scrollable
 from ..actions.scenes import at_home, goto_home
 from kotonebot import task, device, image, sleep
 

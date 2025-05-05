@@ -1,6 +1,6 @@
 from logging import getLogger
 
-from .. import R
+from kotonebot.kaa.tasks import R
 from kotonebot import device, image, action, sleep
 
 logger = getLogger(__name__)

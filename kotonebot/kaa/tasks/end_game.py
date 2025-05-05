@@ -6,7 +6,7 @@ import _thread
 import threading
 
 from kotonebot.ui import user
-from .common import Priority, conf
+from kotonebot.kaa.common import Priority, conf
 from kotonebot import task, action, config, device
 
 logger = logging.getLogger(__name__)

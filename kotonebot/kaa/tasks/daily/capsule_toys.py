@@ -1,9 +1,9 @@
 """扭蛋机，支持任意次数的任意扭蛋类型"""
 import logging
 
-from .. import R
-from ..common import conf
-from ..game_ui.scrollable import Scrollable
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf
+from kotonebot.kaa.game_ui.scrollable import Scrollable
 from ..actions.scenes import at_home, goto_home
 from kotonebot.backend.image import TemplateMatchResult
 from kotonebot import task, action, device, image, sleep, Interval

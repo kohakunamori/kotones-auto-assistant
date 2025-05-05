@@ -3,8 +3,8 @@ import os
 import ctypes
 import logging
 
-from . import R
-from .common import Priority, conf
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import Priority, conf
 from .actions.loading import loading
 from kotonebot.util import Countdown, Interval
 from .actions.scenes import at_home, goto_home

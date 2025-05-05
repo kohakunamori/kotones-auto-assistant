@@ -1,13 +1,12 @@
 """从商店购买物品"""
 import logging
 from typing import Optional
-from typing_extensions import deprecated
 
-from .. import R
-from ..common import conf, DailyMoneyShopItems
+from kotonebot.kaa.tasks import R
+from kotonebot.kaa.common import conf, DailyMoneyShopItems
 from kotonebot.util import cropped
-from kotonebot import task, device, image, ocr, action, sleep
-from kotonebot.backend.dispatch import DispatcherContext, SimpleDispatcher, dispatcher
+from kotonebot import task, device, image, action, sleep
+from kotonebot.backend.dispatch import SimpleDispatcher
 from ..actions.scenes import goto_home, goto_shop, at_daily_shop
 
 logger = logging.getLogger(__name__)
