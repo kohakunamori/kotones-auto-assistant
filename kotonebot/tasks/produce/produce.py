@@ -248,7 +248,7 @@ def do_produce(
             dialog.no()
         elif image.find(R.Common.ButtonNextNoIcon):
             device.click()
-        elif image.find(R.Produce.TextStepIndicator2):
+        if image.find(R.Produce.TextStepIndicator2):
             break
     # 2. 选择支援卡 自动编成 [screenshots/produce/screenshot_produce_start_2_support_card.png]
     image.expect_wait(R.Produce.TextStepIndicator2)
