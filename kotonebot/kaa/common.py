@@ -357,6 +357,7 @@ class ProduceConfig(ConfigBaseModel):
         ProduceAction.ALLOWANCE,
         ProduceAction.OUTING,
         ProduceAction.STUDY,
+        ProduceAction.CONSULT,
         ProduceAction.REST,
     ]
     """
