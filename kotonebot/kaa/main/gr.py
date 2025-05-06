@@ -1178,7 +1178,7 @@ class KotoneBotUI:
         return app
 
 def main(kaa: Kaa | None = None) -> None:
-    kaa = kaa or Kaa()
+    kaa = kaa or Kaa('./config.json')
     ui = KotoneBotUI(kaa)
     app = ui.create_ui()
     app.launch(inbrowser=True, show_error=True)

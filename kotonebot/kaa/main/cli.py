@@ -12,7 +12,7 @@ version = importlib.metadata.version('ksaa')
 # 主命令
 psr = argparse.ArgumentParser(description='Command-line interface for Kotone\'s Auto Assistant')
 psr.add_argument('-v', '--version', action='version', version='kaa v' + version)
-# psr.add_argument('-c', '--config', required=False, help='Path to the configuration file. Default: ./config.json')
+psr.add_argument('-c', '--config', default='./config.json', help='Path to the configuration file. Default: ./config.json')
 
 # 子命令
 subparsers = psr.add_subparsers(dest='subcommands')
@@ -37,7 +37,7 @@ _kaa: Kaa | None = None
 def kaa() -> Kaa:
     global _kaa
     if _kaa is None:
-        _kaa = Kaa()
+        _kaa = Kaa(psr.parse_args().config)
         _kaa.initialize()
     return _kaa
 
@@ -85,6 +85,8 @@ def main():
             sys.exit(task_invoke())
         elif args.task_command == 'list':
             sys.exit(task_list())
+        else:
+            raise ValueError(f'Unknown task command: {args.task_command}')
     elif args.subcommands == 'remote-server':
         sys.exit(remote_server())
     elif args.subcommands is None:
