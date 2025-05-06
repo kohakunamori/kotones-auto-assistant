@@ -186,6 +186,7 @@ def do_cards(
             card_rects = calc_card_position(card_count)
             card_rect = card_rects[0]
             device.double_click(card_rect[:4])
+            sleep(2)
             timeout_cd.reset()
         # 结束条件
         if card_count == 0 and end_predicate():
