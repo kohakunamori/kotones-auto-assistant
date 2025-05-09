@@ -12,15 +12,11 @@ from kotonebot import KotoneBot
 from ..common import BaseConfig, upgrade_config
 
 # 初始化日志
-os.makedirs('logs', exist_ok=True)
 log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
-log_filename = datetime.now().strftime('logs/%y-%m-%d-%H-%M-%S.log')
 
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 console_handler.setLevel(logging.CRITICAL)
-file_handler = logging.FileHandler(log_filename, encoding='utf-8')
-file_handler.setFormatter(log_formatter)
 
 log_stream = io.StringIO()
 stream_handler = logging.StreamHandler(log_stream)
@@ -29,7 +25,6 @@ stream_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
 root_logger.addHandler(console_handler)
-root_logger.addHandler(file_handler)
 
 logging.getLogger("kotonebot").setLevel(logging.DEBUG)
 
@@ -47,7 +42,15 @@ class Kaa(KotoneBot):
         self.upgrade_msg = upgrade_msg
         self.version = importlib.metadata.version('ksaa')
         logger.info('Version: %s', self.version)
-    
+
+    def add_file_logger(self, log_path: str):
+        log_dir = os.path.abspath(os.path.dirname(log_path))
+        os.makedirs(log_dir, exist_ok=True)
+
+        file_handler = logging.FileHandler(log_path, encoding='utf-8')
+        file_handler.setFormatter(log_formatter)
+        root_logger.addHandler(file_handler)
+
     def set_log_level(self, level: int):
         console_handler.setLevel(level)
 

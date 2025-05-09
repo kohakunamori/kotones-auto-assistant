@@ -1,8 +1,9 @@
 import sys
+import runpy
 import logging
 import argparse
 import importlib.metadata
-import runpy
+from datetime import datetime
 
 from .kaa import Kaa
 from kotonebot.backend.context import tasks_from_id, task_registry
@@ -13,9 +14,11 @@ version = importlib.metadata.version('ksaa')
 psr = argparse.ArgumentParser(description='Command-line interface for Kotone\'s Auto Assistant')
 psr.add_argument('-v', '--version', action='version', version='kaa v' + version)
 psr.add_argument('-c', '--config', default='./config.json', help='Path to the configuration file. Default: ./config.json')
+psr.add_argument('-lp', '--log-path', default=None, help='Path to the log file. Does not log to file if not specified. Default: None')
+psr.add_argument('-ll', '--log-level', default='DEBUG', help='Log level. Default: DEBUG')
 
 # 子命令
-subparsers = psr.add_subparsers(dest='subcommands')
+subparsers = psr.add_subparsers(dest='subcommands', title='Subcommands')
 
 # task 子命令
 task_psr = subparsers.add_parser('task', help='Task related commands')
@@ -43,12 +46,22 @@ def kaa() -> Kaa:
 
 def task_invoke() -> int:
     tasks_args = psr.parse_args().task_ids
+    assert isinstance(tasks_args, list)
     if not tasks_args:
         print('No tasks specified.')
         return -1
-    kaa().set_log_level(logging.DEBUG)
+    # 设置日志
+    log_level = getattr(logging, psr.parse_args().log_level, None)
+    if log_level is None:
+        raise ValueError(f'Invalid log level: {psr.parse_args().log_level}')
+    kaa().set_log_level(log_level)
+    if psr.parse_args().log_path is not None:
+        kaa().add_file_logger(psr.parse_args().log_path)
+    # 执行任务
     print(tasks_args)
-    if len(tasks_args) == 1 and tasks_args[0] == '*':
+    if '*' in tasks_args:
+        if len(tasks_args) > 1:
+            raise ValueError('Cannot specify other tasks when using wildcard.')
         kaa().run_all()
     else:
         kaa().run(tasks_from_id(tasks_args))
@@ -90,7 +103,9 @@ def main():
     elif args.subcommands == 'remote-server':
         sys.exit(remote_server())
     elif args.subcommands is None:
+        log_filename = datetime.now().strftime('logs/%y-%m-%d-%H-%M-%S.log')
         kaa().set_log_level(logging.DEBUG)
+        kaa().add_file_logger(log_filename)
         from .gr import main as gr_main
         gr_main(kaa())
 
