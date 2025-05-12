@@ -10,7 +10,8 @@ from kotonebot.kaa.tasks import R
 from kotonebot.kaa.common import conf
 from kotonebot.kaa.game_ui import dialog
 from kotonebot.kaa.util.trace import trace
-from kotonebot import action, Interval, Countdown, device, image, sleep, ocr, contains, use_screenshot, color, Rect
+from kotonebot.primitives import RectTuple, Rect
+from kotonebot import action, Interval, Countdown, device, image, sleep, ocr, contains, use_screenshot, color
 
 class SkillCard(NamedTuple):
     available: bool
@@ -159,7 +160,7 @@ def do_cards(
             if no_remaining_card and no_card_cd.expired():
                 logger.debug('No remaining card detected. Skip this turn.')
                 # TODO: HARD CODEDED
-                SKIP_POSITION = (621, 739, 85, 85)
+                SKIP_POSITION = Rect(621, 739, 85, 85)
                 device.click(SKIP_POSITION)
                 no_card_cd.reset()
                 continue
@@ -185,7 +186,7 @@ def do_cards(
                 continue
             card_rects = calc_card_position(card_count)
             card_rect = card_rects[0]
-            device.double_click(card_rect[:4])
+            device.double_click(Rect(xywh=card_rect[:4]))
             sleep(2)
             timeout_cd.reset()
         # 结束条件
@@ -277,7 +278,7 @@ def handle_recommended_card(
 def skill_card_count(img: MatLike | None = None):
     """获取当前持有的技能卡数量"""
     img = use_screenshot(img)
-    x, y, w, h = R.InPurodyuusu.BoxCardLetter
+    x, y, w, h = R.InPurodyuusu.BoxCardLetter.xywh
     img = img[y:y+h, x:x+w]
     count = image.raw().count(img, R.InPurodyuusu.A)
     count += image.raw().count(img, R.InPurodyuusu.M)
@@ -346,7 +347,7 @@ def detect_recommended_card(
             right_score,
             top_score,
             bottom_score,
-            (x, y, w, h)
+            Rect(x, y, w, h)
         ))
         img = original_image.copy()
     #     cv2.imshow(f"card detect {return_value}", cv2.cvtColor(glow_area, cv2.COLOR_HSV2BGR))
@@ -376,7 +377,7 @@ def detect_recommended_card(
     )
     # 跟踪检测结果
     if conf().trace.recommend_card_detection:
-        x, y, w, h = filtered_results[0].rect
+        x, y, w, h = filtered_results[0].rect.xywh
         cv2.rectangle(original_image, (x, y), (x+w, y+h), (0, 0, 255), 3)
         trace('rec-card', original_image, {
             'card_count': card_count,

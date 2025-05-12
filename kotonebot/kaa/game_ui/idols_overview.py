@@ -7,7 +7,7 @@ from cv2.typing import MatLike
 
 from kotonebot.kaa.tasks import R
 from kotonebot.kaa.util import paths
-from kotonebot.util import Rect
+from kotonebot.primitives import RectTuple, Rect
 from kotonebot.kaa.game_ui import Scrollable
 from kotonebot import device, action
 from kotonebot.kaa.image_db import ImageDatabase, HistDescriptor, FileDataSource
@@ -21,7 +21,7 @@ RED_DOT = ((157, 205, 255), (179, 255, 255)) # 红点
 ORANGE_SELECT_BORDER = ((9, 50, 106), (19, 255, 255)) # 当前选中的偶像的橙色边框
 WHITE_BACKGROUND = ((0, 0, 234), (179, 40, 255)) # 白色背景
 
-def extract_idols(img: MatLike) -> list[Rect]:
+def extract_idols(img: MatLike) -> list[RectTuple]:
     """
     寻找给定图像中的所有偶像。
 
@@ -48,7 +48,7 @@ def extract_idols(img: MatLike) -> list[Rect]:
             rects.append((x, y, w, h))
     return rects
 
-def display_rects(img: MatLike, rects: list[Rect]) -> MatLike:
+def display_rects(img: MatLike, rects: list[RectTuple]) -> MatLike:
     """Draw rectangles on the image and display them."""
     result = img.copy()
     for rect in rects:
@@ -60,7 +60,7 @@ def display_rects(img: MatLike, rects: list[Rect]) -> MatLike:
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
     return result
 
-def draw_idol_preview(img: MatLike, rects: list[Rect], db: ImageDatabase, idol_path: str) -> MatLike:
+def draw_idol_preview(img: MatLike, rects: list[RectTuple], db: ImageDatabase, idol_path: str) -> MatLike:
     """
     在预览图上绘制所有匹配到的偶像。
     
@@ -110,7 +110,7 @@ def idols_db() -> ImageDatabase:
 def locate_idol(skin_id: str):
     device.screenshot()
     logger.info('Locating idol %s', skin_id)
-    x, y, w, h = R.Produce.BoxIdolOverviewIdols
+    x, y, w, h = R.Produce.BoxIdolOverviewIdols.xywh
     db = idols_db()
     sc = Scrollable(color_schema='light')
 
@@ -140,7 +140,7 @@ def locate_idol(skin_id: str):
             # 同一张卡升级前后图片不一样，index 分别为 0 和 1
             if match and match.key.startswith(skin_id):
                 logger.info('Found idol %s', skin_id)
-                return rx, ry, rw, rh
+                return Rect(rx, ry, rw, rh)
     return None
     # cv2.imshow('Detected Idols', cv2.resize(display_rects(img, rects), (0, 0), fx=0.5, fy=0.5))
 

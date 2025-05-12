@@ -1,15 +1,16 @@
 from logging import getLogger
 
 from kotonebot.kaa.tasks import R
+from kotonebot.primitives import Rect
 from kotonebot import device, image, action, sleep
 
 logger = getLogger(__name__)
 
 # 三个饮料的坐标
 POSTIONS = [
-    (157, 820, 128, 128),  # x, y, w, h
-    (296, 820, 128, 128),
-    (435, 820, 128, 128),
+    Rect(157, 820, 128, 128),  # x, y, w, h
+    Rect(296, 820, 128, 128),
+    Rect(435, 820, 128, 128),
 ]  # TODO: HARD CODED
 
 @action('领取 P 饮料')

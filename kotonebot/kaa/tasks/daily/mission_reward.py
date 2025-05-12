@@ -2,6 +2,8 @@
 import logging
 
 from kotonebot.kaa.tasks import R
+
+from kotonebot.primitives import Rect
 from kotonebot.kaa.common import conf, Priority
 from ..actions.loading import wait_loading_end
 from ..actions.scenes import at_home, goto_home
@@ -70,8 +72,8 @@ def claim_pass_reward():
     # [screenshots/mission/daily.png]
     pass_rect = image.expect_wait(R.Daily.ButtonIconPass, timeout=1).rect
     # 向右扩展 150px，向上扩展 35px
-    color_rect = (pass_rect[0], pass_rect[1] - 35, pass_rect[2] + 150, pass_rect[3] + 35)
-    if not color.find('#ff1249', rect=color_rect):
+    color_rect = (pass_rect.x1, pass_rect.y1 - 35, pass_rect.w + 150, pass_rect.h + 35)
+    if not color.find('#ff1249', rect=Rect(xywh=color_rect)):
         logger.info('No pass reward to claim.')
         return
     logger.info('Claiming pass reward.')
@@ -130,8 +132,6 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] [%(funcName)s] [%(lineno)d] %(message)s')
     logging.getLogger('kotonebot').setLevel(logging.DEBUG)
     logger.setLevel(logging.DEBUG)
-    from .common import conf
-    conf().mission_reward.enabled = True
     
     # if image.find(R.Common.CheckboxUnchecked):
     #     logger.debug('Checking skip all.')

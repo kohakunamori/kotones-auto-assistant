@@ -4,11 +4,12 @@ from typing import Literal
 
 import cv2
 import numpy as np
-from cv2.typing import MatLike, Rect
+from cv2.typing import MatLike
 
-from kotonebot import device, color, action
+from kotonebot import device, action
+from kotonebot.primitives import Rect
 from kotonebot.backend.core import HintBox
-from kotonebot.backend.preprocessor import HsvColorFilter
+from kotonebot.primitives.geometry import RectTuple
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ def find_scroll_bar2(img: MatLike) -> Rect | None:
     contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     # 找出最可能是滚动条的轮廓：
     # 宽高比 < 0.5，且形似矩形，且最长
-    rects = []
+    rects: list[RectTuple] = []
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
         contour_area = cv2.contourArea(contour)
@@ -86,7 +87,7 @@ def find_scroll_bar2(img: MatLike) -> Rect | None:
             rects.append((x, y, w, h))
     if rects:
         longest_rect = max(rects, key=lambda r: r[2] * r[3])
-        return longest_rect
+        return Rect(xywh=longest_rect)
     return None
 
 class ScrollableIterator:
@@ -190,7 +191,7 @@ class Scrollable:
             return False
         logger.debug('Scrollbar rect found.')
 
-        x, y, w, h = self.scrollbar_rect
+        x, y, w, h = self.scrollbar_rect.xywh
         scroll_img = img[y:y+h, x:x+w]
         # 灰度、二值化
         gray = cv2.cvtColor(scroll_img, cv2.COLOR_BGR2GRAY)
