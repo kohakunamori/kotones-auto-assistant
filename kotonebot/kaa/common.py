@@ -2,7 +2,7 @@ import os
 import json
 import shutil
 from importlib import resources
-from typing import Literal, TypeVar, Any
+from typing import Literal, TypeVar, Any, Sequence
 from typing_extensions import assert_never
 from enum import IntEnum, Enum
 
@@ -235,7 +235,7 @@ class PurchaseConfig(ConfigBaseModel):
     """
     ap_enabled: bool = False
     """是否启用AP购买"""
-    ap_items: list[Literal[0, 1, 2, 3]] = []
+    ap_items: Sequence[Literal[0, 1, 2, 3]] = []
     """AP商店要购买的物品"""
 
 

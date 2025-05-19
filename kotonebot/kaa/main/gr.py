@@ -2,8 +2,9 @@ import os
 import zipfile
 import logging
 from functools import partial
+from itertools import chain
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple, Literal, Generator
+from typing import List, Dict, Tuple, Literal, Generator, Callable, Any, get_args, cast
 
 import cv2
 import gradio as gr
@@ -21,6 +22,68 @@ from kotonebot.kaa.common import (
 )
 
 logger = logging.getLogger(__name__)
+GradioInput = gr.Textbox | gr.Number | gr.Checkbox | gr.Dropdown | gr.Radio | gr.Slider
+ConfigKey = Literal[
+    # backend
+    'adb_ip', 'adb_port',
+    'screenshot_method', 'keep_screenshots',
+    'check_emulator', 'emulator_path',
+    'adb_emulator_name', 'emulator_args',
+
+    # purchase
+    'purchase_enabled',
+    'money_enabled', 'ap_enabled',
+    'ap_items', 'money_items',
+    
+    # assignment
+    'assignment_enabled',
+    'mini_live_reassign', 'mini_live_duration',
+    'online_live_reassign', 'online_live_duration',
+    'contest_enabled',
+    'select_which_contestant',
+    
+    # produce
+    'produce_enabled', 'produce_mode',
+    'produce_count', 'produce_idols',
+    'memory_sets', 'auto_set_memory',
+    'auto_set_support', 'use_pt_boost',
+    'use_note_boost', 'follow_producer',
+    'self_study_lesson', 'prefer_lesson_ap',
+    'actions_order', 'recommend_card_detection_mode',
+    'use_ap_drink', 'skip_commu',
+    'mission_reward_enabled',
+    
+    # club reward
+    'club_reward_enabled',
+    'selected_note',
+    
+    # upgrade support card
+    'upgrade_support_card_enabled',
+    
+    # capsule toys
+    'capsule_toys_enabled', 'friend_capsule_toys_count',
+    'sense_capsule_toys_count', 'logic_capsule_toys_count',
+    'anomaly_capsule_toys_count',
+    
+    # start game
+    'start_game_enabled', 'start_through_kuyo', 
+    'game_package_name', 'kuyo_package_name',
+    
+    # end game
+    'exit_kaa', 'kill_game', 'kill_dmm', 
+    'kill_emulator', 'shutdown', 'hibernate',
+    
+    'activity_funds',
+    'presents',
+    'mission_reward',
+    'activity_funds_enabled',
+    'presents_enabled',
+    'trace_recommend_card_detection',
+    
+]
+CONFIG_KEY_VALUE: tuple[str] = get_args(ConfigKey)
+ConfigSetFunction = Callable[[BaseConfig, Dict[ConfigKey, Any]], None]
+ConfigBuilderReturnValue = Tuple[ConfigSetFunction, Dict[ConfigKey, GradioInput]]
 
 def _save_bug_report(
     version: str,
@@ -100,7 +163,7 @@ def _save_bug_report(
     final_msg = f"### 报告导出成功：{url}\n\n"
     expire_time = datetime.now() + timedelta(days=7)
     if error:
-        final_msg += f"### 但发生了以下错误\n\n"
+        final_msg += "### 但发生了以下错误\n\n"
         final_msg += '\n* '.join(error.strip().split('\n'))
     final_msg += '\n'
     final_msg += f"### 此链接将于 {expire_time.strftime('%Y-%m-%d %H:%M:%S')}（7 天后）过期\n\n"
@@ -229,174 +292,22 @@ class KotoneBotUI:
             self.run_status.interrupt()
             gr.Info("任务已停止")
         return "执行任务", "任务已停止"
-
-    def save_settings(
-        self,
-        adb_ip: str,
-        adb_port: int,
-        screenshot_method: Literal['adb', 'adb_raw', 'uiautomator2', 'windows'],
-        keep_screenshots: bool,
-        check_emulator: bool,
-        emulator_path: str,
-        adb_emulator_name: str,
-        emulator_args: str,
-        trace_recommend_card_detection: bool,
-        purchase_enabled: bool,
-        money_enabled: bool,
-        ap_enabled: bool,
-        ap_items: List[str],
-        money_items: List[DailyMoneyShopItems],
-        activity_funds_enabled: bool,
-        presents_enabled: bool,
-        assignment_enabled: bool,
-        mini_live_reassign: bool,
-        mini_live_duration: Literal[4, 6, 12],
-        online_live_reassign: bool,
-        online_live_duration: Literal[4, 6, 12],
-        contest_enabled: bool,
-        select_which_contestant: Literal[1, 2, 3],
-        produce_enabled: bool,
-        produce_mode: Literal["regular"],
-        produce_count: int,
-        produce_idols: List[str],
-        memory_sets: List[str],
-        auto_set_memory: bool,
-        auto_set_support: bool,
-        use_pt_boost: bool,
-        use_note_boost: bool,
-        follow_producer: bool,
-        self_study_lesson: Literal['dance', 'visual', 'vocal'],
-        prefer_lesson_ap: bool,
-        actions_order: List[str],
-        recommend_card_detection_mode: str,
-        use_ap_drink: bool,
-        skip_commu: bool,
-        mission_reward_enabled: bool,
-        # club reward
-        club_reward_enabled: bool,
-        selected_note: DailyMoneyShopItems,
-        # upgrade support card
-        upgrade_support_card_enabled: bool,
-        # capsule toys
-        capsule_toys_enabled: bool,
-		friend_capsule_toys_count: int,
-		sense_capsule_toys_count: int,
-		logic_capsule_toys_count: int,
-		anomaly_capsule_toys_count: int,
-        # start game
-        start_game_enabled: bool,
-        start_through_kuyo: bool,
-        game_package_name: str,
-        kuyo_package_name: str,
-        # end game
-        exit_kaa: bool,
-        kill_game: bool,
-        kill_dmm: bool,
-        kill_emulator: bool,
-        shutdown: bool,
-        hibernate: bool,
-    ) -> str:
-        ap_items_enum: List[Literal[0, 1, 2, 3]] = []
-        ap_items_map: Dict[str, APShopItems] = {
-            "支援强化点数提升": APShopItems.PRODUCE_PT_UP,
-            "笔记数提升": APShopItems.PRODUCE_NOTE_UP,
-            "重新挑战券": APShopItems.RECHALLENGE,
-            "回忆再生成券": APShopItems.REGENERATE_MEMORY
-        }
-        for item in ap_items:
-            if item in ap_items_map:
-                ap_items_enum.append(ap_items_map[item].value)  # type: ignore
-
-        self.current_config.backend.adb_ip = adb_ip
-        self.current_config.backend.adb_port = adb_port
-        self.current_config.backend.adb_emulator_name = adb_emulator_name
-        self.current_config.backend.screenshot_impl = screenshot_method
-        self.current_config.keep_screenshots = keep_screenshots
-        self.current_config.backend.check_emulator = check_emulator
-        self.current_config.backend.emulator_path = emulator_path
-        self.current_config.backend.emulator_args = emulator_args
-
-        options = BaseConfig(
-            purchase=PurchaseConfig(
-                enabled=purchase_enabled,
-                money_enabled=money_enabled,
-                money_items=money_items,
-                ap_enabled=ap_enabled,
-                ap_items=ap_items_enum
-            ),
-            activity_funds=ActivityFundsConfig(
-                enabled=activity_funds_enabled
-            ),
-            presents=PresentsConfig(
-                enabled=presents_enabled
-            ),
-            assignment=AssignmentConfig(
-                enabled=assignment_enabled,
-                mini_live_reassign_enabled=mini_live_reassign,
-                mini_live_duration=mini_live_duration,
-                online_live_reassign_enabled=online_live_reassign,
-                online_live_duration=online_live_duration
-            ),
-            contest=ContestConfig(
-                enabled=contest_enabled,
-                select_which_contestant=select_which_contestant
-            ),
-            produce=ProduceConfig(
-                enabled=produce_enabled,
-                mode=produce_mode,
-                produce_count=produce_count,
-                idols=produce_idols,
-                memory_sets=[int(i) for i in memory_sets],
-                auto_set_memory=auto_set_memory,
-                auto_set_support_card=auto_set_support,
-                use_pt_boost=use_pt_boost,
-                use_note_boost=use_note_boost,
-                follow_producer=follow_producer,
-                self_study_lesson=self_study_lesson,
-                prefer_lesson_ap=prefer_lesson_ap,
-                actions_order=[ProduceAction(action) for action in actions_order],
-                recommend_card_detection_mode=RecommendCardDetectionMode(recommend_card_detection_mode),
-                use_ap_drink=use_ap_drink,
-                skip_commu=skip_commu
-            ),
-            mission_reward=MissionRewardConfig(
-                enabled=mission_reward_enabled
-            ),
-            club_reward=ClubRewardConfig(
-                enabled=club_reward_enabled,
-                selected_note=selected_note
-            ),
-            upgrade_support_card=UpgradeSupportCardConfig(
-                enabled=upgrade_support_card_enabled
-            ),
-            capsule_toys=CapsuleToysConfig(
-                enabled=capsule_toys_enabled,
-                friend_capsule_toys_count=friend_capsule_toys_count,
-                sense_capsule_toys_count=sense_capsule_toys_count,
-                logic_capsule_toys_count=logic_capsule_toys_count,
-                anomaly_capsule_toys_count=anomaly_capsule_toys_count
-            ),
-            start_game=StartGameConfig(
-                enabled=start_game_enabled,
-                start_through_kuyo=start_through_kuyo,
-                game_package_name=game_package_name,
-                kuyo_package_name=kuyo_package_name
-            ),
-            end_game=EndGameConfig(
-                exit_kaa=exit_kaa,
-                kill_game=kill_game,
-                kill_dmm=kill_dmm,
-                kill_emulator=kill_emulator,
-                shutdown=shutdown,
-                hibernate=hibernate
-            ),
-            trace=TraceConfig(
-                recommend_card_detection=trace_recommend_card_detection
-            )
-        )
-
+        
+    def save_settings2(self, return_values: list[ConfigBuilderReturnValue], *args) -> str:
+        options = BaseConfig()
+        # return_values: (set_func, { 'key': component })
+        keys = list(chain.from_iterable([list(data.keys()) for _, data in return_values]))
+        # 根据 keys 与 *args 构建 data 字典
+        data = dict[ConfigKey, Any]()
+        assert len(keys) == len(args), "keys 与 args 长度不一致"
+        for key, value in zip(keys, args):
+            assert key in CONFIG_KEY_VALUE, f"未知的配置项：{key}"
+            key = cast(ConfigKey, key)
+            data[key] = value
+        # 设置结果
+        for (set_func, _) in return_values:
+            set_func(options, data)
         self.current_config.options = options
-
         try:
             save_config(self.config, "config.json")
             gr.Success("设置已保存，请重启程序！")
@@ -517,7 +428,7 @@ class KotoneBotUI:
                 outputs=[task_result]
             )
 
-    def _create_emulator_settings(self) -> Tuple[gr.Textbox, gr.Number, gr.Dropdown, gr.Checkbox, gr.Checkbox, gr.Textbox, gr.Textbox, gr.Textbox]:
+    def _create_emulator_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 模拟器设置")
             adb_ip = gr.Textbox(
@@ -578,9 +489,29 @@ class KotoneBotUI:
                 inputs=[check_emulator],
                 outputs=[check_emulator_group]
             )
-        return adb_ip, adb_port, screenshot_impl, keep_screenshots, check_emulator, emulator_path, adb_emulator_name, emulator_args
+        
+        def set_config(_: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            self.current_config.backend.adb_ip = data['adb_ip']
+            self.current_config.backend.adb_port = data['adb_port']
+            self.current_config.backend.adb_emulator_name = data['adb_emulator_name']
+            self.current_config.backend.screenshot_impl = data['screenshot_method']
+            self.current_config.keep_screenshots = data['keep_screenshots']
+            self.current_config.backend.check_emulator = data['check_emulator']
+            self.current_config.backend.emulator_path = data['emulator_path']
+            self.current_config.backend.emulator_args = data['emulator_args']
+        
+        return set_config, {
+            'adb_ip': adb_ip,
+            'adb_port': adb_port,
+            'screenshot_method': screenshot_impl,
+            'keep_screenshots': keep_screenshots,
+            'check_emulator': check_emulator,
+            'emulator_path': emulator_path,
+            'adb_emulator_name': adb_emulator_name,
+            'emulator_args': emulator_args,
+        }
 
-    def _create_purchase_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Dropdown, gr.Dropdown]:
+    def _create_purchase_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 商店购买设置")
             purchase_enabled = gr.Checkbox(
@@ -636,9 +567,33 @@ class KotoneBotUI:
                 inputs=[purchase_enabled],
                 outputs=[purchase_group]
             )
-        return purchase_enabled, money_enabled, ap_enabled, ap_items, money_items
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.purchase.enabled = data['purchase_enabled']
+            config.purchase.money_enabled = data['money_enabled']
+            config.purchase.money_items = [DailyMoneyShopItems(x) for x in data['money_items']]
+            config.purchase.ap_enabled = data['ap_enabled']
+            ap_items_enum: List[Literal[0, 1, 2, 3]] = []
+            ap_items_map: Dict[str, APShopItems] = {
+                "支援强化点数提升": APShopItems.PRODUCE_PT_UP,
+                "笔记数提升": APShopItems.PRODUCE_NOTE_UP,
+                "重新挑战券": APShopItems.RECHALLENGE,
+                "回忆再生成券": APShopItems.REGENERATE_MEMORY
+            }
+            for item in data['ap_items']:
+                if item in ap_items_map:
+                    ap_items_enum.append(ap_items_map[item].value)  # type: ignore
+            config.purchase.ap_items = ap_items_enum
+        
+        return set_config, {
+            'purchase_enabled': purchase_enabled,
+            'money_enabled': money_enabled,
+            'ap_enabled': ap_enabled,
+            'ap_items': ap_items,
+            'money_items': money_items
+        }
 
-    def _create_work_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Dropdown, gr.Checkbox, gr.Dropdown]:
+    def _create_work_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 工作设置")
             assignment_enabled = gr.Checkbox(
@@ -680,9 +635,24 @@ class KotoneBotUI:
                 inputs=[assignment_enabled],
                 outputs=[work_group]
             )
-        return assignment_enabled, mini_live_reassign, mini_live_duration, online_live_reassign, online_live_duration
+        # return assignment_enabled, mini_live_reassign, mini_live_duration, online_live_reassign, online_live_duration
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.assignment.enabled = data['assignment_enabled']
+            config.assignment.mini_live_reassign_enabled = data['mini_live_reassign']
+            config.assignment.mini_live_duration = data['mini_live_duration']
+            config.assignment.online_live_reassign_enabled = data['online_live_reassign']
+            config.assignment.online_live_duration = data['online_live_duration']
+        
+        return set_config, {
+            'assignment_enabled': assignment_enabled,
+            'mini_live_reassign': mini_live_reassign,
+            'mini_live_duration': mini_live_duration,
+            'online_live_reassign': online_live_reassign,
+            'online_live_duration': online_live_duration
+        }
 
-    def _create_contest_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown]:
+
+    def _create_contest_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 竞赛设置")
             contest_enabled = gr.Checkbox(
@@ -703,9 +673,17 @@ class KotoneBotUI:
                 inputs=[contest_enabled],
                 outputs=[contest_group]
             )
-        return contest_enabled, select_which_contestant
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.contest.enabled = data['contest_enabled']
+            config.contest.select_which_contestant = data['select_which_contestant']
+        
+        return set_config, {
+            'contest_enabled': contest_enabled,
+            'select_which_contestant': select_which_contestant
+        }
 
-    def _create_produce_settings(self):
+    def _create_produce_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 培育设置")
             produce_enabled = gr.Checkbox(
@@ -849,9 +827,45 @@ class KotoneBotUI:
                 inputs=[auto_set_memory],
                 outputs=[memory_sets_group]
             )
-        return produce_enabled, produce_mode, produce_count, produce_idols, memory_sets, auto_set_memory, auto_set_support, use_pt_boost, use_note_boost, follow_producer, self_study_lesson, prefer_lesson_ap, actions_order, recommend_card_detection_mode, use_ap_drink, skip_commu
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.produce.enabled = data['produce_enabled']
+            config.produce.mode = data['produce_mode']
+            config.produce.produce_count = data['produce_count']
+            config.produce.idols = data['produce_idols']
+            config.produce.memory_sets = [int(i) for i in data['memory_sets']]
+            config.produce.auto_set_memory = data['auto_set_memory']
+            config.produce.auto_set_support_card = data['auto_set_support']
+            config.produce.use_pt_boost = data['use_pt_boost']
+            config.produce.use_note_boost = data['use_note_boost']
+            config.produce.follow_producer = data['follow_producer']
+            config.produce.self_study_lesson = data['self_study_lesson']
+            config.produce.prefer_lesson_ap = data['prefer_lesson_ap']
+            config.produce.actions_order = [ProduceAction(action) for action in data['actions_order']]
+            config.produce.recommend_card_detection_mode = RecommendCardDetectionMode(data['recommend_card_detection_mode'])
+            config.produce.use_ap_drink = data['use_ap_drink']
+            config.produce.skip_commu = data['skip_commu']
+        
+        return set_config, {
+            'produce_enabled': produce_enabled,
+            'produce_mode': produce_mode,
+            'produce_count': produce_count,
+            'produce_idols': produce_idols,
+            'memory_sets': memory_sets,
+            'auto_set_memory': auto_set_memory,
+            'auto_set_support': auto_set_support,
+            'use_pt_boost': use_pt_boost,
+            'use_note_boost': use_note_boost,
+            'follow_producer': follow_producer,
+            'self_study_lesson': self_study_lesson,
+            'prefer_lesson_ap': prefer_lesson_ap,
+            'actions_order': actions_order,
+            'recommend_card_detection_mode': recommend_card_detection_mode,
+            'use_ap_drink': use_ap_drink,
+            'skip_commu': skip_commu
+        }
 
-    def _create_club_reward_settings(self) -> Tuple[gr.Checkbox, gr.Dropdown]:
+    def _create_club_reward_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 社团奖励设置")
             club_reward_enabled = gr.Checkbox(
@@ -872,9 +886,17 @@ class KotoneBotUI:
                 inputs=[club_reward_enabled],
                 outputs=[club_reward_group]
             )
-        return club_reward_enabled, selected_note
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.club_reward.enabled = data['club_reward_enabled']
+            config.club_reward.selected_note = DailyMoneyShopItems(data['selected_note'])
+        
+        return set_config, {
+            'club_reward_enabled': club_reward_enabled,
+            'selected_note': selected_note
+        }
 
-    def _create_capsule_toys_settings(self) -> Tuple[gr.Checkbox, gr.Number, gr.Number, gr.Number, gr.Number]:
+    def _create_capsule_toys_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 扭蛋设置")
             capsule_toys_enabled = gr.Checkbox(
@@ -918,10 +940,24 @@ class KotoneBotUI:
                 inputs=[capsule_toys_enabled],
                 outputs=[capsule_toys_group]
             )
-        return capsule_toys_enabled, friend_capsule_toys_count, sense_capsule_toys_count, logic_capsule_toys_count, anomaly_capsule_toys_count
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.capsule_toys.enabled = data['capsule_toys_enabled']
+            config.capsule_toys.friend_capsule_toys_count = data['friend_capsule_toys_count']
+            config.capsule_toys.sense_capsule_toys_count = data['sense_capsule_toys_count']
+            config.capsule_toys.logic_capsule_toys_count = data['logic_capsule_toys_count']
+            config.capsule_toys.anomaly_capsule_toys_count = data['anomaly_capsule_toys_count']
+        
+        return set_config, {
+            'capsule_toys_enabled': capsule_toys_enabled,
+            'friend_capsule_toys_count': friend_capsule_toys_count,
+            'sense_capsule_toys_count': sense_capsule_toys_count,
+            'logic_capsule_toys_count': logic_capsule_toys_count,
+            'anomaly_capsule_toys_count': anomaly_capsule_toys_count
+        }
 
 
-    def _create_start_game_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Textbox, gr.Textbox]:
+    def _create_start_game_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 启动游戏设置")
             start_game_enabled = gr.Checkbox(
@@ -950,9 +986,22 @@ class KotoneBotUI:
                 inputs=[start_game_enabled],
                 outputs=[start_game_group]
             )
-        return start_game_enabled, start_through_kuyo, game_package_name, kuyo_package_name
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.start_game.enabled = data['start_game_enabled']
+            config.start_game.start_through_kuyo = data['start_through_kuyo']
+            config.start_game.game_package_name = data['game_package_name']
+            config.start_game.kuyo_package_name = data['kuyo_package_name']
+        
+        return set_config, {
+            'start_game_enabled': start_game_enabled,
+            'start_through_kuyo': start_through_kuyo,
+            'game_package_name': game_package_name,
+            'kuyo_package_name': kuyo_package_name
+        }
 
-    def _create_end_game_settings(self) -> Tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Checkbox]:
+
+    def _create_end_game_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
             gr.Markdown("### 关闭游戏设置")
             gr.Markdown("在所有任务执行完毕后执行下面这些操作：\n（执行单个任务时不会触发）")
@@ -986,7 +1035,104 @@ class KotoneBotUI:
                 value=self.current_config.options.end_game.hibernate,
                 info=EndGameConfig.model_fields['hibernate'].description
             )
-        return exit_kaa, kill_game, kill_dmm, kill_emulator, shutdown, hibernate
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.end_game.exit_kaa = data['exit_kaa']
+            config.end_game.kill_game = data['kill_game']
+            config.end_game.kill_dmm = data['kill_dmm']
+            config.end_game.kill_emulator = data['kill_emulator']
+            config.end_game.shutdown = data['shutdown']
+            config.end_game.hibernate = data['hibernate']
+        
+        return set_config, {
+            'exit_kaa': exit_kaa,
+            'kill_game': kill_game,
+            'kill_dmm': kill_dmm,
+            'kill_emulator': kill_emulator,
+            'shutdown': shutdown,
+            'hibernate': hibernate
+        }
+
+    def _create_activity_funds_settings(self) -> ConfigBuilderReturnValue:
+        with gr.Column():
+            gr.Markdown("### 活动费设置")
+            activity_funds = gr.Checkbox(
+                label="启用收取活动费",
+                value=self.current_config.options.activity_funds.enabled,
+                info=ActivityFundsConfig.model_fields['enabled'].description
+            )
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.activity_funds.enabled = data['activity_funds']
+        
+        return set_config, {
+            'activity_funds': activity_funds
+        }
+        
+    def _create_presents_settings(self) -> ConfigBuilderReturnValue:
+        with gr.Column():
+            gr.Markdown("### 礼物设置")
+            presents = gr.Checkbox(
+                label="启用收取礼物",
+                value=self.current_config.options.presents.enabled,
+                info=PresentsConfig.model_fields['enabled'].description
+            )
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.presents.enabled = data['presents']
+            
+        return set_config, {
+            'presents': presents
+        }
+        
+    def _create_mission_reward_settings(self) -> ConfigBuilderReturnValue:
+        with gr.Column():
+            gr.Markdown("### 任务奖励设置")
+            mission_reward = gr.Checkbox(
+                label="启用领取任务奖励",
+                value=self.current_config.options.mission_reward.enabled,
+                info=MissionRewardConfig.model_fields['enabled'].description
+            )
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.mission_reward.enabled = data['mission_reward']
+        
+        return set_config, {
+            'mission_reward': mission_reward
+        }
+    
+    def _create_upgrade_support_card_settings(self) -> ConfigBuilderReturnValue:
+        with gr.Column():
+            gr.Markdown("### 升级支援卡设置")
+            upgrade_support_card_enabled = gr.Checkbox(
+                label="启用升级支援卡",
+                value=self.current_config.options.upgrade_support_card.enabled,
+                info=UpgradeSupportCardConfig.model_fields['enabled'].description
+            )
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.upgrade_support_card.enabled = data['upgrade_support_card_enabled']
+        
+        return set_config, {
+            'upgrade_support_card_enabled': upgrade_support_card_enabled
+        }
+        
+    def _create_trace_settings(self) -> ConfigBuilderReturnValue:
+        with gr.Column():
+            gr.Markdown("### 跟踪设置")
+            trace_recommend_card_detection = gr.Checkbox(
+                label="跟踪推荐卡检测",
+                value=self.current_config.options.trace.recommend_card_detection,
+                info=TraceConfig.model_fields['recommend_card_detection'].description,
+                interactive=True
+            )
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.trace.recommend_card_detection = data['trace_recommend_card_detection']
+        
+        return set_config, {
+            'trace_recommend_card_detection': trace_recommend_card_detection
+        }
 
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
@@ -999,22 +1145,10 @@ class KotoneBotUI:
             purchase_settings = self._create_purchase_settings()
 
             # 活动费设置
-            with gr.Column():
-                gr.Markdown("### 活动费设置")
-                activity_funds = gr.Checkbox(
-                    label="启用收取活动费",
-                    value=self.current_config.options.activity_funds.enabled,
-                    info=ActivityFundsConfig.model_fields['enabled'].description
-                )
+            activity_funds_settings = self._create_activity_funds_settings()
 
             # 礼物设置
-            with gr.Column():
-                gr.Markdown("### 礼物设置")
-                presents = gr.Checkbox(
-                    label="启用收取礼物",
-                    value=self.current_config.options.presents.enabled,
-                    info=PresentsConfig.model_fields['enabled'].description
-                )
+            presents_settings = self._create_presents_settings()
 
             # 工作设置
             work_settings = self._create_work_settings()
@@ -1026,38 +1160,16 @@ class KotoneBotUI:
             produce_settings = self._create_produce_settings()
 
             # 任务奖励设置
-            with gr.Column():
-                gr.Markdown("### 任务奖励设置")
-                mission_reward = gr.Checkbox(
-                    label="启用领取任务奖励",
-                    value=self.current_config.options.mission_reward.enabled,
-                    info=MissionRewardConfig.model_fields['enabled'].description
-                )
+            mission_reward_settings = self._create_mission_reward_settings()
 
             # 社团奖励设置
             club_reward_settings = self._create_club_reward_settings()
 
             # 升级支援卡设置
-            with gr.Column():
-                gr.Markdown("### 升级支援卡设置")
-                upgrade_support_card_enabled = gr.Checkbox(
-                    label="启用升级支援卡",
-                    value=self.current_config.options.upgrade_support_card.enabled,
-                    info=UpgradeSupportCardConfig.model_fields['enabled'].description
-                )
-
             capsule_toys_settings = self._create_capsule_toys_settings()
 
             # 跟踪设置
-            with gr.Column():
-                gr.Markdown("### 跟踪设置")
-                gr.Markdown("跟踪功能会记录指定模块的运行情况，并保存截图。")
-                trace_recommend_card_detection = gr.Checkbox(
-                    label="跟踪推荐卡检测",
-                    value=self.current_config.options.trace.recommend_card_detection,
-                    info=TraceConfig.model_fields['recommend_card_detection'].description,
-                    interactive=True
-                )
+            trace_settings = self._create_trace_settings()
 
             # 启动游戏设置
             start_game_settings = self._create_start_game_settings()
@@ -1069,26 +1181,26 @@ class KotoneBotUI:
             result = gr.Markdown()
 
             # 收集所有设置组件
-            all_settings = [
-                *emulator_settings,
-                trace_recommend_card_detection,
-                *purchase_settings,
-                activity_funds,
-                presents,
-                *work_settings,
-                *contest_settings,
-                *produce_settings,
-                mission_reward,
-                *club_reward_settings,
-                upgrade_support_card_enabled,
-                *capsule_toys_settings,
-                *start_game_settings,
-                *end_game_settings
-            ]
-
+            all_return_values = [
+                emulator_settings,
+                purchase_settings,
+                activity_funds_settings,
+                presents_settings,
+                work_settings,
+                contest_settings,
+                produce_settings,
+                mission_reward_settings,
+                club_reward_settings,
+                capsule_toys_settings,
+                start_game_settings,
+                end_game_settings,
+                trace_settings
+            ] # list of (set_func, { 'key': component, ... })
+            all_components = [list(ret[1].values()) for ret in all_return_values] # [[c1, c2], [c3], ...]
+            all_components = list(chain(*all_components)) # [c1, c2, c3, ...]
             save_btn.click(
-                fn=self.save_settings,
-                inputs=all_settings,
+                fn=partial(self.save_settings2, all_return_values),
+                inputs=all_components,
                 outputs=result
             )
 
