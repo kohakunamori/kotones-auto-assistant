@@ -2,6 +2,7 @@ import logging
 from typing_extensions import assert_never
 from typing import Literal
 
+from kotonebot.kaa.game_ui.schedule import Schedule
 from kotonebot.kaa.tasks import R
 from ..actions import loading
 from kotonebot.kaa.game_ui import WhiteFilter, dialog
@@ -33,11 +34,10 @@ def handle_sp_lesson():
     前置条件：行动页面\n
     结束状态：练习场景，以及中间可能出现的加载、支援卡奖励、交流等
     """
-    if (sp := image.find(R.InPurodyuusu.IconSp)) is not None:
-        # 取 SP 图标中心点向左、向下偏移 30px
-        rect = sp.rect
-        pt = (rect[0] + rect[2] // 2, rect[1] + rect[3] // 2)
-        device.double_click(pt[0] + 30, pt[1] + 30)
+    schedule = Schedule()
+    if schedule.have_lesson():
+        lesson = schedule.select_lesson()
+        device.double_click(lesson.rect)
         return True
     else:
         return False
