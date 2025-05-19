@@ -159,7 +159,7 @@ def resume_produce():
                 current_week = int(weeks[0])
                 break
         retry_count += 1
-        logger.warning(f'Failed to detect weeks. Retrying... ({retry_count}/{max_retries})')
+        logger.warning(f'Failed to detect weeks. week_text="{week_text}". Retrying... ({retry_count}/{max_retries})')
         sleep(0.5)
         device.screenshot()
     
