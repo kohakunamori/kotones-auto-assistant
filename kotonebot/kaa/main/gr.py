@@ -14,6 +14,7 @@ from kotonebot.kaa.db import IdolCard
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.context import task_registry, ContextStackVars
+from kotonebot.client.host import Mumu12Host, LeidianHost
 from kotonebot.kaa.common import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
@@ -22,13 +23,14 @@ from kotonebot.kaa.common import (
 )
 
 logger = logging.getLogger(__name__)
-GradioInput = gr.Textbox | gr.Number | gr.Checkbox | gr.Dropdown | gr.Radio | gr.Slider
+GradioInput = gr.Textbox | gr.Number | gr.Checkbox | gr.Dropdown | gr.Radio | gr.Slider | gr.Tabs | gr.Tab
 ConfigKey = Literal[
     # backend
     'adb_ip', 'adb_port',
     'screenshot_method', 'keep_screenshots',
     'check_emulator', 'emulator_path',
     'adb_emulator_name', 'emulator_args',
+    '_mumu_index', '_leidian_index',
 
     # purchase
     'purchase_enabled',
@@ -79,6 +81,8 @@ ConfigKey = Literal[
     'activity_funds_enabled',
     'presents_enabled',
     'trace_recommend_card_detection',
+    
+    '_selected_backend_index'
     
 ]
 CONFIG_KEY_VALUE: tuple[str] = get_args(ConfigKey)
@@ -429,23 +433,86 @@ class KotoneBotUI:
             )
 
     def _create_emulator_settings(self) -> ConfigBuilderReturnValue:
-        with gr.Column():
-            gr.Markdown("### 模拟器设置")
-            adb_ip = gr.Textbox(
-                value=self.current_config.backend.adb_ip,
-                label="ADB IP 地址",
-                info=BackendConfig.model_fields['adb_ip'].description,
-                interactive=True
-            )
-            adb_port = gr.Number(
-                value=self.current_config.backend.adb_port,
-                label="ADB 端口",
-                info=BackendConfig.model_fields['adb_port'].description,
-                minimum=1,
-                maximum=65535,
-                step=1,
-                interactive=True
-            )
+        gr.Markdown("### 模拟器设置")
+        has_mumu12 = Mumu12Host.installed()
+        has_leidian = LeidianHost.installed()
+        current_tab = 0
+        with gr.Tabs(selected=self.current_config.backend.type):
+            with gr.Tab("MuMu 12", interactive=has_mumu12, id="mumu12") as tab_mumu12:
+                gr.Markdown("已选中 MuMu 12 模拟器")
+                if has_mumu12:
+                    instances = Mumu12Host.list()
+                    mumu_instance = gr.Dropdown(
+                        label="选择多开实例",
+                        value=self.current_config.backend.instance_id,
+                        choices=[(i.name, i.id) for i in instances],
+                        interactive=True
+                    )
+                else:
+                    # 为了让 return 收集组件时不报错
+                    mumu_instance = gr.Dropdown(visible=False)
+
+            with gr.Tab("雷电", interactive=has_leidian, id="leidian") as tab_leidian:
+                gr.Markdown("已选中雷电模拟器")
+                if has_leidian:
+                    instances = LeidianHost.list()
+                    leidian_instance = gr.Dropdown(
+                        label="选择多开实例",
+                        value=self.current_config.backend.instance_id,
+                        choices=[(i.name, i.id) for i in instances],
+                        interactive=True
+                    )
+                else:
+                    leidian_instance = gr.Dropdown(visible=False)
+
+            with gr.Tab("自定义", id="custom") as tab_custom:
+                gr.Markdown("已选中自定义模拟器")
+                adb_ip = gr.Textbox(
+                    value=self.current_config.backend.adb_ip,
+                    label="ADB IP 地址",
+                    info=BackendConfig.model_fields['adb_ip'].description,
+                    interactive=True
+                )
+                adb_port = gr.Number(
+                    value=self.current_config.backend.adb_port,
+                    label="ADB 端口",
+                    info=BackendConfig.model_fields['adb_port'].description,
+                    minimum=1,
+                    maximum=65535,
+                    step=1,
+                    interactive=True
+                )
+                check_emulator = gr.Checkbox(
+                    label="检查并启动模拟器",
+                    value=self.current_config.backend.check_emulator,
+                    info=BackendConfig.model_fields['check_emulator'].description,
+                    interactive=True
+                )
+                with gr.Group(visible=self.current_config.backend.check_emulator) as check_emulator_group:
+                    emulator_path = gr.Textbox(
+                        value=self.current_config.backend.emulator_path,
+                        label="模拟器 exe 文件路径",
+                        info=BackendConfig.model_fields['emulator_path'].description,
+                        interactive=True
+                    )
+                    adb_emulator_name = gr.Textbox(
+                        value=self.current_config.backend.adb_emulator_name,
+                        label="ADB 模拟器名称",
+                        info=BackendConfig.model_fields['adb_emulator_name'].description,
+                        interactive=True
+                    )
+                    emulator_args = gr.Textbox(
+                        value=self.current_config.backend.emulator_args,
+                        label="模拟器启动参数",
+                        info=BackendConfig.model_fields['emulator_args'].description,
+                        interactive=True
+                    )
+                check_emulator.change(
+                    fn=lambda x: gr.Group(visible=x),
+                    inputs=[check_emulator],
+                    outputs=[check_emulator_group]
+                )
+                
             screenshot_impl = gr.Dropdown(
                 choices=['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows'],
                 value=self.current_config.backend.screenshot_impl,
@@ -459,57 +526,45 @@ class KotoneBotUI:
                 info=UserConfig.model_fields['keep_screenshots'].description,
                 interactive=True
             )
-            check_emulator = gr.Checkbox(
-                label="检查并启动模拟器",
-                value=self.current_config.backend.check_emulator,
-                info=BackendConfig.model_fields['check_emulator'].description,
-                interactive=True
-            )
-            with gr.Group(visible=self.current_config.backend.check_emulator) as check_emulator_group:
-                emulator_path = gr.Textbox(
-                    value=self.current_config.backend.emulator_path,
-                    label="模拟器 exe 文件路径",
-                    info=BackendConfig.model_fields['emulator_path'].description,
-                    interactive=True
-                )
-                adb_emulator_name = gr.Textbox(
-                    value=self.current_config.backend.adb_emulator_name,
-                    label="ADB 模拟器名称",
-                    info=BackendConfig.model_fields['adb_emulator_name'].description,
-                    interactive=True
-                )
-                emulator_args = gr.Textbox(
-                    value=self.current_config.backend.emulator_args,
-                    label="模拟器启动参数",
-                    info=BackendConfig.model_fields['emulator_args'].description,
-                    interactive=True
-                )
-            check_emulator.change(
-                fn=lambda x: gr.Group(visible=x),
-                inputs=[check_emulator],
-                outputs=[check_emulator_group]
-            )
-        
-        def set_config(_: BaseConfig, data: dict[ConfigKey, Any]) -> None:
-            self.current_config.backend.adb_ip = data['adb_ip']
-            self.current_config.backend.adb_port = data['adb_port']
-            self.current_config.backend.adb_emulator_name = data['adb_emulator_name']
-            self.current_config.backend.screenshot_impl = data['screenshot_method']
-            self.current_config.keep_screenshots = data['keep_screenshots']
-            self.current_config.backend.check_emulator = data['check_emulator']
-            self.current_config.backend.emulator_path = data['emulator_path']
-            self.current_config.backend.emulator_args = data['emulator_args']
-        
-        return set_config, {
-            'adb_ip': adb_ip,
-            'adb_port': adb_port,
-            'screenshot_method': screenshot_impl,
-            'keep_screenshots': keep_screenshots,
-            'check_emulator': check_emulator,
-            'emulator_path': emulator_path,
-            'adb_emulator_name': adb_emulator_name,
-            'emulator_args': emulator_args,
-        }
+            
+            def set_current_tab(value: int) -> None:
+                nonlocal current_tab
+                current_tab = value
+            tab_mumu12.select(fn=partial(set_current_tab, 0))
+            tab_leidian.select(fn=partial(set_current_tab, 1))
+            tab_custom.select(fn=partial(set_current_tab, 2))
+            
+            def set_config(_: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+                if current_tab == 0:
+                    self.current_config.backend.type = 'mumu12'
+                    self.current_config.backend.instance_id = data['_mumu_index']
+                elif current_tab == 1:
+                    self.current_config.backend.type = 'leidian'
+                    self.current_config.backend.instance_id = data['_leidian_index']
+                else:
+                    self.current_config.backend.type = 'custom'
+                    self.current_config.backend.instance_id = None
+                    self.current_config.backend.adb_ip = data['adb_ip']
+                    self.current_config.backend.adb_port = data['adb_port']
+                    self.current_config.backend.adb_emulator_name = data['adb_emulator_name']
+                    self.current_config.backend.screenshot_impl = data['screenshot_method']
+                    self.current_config.keep_screenshots = data['keep_screenshots']
+                    self.current_config.backend.check_emulator = data['check_emulator']
+                    self.current_config.backend.emulator_path = data['emulator_path']
+                    self.current_config.backend.emulator_args = data['emulator_args']
+
+            return set_config, {
+                'adb_ip': adb_ip,
+                'adb_port': adb_port,
+                'screenshot_method': screenshot_impl,
+                'keep_screenshots': keep_screenshots,
+                'check_emulator': check_emulator,
+                'emulator_path': emulator_path,
+                'adb_emulator_name': adb_emulator_name,
+                'emulator_args': emulator_args,
+                '_mumu_index': mumu_instance,
+                '_leidian_index': leidian_instance
+            }
 
     def _create_purchase_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
