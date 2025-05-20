@@ -97,8 +97,9 @@ def select_p_item():
     sleep(0.5)
     device.click(ocr.expect_wait('受け取る'))
 
+
 @action('技能卡自选强化', screenshot_mode='manual-inherit')
-def hanlde_skill_card_enhance():
+def handle_skill_card_enhance():
     """
     前置条件：技能卡强化对话框\n
     结束状态：技能卡强化动画结束后瞬间
@@ -107,24 +108,26 @@ def hanlde_skill_card_enhance():
     """
     # 前置条件 [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_skill_card_enhane.png]
     # 结束状态 [screenshots/produce/in_produce/skill_card_enhance.png]
-    cards = image.find_multi([
+    cards = image.find_all_multi([
         R.InPurodyuusu.A,
         R.InPurodyuusu.M
     ])
     if cards is None:
         logger.info("No skill cards found")
         return False
-    logger.debug("Clicking first skill card.")
-    device.click(cards)
-    it = Interval()
-    while True:
+    cards = sorted(cards, key=lambda x: (x.position[1], x.position[0]))
+    it = Interval(0.5)
+    for card in reversed(cards):
+        device.click(card)
+        it.wait()
         device.screenshot()
         if image.find(R.InPurodyuusu.ButtonEnhance, colored=True):
             logger.debug("Enhance button found")
             device.click()
+            it.wait()
             break
-        it.wait()
     logger.debug("Handle skill card enhance finished.")
+    return True
 
 @action('技能卡自选删除', screenshot_mode='manual-inherit')
 def handle_skill_card_removal():
@@ -220,7 +223,7 @@ def fast_acquisitions() -> AcquisitionType | None:
 
     # 技能卡自选强化
     if image.find(R.InPurodyuusu.IconTitleSkillCardEnhance):
-        if hanlde_skill_card_enhance():
+        if handle_skill_card_enhance():
             return "PSkillCardEnhanceSelect"
     device.click(10, 10)
 
