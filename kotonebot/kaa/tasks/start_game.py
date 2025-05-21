@@ -112,7 +112,7 @@ def windows_launch():
     ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
     ahk = AHK(executable_path=ahk_path)
 
-    if ahk.find_window(title='gakumas'):
+    if ahk.find_window(title='gakumas', title_match_mode=3): # 3=精确匹配
         logger.debug('Game already started.')
         return
     
@@ -121,7 +121,7 @@ def windows_launch():
     # 等待游戏窗口出现
     it = Interval()
     while True:
-        if ahk.find_window(title='gakumas'):
+        if ahk.find_window(title='gakumas', title_match_mode=3):
             logger.debug('Game window found.')
             break
         logger.debug('Waiting for game window...')
