@@ -7,9 +7,15 @@ import zipfile
 from datetime import datetime
 
 import cv2
+from typing_extensions import override
 
+from .dmm_host import DmmHost
+from ...client import Device
+from kotonebot.ui import user
 from kotonebot import KotoneBot
+from ..kaa_context import _set_instance
 from ..common import BaseConfig, upgrade_config
+from kotonebot.client.host import Mumu12Host, LeidianHost
 
 # 初始化日志
 log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
@@ -91,3 +97,73 @@ class Kaa(KotoneBot):
         except Exception as e:
             logger.exception(f'Failed to save error report:')
             return ''
+
+    @override
+    def _on_after_init_context(self):
+        if self.backend_instance is None:
+            raise ValueError('Backend instance is not set.')
+        _set_instance(self.backend_instance)
+
+    @override
+    def _on_create_device(self) -> Device:
+        from kotonebot.client.host import create_custom
+        from kotonebot.config.manager import load_config
+        # HACK: 硬编码
+        config = load_config(self.config_path, type=self.config_type)
+        config = config.user_configs[0]
+        logger.info('Checking backend...')
+        if config.backend.type == 'custom':
+            exe = config.backend.emulator_path
+            if exe is None:
+                user.error('「检查并启动模拟器」已开启但未配置「模拟器 exe 文件路径」。')
+                raise ValueError('Emulator executable path is not set.')
+            if not os.path.exists(exe):
+                user.error('「模拟器 exe 文件路径」对应的文件不存在！请检查路径是否正确。')
+                raise FileNotFoundError(f'Emulator executable not found: {exe}')
+            self.backend_instance = create_custom(
+                adb_ip=config.backend.adb_ip,
+                adb_port=config.backend.adb_port,
+                adb_name=config.backend.adb_emulator_name,
+                exe_path=exe,
+                emulator_args=config.backend.emulator_args
+            )
+            if config.backend.check_emulator:
+                if not self.backend_instance.running():
+                    logger.info('Starting custom backend...')
+                    self.backend_instance.start()
+                    logger.info('Waiting for custom backend to be available...')
+                    self.backend_instance.wait_available()
+                else:
+                    logger.info('Custom backend "%s" already running.', self.backend_instance)
+        elif config.backend.type == 'mumu12':
+            if config.backend.instance_id is None:
+                raise ValueError('MuMu12 instance ID is not set.')
+            self.backend_instance = Mumu12Host.query(id=config.backend.instance_id)
+            if self.backend_instance is None:
+                raise ValueError(f'MuMu12 instance not found: {config.backend.instance_id}')
+            if not self.backend_instance.running():
+                logger.info('Starting MuMu12 backend...')
+                self.backend_instance.start()
+                logger.info('Waiting for MuMu12 backend to be available...')
+                self.backend_instance.wait_available()
+            else:
+                logger.info('MuMu12 backend "%s" already running.', self.backend_instance)
+        elif config.backend.type == 'leidian':
+            if config.backend.instance_id is None:
+                raise ValueError('Leidian instance ID is not set.')
+            self.backend_instance = LeidianHost.query(id=config.backend.instance_id)
+            if self.backend_instance is None:
+                raise ValueError(f'Leidian instance not found: {config.backend.instance_id}')
+            if not self.backend_instance.running():
+                logger.info('Starting Leidian backend...')
+                self.backend_instance.start()
+                logger.info('Waiting for Leidian backend to be available...')
+                self.backend_instance.wait_available()
+            else:
+                logger.info('Leidian backend "%s" already running.', self.backend_instance)
+        elif config.backend.type == 'dmm':
+            self.backend_instance = DmmHost.instance
+        else:
+            raise ValueError(f'Unsupported backend type: {config.backend.type}')
+        assert self.backend_instance is not None, 'Backend instance is not set.'
+        return self.backend_instance.create_device(config.backend.screenshot_impl)

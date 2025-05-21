@@ -6,6 +6,7 @@ import _thread
 import threading
 
 from kotonebot.ui import user
+from ..kaa_context import instance
 from kotonebot.kaa.common import Priority, conf
 from kotonebot import task, action, config, device
 
@@ -56,15 +57,7 @@ def end_game():
 
     # 关闭模拟器
     if conf().end_game.kill_emulator:
-        emulator_path = config.current.backend.emulator_path
-        if emulator_path is None:
-            logger.warning("Emulator path is not set. Skipping")
-            user.info("「关闭模拟器」功能需要配置「模拟器 exe 文件路径」。")
-        else:
-            exe_name = os.path.basename(emulator_path)
-            os.system(f"taskkill /f /im {exe_name}")
-            logger.info("Emulator closed")
-        # TODO: 实现关闭模拟器
+        instance().stop()
 
     # 关机
     if conf().end_game.shutdown:

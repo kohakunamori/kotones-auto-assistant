@@ -437,7 +437,24 @@ class KotoneBotUI:
         has_mumu12 = Mumu12Host.installed()
         has_leidian = LeidianHost.installed()
         current_tab = 0
-        with gr.Tabs(selected=self.current_config.backend.type):
+
+        def _update_emulator_tab_options(impl_value: str, selected_index: int):
+            nonlocal current_tab
+            current_tab = selected_index
+
+            if selected_index == 3:  # DMM
+                choices = ['windows', 'remote_windows']
+            else:  # Mumu, Leidian, Custom
+                choices = ['adb', 'adb_raw', 'uiautomator2']
+
+            if not impl_value in choices:
+                new_value = choices[0]
+            else:
+                new_value = impl_value
+
+            return gr.Dropdown(choices=choices, value=new_value)
+
+        with gr.Tabs(selected=self.current_config.backend.type) as emulator_tabs:
             with gr.Tab("MuMu 12", interactive=has_mumu12, id="mumu12") as tab_mumu12:
                 gr.Markdown("已选中 MuMu 12 模拟器")
                 if has_mumu12:
@@ -512,59 +529,74 @@ class KotoneBotUI:
                     inputs=[check_emulator],
                     outputs=[check_emulator_group]
                 )
-                
-            screenshot_impl = gr.Dropdown(
-                choices=['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows'],
-                value=self.current_config.backend.screenshot_impl,
-                label="截图方法",
-                info=BackendConfig.model_fields['screenshot_impl'].description,
-                interactive=True
-            )
-            keep_screenshots = gr.Checkbox(
-                label="保留截图数据",
-                value=self.current_config.keep_screenshots,
-                info=UserConfig.model_fields['keep_screenshots'].description,
-                interactive=True
-            )
-            
-            def set_current_tab(value: int) -> None:
-                nonlocal current_tab
-                current_tab = value
-            tab_mumu12.select(fn=partial(set_current_tab, 0))
-            tab_leidian.select(fn=partial(set_current_tab, 1))
-            tab_custom.select(fn=partial(set_current_tab, 2))
-            
-            def set_config(_: BaseConfig, data: dict[ConfigKey, Any]) -> None:
-                if current_tab == 0:
-                    self.current_config.backend.type = 'mumu12'
-                    self.current_config.backend.instance_id = data['_mumu_index']
-                elif current_tab == 1:
-                    self.current_config.backend.type = 'leidian'
-                    self.current_config.backend.instance_id = data['_leidian_index']
-                else:
-                    self.current_config.backend.type = 'custom'
-                    self.current_config.backend.instance_id = None
-                    self.current_config.backend.adb_ip = data['adb_ip']
-                    self.current_config.backend.adb_port = data['adb_port']
-                    self.current_config.backend.adb_emulator_name = data['adb_emulator_name']
-                    self.current_config.backend.screenshot_impl = data['screenshot_method']
-                    self.current_config.keep_screenshots = data['keep_screenshots']
-                    self.current_config.backend.check_emulator = data['check_emulator']
-                    self.current_config.backend.emulator_path = data['emulator_path']
-                    self.current_config.backend.emulator_args = data['emulator_args']
 
-            return set_config, {
-                'adb_ip': adb_ip,
-                'adb_port': adb_port,
-                'screenshot_method': screenshot_impl,
-                'keep_screenshots': keep_screenshots,
-                'check_emulator': check_emulator,
-                'emulator_path': emulator_path,
-                'adb_emulator_name': adb_emulator_name,
-                'emulator_args': emulator_args,
-                '_mumu_index': mumu_instance,
-                '_leidian_index': leidian_instance
-            }
+            with gr.Tab("DMM", id="dmm") as tab_dmm:
+                gr.Markdown("已选中 DMM")
+
+        type_in_config = self.current_config.backend.type
+        if type_in_config in ['dmm']:
+            choices = ['windows', 'remote_windows']
+        elif type_in_config in ['mumu12', 'leidian', 'custom']:
+            choices = ['adb', 'adb_raw', 'uiautomator2']
+        else:
+            raise ValueError(f'Unsupported backend type: {type_in_config}')
+        screenshot_impl = gr.Dropdown(
+            choices=choices,
+            value=self.current_config.backend.screenshot_impl,
+            label="截图方法",
+            info=BackendConfig.model_fields['screenshot_impl'].description,
+            interactive=True
+        )
+
+        keep_screenshots = gr.Checkbox(
+            label="保留截图数据",
+            value=self.current_config.keep_screenshots,
+            info=UserConfig.model_fields['keep_screenshots'].description,
+            interactive=True
+        )
+
+        tab_mumu12.select(fn=partial(_update_emulator_tab_options, selected_index=0), inputs=[screenshot_impl], outputs=[screenshot_impl])
+        tab_leidian.select(fn=partial(_update_emulator_tab_options, selected_index=1), inputs=[screenshot_impl], outputs=[screenshot_impl])
+        tab_custom.select(fn=partial(_update_emulator_tab_options, selected_index=2), inputs=[screenshot_impl], outputs=[screenshot_impl])
+        tab_dmm.select(fn=partial(_update_emulator_tab_options, selected_index=3), inputs=[screenshot_impl], outputs=[screenshot_impl])
+
+        def set_config(_: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            # current_tab is updated by _update_emulator_tab_options
+            if current_tab == 0:  # Mumu
+                self.current_config.backend.type = 'mumu12'
+                self.current_config.backend.instance_id = data['_mumu_index']
+            elif current_tab == 1:  # Leidian
+                self.current_config.backend.type = 'leidian'
+                self.current_config.backend.instance_id = data['_leidian_index']
+            elif current_tab == 2:  # Custom
+                self.current_config.backend.type = 'custom'
+                self.current_config.backend.instance_id = None
+                self.current_config.backend.adb_ip = data['adb_ip']
+                self.current_config.backend.adb_port = data['adb_port']
+                self.current_config.backend.adb_emulator_name = data['adb_emulator_name']
+                self.current_config.backend.check_emulator = data['check_emulator']
+                self.current_config.backend.emulator_path = data['emulator_path']
+                self.current_config.backend.emulator_args = data['emulator_args']
+            elif current_tab == 3:  # DMM
+                self.current_config.backend.type = 'dmm'
+                self.current_config.backend.instance_id = None  # DMM doesn't use instance_id here
+
+            # Common settings for all backend types
+            self.current_config.backend.screenshot_impl = data['screenshot_method']
+            self.current_config.keep_screenshots = data['keep_screenshots']  # This is a UserConfig field
+
+        return set_config, {
+            'adb_ip': adb_ip,
+            'adb_port': adb_port,
+            'screenshot_method': screenshot_impl,  # screenshot_impl is the component
+            'keep_screenshots': keep_screenshots,
+            'check_emulator': check_emulator,
+            'emulator_path': emulator_path,
+            'adb_emulator_name': adb_emulator_name,
+            'emulator_args': emulator_args,
+            '_mumu_index': mumu_instance,
+            '_leidian_index': leidian_instance
+        }
 
     def _create_purchase_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
