@@ -2,7 +2,7 @@ import os
 import json
 import shutil
 from importlib import resources
-from typing import Literal, TypeVar, Any
+from typing import Literal, TypeVar, Any, Sequence
 from typing_extensions import assert_never
 from enum import IntEnum, Enum
 
@@ -235,7 +235,7 @@ class PurchaseConfig(ConfigBaseModel):
     """
     ap_enabled: bool = False
     """是否启用AP购买"""
-    ap_items: list[Literal[0, 1, 2, 3]] = []
+    ap_items: Sequence[Literal[0, 1, 2, 3]] = []
     """AP商店要购买的物品"""
 
 
@@ -523,6 +523,11 @@ def upgrade_config() -> str | None:
                     user_config, msg = upgrade_v3_to_v4(user_config['options'])
                     messages.append(msg)
                     version = 4
+                case 4:
+                    logger.info('Upgrading config: v4 -> v5')
+                    user_config, msg = upgrade_v4_to_v5(user_config, user_config['options'])
+                    messages.append(msg)
+                    version = 5
                 case _:
                     logger.info('No config upgrade needed.')
                     return version
@@ -927,6 +932,17 @@ def upgrade_v3_to_v4(options: dict[str, Any]) -> tuple[dict[str, Any], str]:
     if options['start_game']['game_package_name'] == 'com.bandinamcoent.idolmaster_gakuen':
         options['start_game']['game_package_name'] = 'com.bandainamcoent.idolmaster_gakuen'
         logger.info('Corrected game package name to com.bandainamcoent.idolmaster_gakuen')
+    return options, ''
+
+def upgrade_v4_to_v5(user_config: dict[str, Any], options: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    """
+    v4 -> v5 变更：
+    为 windows 和 windows_remote 截图方式的 type 设置为 dmm
+    """
+    shutil.copy('config.json', 'config.v4.json')
+    if user_config['backend']['screenshot_impl'] in ['windows', 'remote_windows']:
+        logger.info('Set backend type to dmm.')
+        user_config['backend']['type'] = 'dmm'
     return options, ''
 
 if __name__ == '__main__':

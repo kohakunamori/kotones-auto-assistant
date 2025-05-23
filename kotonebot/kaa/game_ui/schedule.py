@@ -3,7 +3,8 @@ from dataclasses import dataclass
 
 from cv2.typing import MatLike
 
-from kotonebot import ocr, device, image, Rect, action
+from kotonebot.primitives import Rect
+from kotonebot import ocr, device, image, action
 from kotonebot.backend.core import HintBox
 from kotonebot.kaa.common import ProduceAction
 from kotonebot.kaa.tasks import R
@@ -83,7 +84,7 @@ class Schedule:
         if cal_lesson is None and nor_lessons:
             cal_lesson = min(nor_lessons, key=lambda x: x.cur_attr_value)
         if cal_lesson is None:
-            logger.warning(f'Lesson calculate error, select vocal')
+            logger.warning('Lesson calculate error, select vocal')
             return lesson_data[0]
         logger.info(f'Recommended is not sp, calculate result:  {cal_lesson}')
         return cal_lesson
@@ -153,7 +154,7 @@ class Schedule:
         :param box: HintBox 需要读取数值的范围
         :return: int 数值，读取失败返回0
         """
-        all_number = ocr.raw().ocr(img, rect=box.rect)
+        all_number = ocr.raw().ocr(img, rect=box)
         all_number = all_number.squash().numbers()
         if all_number:
             return int(all_number[0])

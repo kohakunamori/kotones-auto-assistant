@@ -4,7 +4,7 @@ from cv2.typing import MatLike
 
 from kotonebot import action, color, image
 from kotonebot.backend.color import HsvColor
-from kotonebot.util import Rect
+from kotonebot.primitives import RectTuple, Rect
 from kotonebot.backend.core import Image
 from kotonebot.backend.preprocessor import HsvColorFilter
 
@@ -20,16 +20,16 @@ def filter_rectangles(
     过滤出指定颜色，并执行轮廓查找，返回符合要求的轮廓的 bound box。
     返回结果按照 y 坐标排序。
     """
-    img_hsv =cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     white_mask = cv2.inRange(img_hsv, np.array(color_ranges[0]), np.array(color_ranges[1]))
     contours, _ = cv2.findContours(white_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    result_rects = []
+    result_rects: list[Rect] = []
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
         # 如果不在指定范围内，跳过
         if rect is not None:
-            rect_x1, rect_y1, rect_w, rect_h = rect
+            rect_x1, rect_y1, rect_w, rect_h = rect.xywh
             rect_x2 = rect_x1 + rect_w
             rect_y2 = rect_y1 + rect_h
             if not (
@@ -42,8 +42,8 @@ def filter_rectangles(
         aspect_ratio = w / h
         area = cv2.contourArea(contour)
         if aspect_ratio >= aspect_ratio_threshold and area >= area_threshold:
-            result_rects.append((x, y, w, h))
-    result_rects.sort(key=lambda x: x[1])
+            result_rects.append(Rect(x, y, w, h))
+    result_rects.sort(key=lambda x: x.y1)
     return result_rects
 
 @action('按钮是否禁用', screenshot_mode='manual-inherit')

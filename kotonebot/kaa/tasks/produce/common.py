@@ -1,7 +1,6 @@
 from typing import Literal
 from logging import getLogger
 
-from kotonebot.kaa.tasks import R
 from kotonebot import (
     ocr,
     device,
@@ -10,6 +9,8 @@ from kotonebot import (
     sleep,
     Interval,
 )
+from kotonebot.primitives import Rect
+from kotonebot.kaa.tasks import R
 from .p_drink import acquire_p_drink
 from kotonebot.util import measure_time
 from kotonebot.kaa.common import conf
@@ -89,9 +90,9 @@ def select_p_item():
     # 前置条件 [screenshots/produce/in_produce/claim_p_item.png]
 
     POSTIONS = [
-        (157, 820, 128, 128), # x, y, w, h
-        (296, 820, 128, 128),
-        (435, 820, 128, 128),
+        Rect(157, 820, 128, 128), # x, y, w, h
+        Rect(296, 820, 128, 128),
+        Rect(435, 820, 128, 128),
     ] # TODO: HARD CODED
     device.click(POSTIONS[0])
     sleep(0.5)

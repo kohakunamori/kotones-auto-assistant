@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from ..tasks import R
+from kotonebot.primitives import Rect, RectTuple
 from kotonebot.backend.core import HintBox
 from kotonebot.backend.color import HsvColor
-from kotonebot import action, device, ocr, sleep, Rect
+from kotonebot import action, device, ocr, sleep
 from .common import filter_rectangles, WHITE_LOW, WHITE_HIGH
 
 @dataclass
@@ -103,7 +104,7 @@ class CommuEventButtonUI:
         if selected is not None:
             result.append(selected)
             selected.selected = False
-        result.sort(key=lambda x: x.rect[1])
+        result.sort(key=lambda x: x.rect.y1)
         return result
 
     @action('交流事件按钮.识别描述', screenshot_mode='manual-inherit')
@@ -116,7 +117,7 @@ class CommuEventButtonUI:
         """
         img = device.screenshot()
         rects = filter_rectangles(img, (WHITE_LOW, WHITE_HIGH), 3, 1000, rect=self.rect)
-        rects.sort(key=lambda x: x[1])
+        rects.sort(key=lambda x: x.y1)
         # TODO: 这里 rects 可能为空，需要加入判断重试
         ocr_result = ocr.raw().ocr(img, rect=rects[0])
         return ocr_result.squash().text

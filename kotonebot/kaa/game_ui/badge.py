@@ -4,7 +4,7 @@ badge 模块，用于关联带附加徽章的 UI。
 """
 from typing import Literal, NamedTuple
 
-from kotonebot.util import Rect
+from kotonebot.primitives import Rect, RectTuple, PointTuple
 
 BadgeCorner = Literal['lt', 'lm', 'lb', 'rt', 'rm', 'rb', 'mt', 'm', 'mb']
 """
@@ -33,11 +33,11 @@ def match(
     :return: 匹配结果列表
     """
     # 将 rect 转换为中心点
-    def center(rect: Rect) -> tuple[int, int]:
+    def center(rect: RectTuple) -> PointTuple:
         return rect[0] + rect[2] // 2, rect[1] + rect[3] // 2
     
     # 判断 badge 是否在 object 的指定角落位置
-    def is_in_corner(obj_rect: Rect, badge_center: tuple[int, int]) -> bool:
+    def is_in_corner(obj_rect: RectTuple, badge_center: PointTuple) -> bool:
         obj_center = center(obj_rect)
         x_obj, y_obj = obj_center
         x_badge, y_badge = badge_center
@@ -72,15 +72,15 @@ def match(
     available_badges = badges.copy()
 
     for obj_rect in objects:
-        obj_center = center(obj_rect)
+        obj_center = center(obj_rect.xywh)
         target_badge = None
         min_dist = float('inf')
         target_index = -1
         
         # 查找最近的符合条件的徽章
         for i, badge_rect in enumerate(available_badges):
-            badge_center = center(badge_rect)
-            if is_in_corner(obj_rect, badge_center):
+            badge_center = center(badge_rect.xywh)
+            if is_in_corner(obj_rect.xywh, badge_center):
                 dist = ((badge_center[0] - obj_center[0]) ** 2 + (badge_center[1] - obj_center[1]) ** 2) ** 0.5
                 if dist < min_dist and dist <= threshold_distance:
                     min_dist = dist
