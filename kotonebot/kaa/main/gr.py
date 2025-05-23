@@ -1,4 +1,5 @@
 import os
+import traceback
 import zipfile
 import logging
 from functools import partial
@@ -458,13 +459,18 @@ class KotoneBotUI:
             with gr.Tab("MuMu 12", interactive=has_mumu12, id="mumu12") as tab_mumu12:
                 gr.Markdown("已选中 MuMu 12 模拟器")
                 if has_mumu12:
-                    instances = Mumu12Host.list()
-                    mumu_instance = gr.Dropdown(
-                        label="选择多开实例",
-                        value=self.current_config.backend.instance_id,
-                        choices=[(i.name, i.id) for i in instances],
-                        interactive=True
-                    )
+                    try:
+                        instances = Mumu12Host.list()
+                        mumu_instance = gr.Dropdown(
+                            label="选择多开实例",
+                            value=self.current_config.backend.instance_id,
+                            choices=[(i.name, i.id) for i in instances],
+                            interactive=True
+                        )
+                    except:  # noqa: E722
+                        logger.exception('Failed to list installed MuMu12')
+                        gr.Markdown('获取 MuMu12 模拟器列表失败，请前往 QQ 群、QQ 频道或 Github 反馈 bug。')
+                        mumu_instance = gr.Dropdown(visible=False)
                 else:
                     # 为了让 return 收集组件时不报错
                     mumu_instance = gr.Dropdown(visible=False)
@@ -472,13 +478,18 @@ class KotoneBotUI:
             with gr.Tab("雷电", interactive=has_leidian, id="leidian") as tab_leidian:
                 gr.Markdown("已选中雷电模拟器")
                 if has_leidian:
-                    instances = LeidianHost.list()
-                    leidian_instance = gr.Dropdown(
-                        label="选择多开实例",
-                        value=self.current_config.backend.instance_id,
-                        choices=[(i.name, i.id) for i in instances],
-                        interactive=True
-                    )
+                    try:
+                        instances = LeidianHost.list()
+                        leidian_instance = gr.Dropdown(
+                            label="选择多开实例",
+                            value=self.current_config.backend.instance_id,
+                            choices=[(i.name, i.id) for i in instances],
+                            interactive=True
+                        )
+                    except:  # noqa: E722
+                        logger.exception('Failed to list installed Leidian')
+                        gr.Markdown('获取雷电模拟器列表失败，请前往 QQ 群、QQ 频道或 Github 反馈 bug。')
+                        leidian_instance = gr.Dropdown(visible=False)
                 else:
                     leidian_instance = gr.Dropdown(visible=False)
 
