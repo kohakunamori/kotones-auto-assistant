@@ -1,3 +1,4 @@
+import os
 import sys
 import runpy
 import logging
@@ -16,6 +17,8 @@ psr.add_argument('-v', '--version', action='version', version='kaa v' + version)
 psr.add_argument('-c', '--config', default='./config.json', help='Path to the configuration file. Default: ./config.json')
 psr.add_argument('-lp', '--log-path', default=None, help='Path to the log file. Does not log to file if not specified. Default: None')
 psr.add_argument('-ll', '--log-level', default='DEBUG', help='Log level. Default: DEBUG')
+psr.add_argument('--kill-dmm', action='store_true', default=False, help='Kill DMM Game Player when tasks are completed. Overrides config().end_game.kill_dmm')
+psr.add_argument('--kill-game', action='store_true', default=False, help='Kill gakumasu.exe when tasks are completed. Overrides config().end_game.kill_game')
 
 # 子命令
 subparsers = psr.add_subparsers(dest='subcommands', title='Subcommands')
@@ -65,6 +68,10 @@ def task_invoke() -> int:
         kaa().run_all()
     else:
         kaa().run(tasks_from_id(tasks_args))
+    if psr.parse_args().kill_dmm:
+        os.system('taskkill /f /im DMMGamePlayer.exe')
+    if psr.parse_args().kill_game:
+        os.system('taskkill /f /im gakumas.exe')
     return 0
 
 def task_list() -> int:
