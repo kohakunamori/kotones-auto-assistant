@@ -15,7 +15,7 @@ from ..actions.scenes import at_home, goto_home
 from kotonebot.kaa.game_ui.idols_overview import locate_idol
 from ..produce.in_purodyuusu import hajime_pro, hajime_regular, hajime_master, resume_pro_produce, resume_regular_produce, \
     resume_master_produce
-from kotonebot import device, image, ocr, task, action, sleep, contains
+from kotonebot import device, image, ocr, task, action, sleep, contains, regex
 
 logger = logging.getLogger(__name__)
 
@@ -209,10 +209,12 @@ def do_produce(
 
     # 0. 进入培育页面
     mode_text = mode.upper()
+    if mode_text == 'MASTER':
+        mode_text = 'MASTER|MIASTER'
     logger.info(f'Enter produce page. Mode: {mode_text}')
     result = (SimpleDispatcher('enter_produce')
         .click(R.Produce.ButtonProduce)
-        .click(contains(mode_text))
+        .click(regex(mode_text))
         .until(R.Produce.ButtonPIdolOverview, result=True)
         .until(R.Produce.TextAPInsufficient, result=False)
     ).run()
