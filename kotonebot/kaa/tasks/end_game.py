@@ -57,7 +57,10 @@ def end_game():
 
     # 关闭模拟器
     if conf().end_game.kill_emulator:
-        instance().stop()
+        if not config.current.backend.emulator_path:
+            user.warning('未配置模拟器 exe 文件路径，无法关闭模拟器。跳过此次操作。')
+        else:
+            instance().stop()
 
     # 关机
     if conf().end_game.shutdown:
