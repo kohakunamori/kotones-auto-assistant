@@ -469,7 +469,7 @@ class KotoneBotUI:
                         )
                     except:  # noqa: E722
                         logger.exception('Failed to list installed MuMu12')
-                        gr.Markdown('获取 MuMu12 模拟器列表失败，请前往 QQ 群、QQ 频道或 Github 反馈 bug。')
+                        gr.Markdown('获取 MuMu12 模拟器列表失败，请升级模拟器到最新版本。若问题依旧，前往 QQ 群、QQ 频道或 Github 反馈 bug。')
                         mumu_instance = gr.Dropdown(visible=False)
                 else:
                     # 为了让 return 收集组件时不报错
