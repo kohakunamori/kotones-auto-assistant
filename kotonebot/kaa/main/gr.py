@@ -443,19 +443,19 @@ class KotoneBotUI:
             nonlocal current_tab
             current_tab = selected_index
 
-            if selected_index == 3:  # DMM
-                choices = ['windows', 'remote_windows']
-            else:  # Mumu, Leidian, Custom
-                choices = ['adb', 'adb_raw', 'uiautomator2']
-
-            if not impl_value in choices:
+            # if selected_index == 3:  # DMM
+            #     choices = ['windows', 'remote_windows']
+            # else:  # Mumu, Leidian, Custom
+            #     choices = ['adb', 'adb_raw', 'uiautomator2']
+            choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows']
+            if impl_value not in choices:
                 new_value = choices[0]
             else:
                 new_value = impl_value
 
             return gr.Dropdown(choices=choices, value=new_value)
 
-        with gr.Tabs(selected=self.current_config.backend.type) as emulator_tabs:
+        with gr.Tabs(selected=self.current_config.backend.type):
             with gr.Tab("MuMu 12", interactive=has_mumu12, id="mumu12") as tab_mumu12:
                 gr.Markdown("已选中 MuMu 12 模拟器")
                 if has_mumu12:
@@ -544,13 +544,14 @@ class KotoneBotUI:
             with gr.Tab("DMM", id="dmm") as tab_dmm:
                 gr.Markdown("已选中 DMM")
 
-        type_in_config = self.current_config.backend.type
-        if type_in_config in ['dmm']:
-            choices = ['windows', 'remote_windows']
-        elif type_in_config in ['mumu12', 'leidian', 'custom']:
-            choices = ['adb', 'adb_raw', 'uiautomator2']
-        else:
-            raise ValueError(f'Unsupported backend type: {type_in_config}')
+        # type_in_config = self.current_config.backend.type
+        # if type_in_config in ['dmm']:
+        #     choices = ['windows', 'remote_windows']
+        # elif type_in_config in ['mumu12', 'leidian', 'custom']:
+        #     choices = ['adb', 'adb_raw', 'uiautomator2']
+        # else:
+        #     raise ValueError(f'Unsupported backend type: {type_in_config}')
+        choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows']
         screenshot_impl = gr.Dropdown(
             choices=choices,
             value=self.current_config.backend.screenshot_impl,
