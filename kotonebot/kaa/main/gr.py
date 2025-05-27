@@ -461,9 +461,10 @@ class KotoneBotUI:
                 if has_mumu12:
                     try:
                         instances = Mumu12Host.list()
+                        is_mumu12 = self.current_config.backend.type == 'mumu12'
                         mumu_instance = gr.Dropdown(
                             label="选择多开实例",
-                            value=self.current_config.backend.instance_id,
+                            value=self.current_config.backend.instance_id if is_mumu12 else None,
                             choices=[(i.name, i.id) for i in instances],
                             interactive=True
                         )
@@ -480,9 +481,10 @@ class KotoneBotUI:
                 if has_leidian:
                     try:
                         instances = LeidianHost.list()
+                        is_leidian = self.current_config.backend.type == 'leidian'
                         leidian_instance = gr.Dropdown(
                             label="选择多开实例",
-                            value=self.current_config.backend.instance_id,
+                            value=self.current_config.backend.instance_id if is_leidian else None,
                             choices=[(i.name, i.id) for i in instances],
                             interactive=True
                         )
@@ -571,6 +573,30 @@ class KotoneBotUI:
         tab_leidian.select(fn=partial(_update_emulator_tab_options, selected_index=1), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_custom.select(fn=partial(_update_emulator_tab_options, selected_index=2), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_dmm.select(fn=partial(_update_emulator_tab_options, selected_index=3), inputs=[screenshot_impl], outputs=[screenshot_impl])
+
+        # 初值
+        if self.current_config.backend.type == 'mumu12':
+            _update_emulator_tab_options(
+                impl_value=self.current_config.backend.screenshot_impl,
+                selected_index=0
+            )
+        elif self.current_config.backend.type == 'leidian':
+            _update_emulator_tab_options(
+                impl_value=self.current_config.backend.screenshot_impl,
+                selected_index=1
+            )
+        elif self.current_config.backend.type == 'custom':
+            _update_emulator_tab_options(
+                impl_value=self.current_config.backend.screenshot_impl,
+                selected_index=2
+            )
+        elif self.current_config.backend.type == 'dmm':
+            _update_emulator_tab_options(
+                impl_value=self.current_config.backend.screenshot_impl,
+                selected_index=3
+            )
+        else:
+            gr.Warning(f"未知的模拟器类型：{self.current_config.backend.type}")
 
         def set_config(_: BaseConfig, data: dict[ConfigKey, Any]) -> None:
             # current_tab is updated by _update_emulator_tab_options
