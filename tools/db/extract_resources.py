@@ -4,13 +4,15 @@
 import os
 import sys
 import tqdm
-import shutil
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, List, Tuple
 
 import cv2
 import requests
+import urllib3
+
+from kaa.db.constants import CharacterId
 
 sys.path.append(os.path.abspath('./submodules/GkmasObjectManager'))
 
@@ -64,12 +66,12 @@ def run(tasks: List[DownloadTask], description: str = "下载中") -> None:
 
 # 创建目录
 print("创建资源目录...")
-IDOL_CARD_PATH = './kotonebot/kaa/resources/idol_cards'
-SKILL_CARD_PATH = './kotonebot/kaa/resources/skill_cards'
+IDOL_CARD_PATH = './kaa/resources/idol_cards'
+SKILL_CARD_PATH = './kaa/resources/skill_cards'
 os.makedirs(IDOL_CARD_PATH, exist_ok=True)
 os.makedirs(SKILL_CARD_PATH, exist_ok=True)
 
-db = sqlite3.connect("./kotonebot/kaa/resources/game.db")
+db = sqlite3.connect("./kaa/resources/game.db")
 
 def resize_idol_card_image(path: str) -> None:
     """偶像卡图片后处理：调整分辨率为 140x188"""
