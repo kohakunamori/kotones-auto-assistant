@@ -69,12 +69,14 @@ ConfigKey = Literal[
     'anomaly_capsule_toys_count',
     
     # start game
-    'start_game_enabled', 'start_through_kuyo', 
+    'start_game_enabled', 'start_through_kuyo',
     'game_package_name', 'kuyo_package_name',
-    
+    'disable_gakumas_localify', 'dmm_game_path',
+
     # end game
-    'exit_kaa', 'kill_game', 'kill_dmm', 
+    'exit_kaa', 'kill_game', 'kill_dmm',
     'kill_emulator', 'shutdown', 'hibernate',
+    'restore_gakumas_localify',
     
     'activity_funds',
     'presents',
@@ -1106,6 +1108,17 @@ class KotoneBotUI:
                     label="Kuyo包名",
                     info=StartGameConfig.model_fields['kuyo_package_name'].description
                 )
+                disable_gakumas_localify = gr.Checkbox(
+                    label="禁用 Gakumas Localify 汉化插件",
+                    value=self.current_config.options.start_game.disable_gakumas_localify,
+                    info=StartGameConfig.model_fields['disable_gakumas_localify'].description
+                )
+                dmm_game_path = gr.Textbox(
+                    value=self.current_config.options.start_game.dmm_game_path or "",
+                    label="DMM 版游戏路径",
+                    info=StartGameConfig.model_fields['dmm_game_path'].description,
+                    placeholder="例：F:\\Games\\gakumas\\gakumas.exe"
+                )
             start_game_enabled.change(
                 fn=lambda x: gr.Group(visible=x),
                 inputs=[start_game_enabled],
@@ -1117,12 +1130,16 @@ class KotoneBotUI:
             config.start_game.start_through_kuyo = data['start_through_kuyo']
             config.start_game.game_package_name = data['game_package_name']
             config.start_game.kuyo_package_name = data['kuyo_package_name']
-        
+            config.start_game.disable_gakumas_localify = data['disable_gakumas_localify']
+            config.start_game.dmm_game_path = data['dmm_game_path'] if data['dmm_game_path'] else None
+
         return set_config, {
             'start_game_enabled': start_game_enabled,
             'start_through_kuyo': start_through_kuyo,
             'game_package_name': game_package_name,
-            'kuyo_package_name': kuyo_package_name
+            'kuyo_package_name': kuyo_package_name,
+            'disable_gakumas_localify': disable_gakumas_localify,
+            'dmm_game_path': dmm_game_path
         }
 
 
@@ -1160,6 +1177,11 @@ class KotoneBotUI:
                 value=self.current_config.options.end_game.hibernate,
                 info=EndGameConfig.model_fields['hibernate'].description
             )
+            restore_gakumas_localify = gr.Checkbox(
+                label="恢复 Gakumas Localify 汉化插件状态",
+                value=self.current_config.options.end_game.restore_gakumas_localify,
+                info=EndGameConfig.model_fields['restore_gakumas_localify'].description
+            )
         
         def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
             config.end_game.exit_kaa = data['exit_kaa']
@@ -1168,14 +1190,16 @@ class KotoneBotUI:
             config.end_game.kill_emulator = data['kill_emulator']
             config.end_game.shutdown = data['shutdown']
             config.end_game.hibernate = data['hibernate']
-        
+            config.end_game.restore_gakumas_localify = data['restore_gakumas_localify']
+
         return set_config, {
             'exit_kaa': exit_kaa,
             'kill_game': kill_game,
             'kill_dmm': kill_dmm,
             'kill_emulator': kill_emulator,
             'shutdown': shutdown,
-            'hibernate': hibernate
+            'hibernate': hibernate,
+            'restore_gakumas_localify': restore_gakumas_localify
         }
 
     def _create_activity_funds_settings(self) -> ConfigBuilderReturnValue:
