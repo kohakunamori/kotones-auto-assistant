@@ -15,6 +15,7 @@ from kotonebot.kaa.db import IdolCard
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.context import task_registry, ContextStackVars
+from kotonebot.backend.context.context import vars
 from kotonebot.client.host import Mumu12Host, LeidianHost
 from kotonebot.kaa.common import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
@@ -182,6 +183,8 @@ class KotoneBotUI:
     def __init__(self, kaa: Kaa) -> None:
         self.is_running: bool = False
         self.single_task_running: bool = False
+        self.is_stopping: bool = False  # 新增：标记是否正在停止过程中
+        self.is_single_task_stopping: bool = False  # 新增：标记单个任务是否正在停止
         self._kaa = kaa
         self._load_config()
         self._setup_kaa()
@@ -232,14 +235,20 @@ class KotoneBotUI:
 
         return f"已导出到 {zip_filename}"
 
-    def get_button_status(self) -> str:
+    def get_button_status(self) -> Tuple[str, bool]:
+        """获取按钮状态和交互性"""
         if not hasattr(self, 'run_status'):
-            return "启动"
+            return "启动", True
 
         if not self.run_status.running:
             self.is_running = False
-            return "启动"
-        return "停止"
+            self.is_stopping = False  # 重置停止状态
+            return "启动", True
+
+        if self.is_stopping:
+            return "停止中...", False  # 停止中时禁用按钮
+
+        return "停止", True
 
     def update_task_status(self) -> List[List[str]]:
         status_list: List[List[str]] = []
@@ -262,6 +271,11 @@ class KotoneBotUI:
     def toggle_run(self) -> Tuple[str, List[List[str]]]:
         if not self.is_running:
             return self.start_run()
+
+        # 如果正在停止过程中，忽略重复点击
+        if self.is_stopping:
+            return "停止中...", self.update_task_status()
+
         return self.stop_run()
 
     def start_run(self) -> Tuple[str, List[List[str]]]:
@@ -270,10 +284,19 @@ class KotoneBotUI:
         return "停止", self.update_task_status()
 
     def stop_run(self) -> Tuple[str, List[List[str]]]:
+        self.is_stopping = True  # 设置停止状态
+
+        # 如果当前处于暂停状态，先恢复再停止
+        if vars.flow.is_paused:
+            gr.Info("检测到任务暂停，正在恢复后停止...")
+            vars.flow.request_resume()
+
         self.is_running = False
         if self._kaa:
             self.run_status.interrupt()
-        return "启动", self.update_task_status()
+            gr.Info("正在停止任务...")
+
+        return "停止中...", self.update_task_status()
 
     def start_single_task(self, task_name: str) -> Tuple[str, str]:
         if not task_name:
@@ -294,11 +317,48 @@ class KotoneBotUI:
         return "停止任务", f"正在执行任务: {task_name}"
 
     def stop_single_task(self) -> Tuple[str, str]:
+        self.is_single_task_stopping = True  # 设置单个任务停止状态
+
+        # 如果当前处于暂停状态，先恢复再停止
+        if vars.flow.is_paused:
+            gr.Info("检测到任务暂停，正在恢复后停止...")
+            vars.flow.request_resume()
+
         self.single_task_running = False
         if hasattr(self, 'run_status') and self._kaa:
             self.run_status.interrupt()
-            gr.Info("任务已停止")
-        return "执行任务", "任务已停止"
+            gr.Info("正在停止任务...")
+        return "停止中...", "正在停止任务..."
+
+    def toggle_pause(self) -> str:
+        """切换暂停/恢复状态"""
+        if vars.flow.is_paused:
+            vars.flow.request_resume()
+            gr.Info("任务已恢复")
+            return "暂停"
+        else:
+            vars.flow.request_pause()
+            gr.Info("任务已暂停")
+            return "恢复"
+
+    def get_pause_button_status(self) -> str:
+        """获取暂停按钮的状态"""
+        if vars.flow.is_paused:
+            return "恢复"
+        else:
+            return "暂停"
+
+    def get_pause_button_with_interactive(self) -> gr.Button:
+        """获取暂停按钮的状态和交互性"""
+        try:
+            text = "恢复" if vars.flow.is_paused else "暂停"
+        except ValueError:
+            # ValueError: Forwarded object vars called before initialization.
+            # TODO: vars.flow.is_paused 应该要可以在脚本正式启动前就能访问
+            text = '未启动'
+        # 如果正在停止过程中，禁用暂停按钮
+        interactive = not (self.is_stopping or self.is_single_task_stopping)
+        return gr.Button(value=text, interactive=interactive)
         
     def save_settings2(self, return_values: list[ConfigBuilderReturnValue], *args) -> str:
         options = BaseConfig()
@@ -328,7 +388,8 @@ class KotoneBotUI:
             gr.Markdown("## 状态")
 
             with gr.Row():
-                run_btn = gr.Button("启动", scale=1)
+                run_btn = gr.Button("启动", scale=2)
+                pause_btn = gr.Button("暂停", scale=1)
             if self._kaa.upgrade_msg:
                 gr.Markdown('### 配置升级报告')
                 gr.Markdown(self._kaa.upgrade_msg)
@@ -340,18 +401,38 @@ class KotoneBotUI:
                 label="任务状态"
             )
 
-            def on_run_click(evt: gr.EventData) -> Tuple[str, List[List[str]]]:
-                return self.toggle_run()
+            def on_run_click(evt: gr.EventData) -> Tuple[gr.Button, List[List[str]]]:
+                result = self.toggle_run()
+                # 如果正在停止，禁用按钮
+                interactive = not self.is_stopping
+                button = gr.Button(value=result[0], interactive=interactive)
+                return button, result[1]
+
+            def on_pause_click(evt: gr.EventData) -> str:
+                return self.toggle_pause()
 
             run_btn.click(
                 fn=on_run_click,
                 outputs=[run_btn, task_status]
             )
 
+            pause_btn.click(
+                fn=on_pause_click,
+                outputs=[pause_btn]
+            )
+
             # 添加定时器，分别更新按钮状态和任务状态
+            def update_run_button_status():
+                text, interactive = self.get_button_status()
+                return gr.Button(value=text, interactive=interactive)
+
             gr.Timer(1.0).tick(
-                fn=self.get_button_status,
+                fn=update_run_button_status,
                 outputs=[run_btn]
+            )
+            gr.Timer(1.0).tick(
+                fn=self.get_pause_button_with_interactive,
+                outputs=[pause_btn]
             )
             gr.Timer(1.0).tick(
                 fn=self.update_task_status,
@@ -372,21 +453,34 @@ class KotoneBotUI:
                 value=None
             )
 
-            # 创建执行按钮
-            execute_btn = gr.Button("执行任务")
+            # 创建执行按钮和暂停按钮
+            with gr.Row():
+                execute_btn = gr.Button("执行任务", scale=2)
+                pause_btn = gr.Button("暂停", scale=1)
             task_result = gr.Markdown("")
 
-            def toggle_single_task(task_name: str) -> Tuple[str, str]:
+            def toggle_single_task(task_name: str) -> Tuple[gr.Button, str]:
                 if self.single_task_running:
-                    return self.stop_single_task()
-                else:
-                    return self.start_single_task(task_name)
+                    # 如果正在停止过程中，忽略重复点击
+                    if self.is_single_task_stopping:
+                        return gr.Button(value="停止中...", interactive=False), "正在停止任务..."
 
-            def get_task_button_status() -> str:
+                    result = self.stop_single_task()
+                    return gr.Button(value=result[0], interactive=False), result[1]
+                else:
+                    result = self.start_single_task(task_name)
+                    return gr.Button(value=result[0], interactive=True), result[1]
+
+            def get_task_button_status() -> gr.Button:
                 if not hasattr(self, 'run_status') or not self.run_status.running:
                     self.single_task_running = False
-                    return "执行任务"
-                return "停止任务"
+                    self.is_single_task_stopping = False  # 重置停止状态
+                    return gr.Button(value="执行任务", interactive=True)
+
+                if self.is_single_task_stopping:
+                    return gr.Button(value="停止中...", interactive=False)  # 停止中时禁用按钮
+
+                return gr.Button(value="停止任务", interactive=True)
 
             def get_single_task_status() -> str:
                 if not hasattr(self, 'run_status'):
@@ -419,16 +513,28 @@ class KotoneBotUI:
 
                 return ""
 
+            def on_pause_click(evt: gr.EventData) -> str:
+                return self.toggle_pause()
+
             execute_btn.click(
                 fn=toggle_single_task,
                 inputs=[task_dropdown],
                 outputs=[execute_btn, task_result]
             )
 
+            pause_btn.click(
+                fn=on_pause_click,
+                outputs=[pause_btn]
+            )
+
             # 添加定时器更新按钮状态和任务状态
             gr.Timer(1.0).tick(
                 fn=get_task_button_status,
                 outputs=[execute_btn]
+            )
+            gr.Timer(1.0).tick(
+                fn=self.get_pause_button_with_interactive,
+                outputs=[pause_btn]
             )
             gr.Timer(1.0).tick(
                 fn=get_single_task_status,
