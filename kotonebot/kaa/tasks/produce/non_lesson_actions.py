@@ -277,7 +277,7 @@ def enter_outing():
     buttons = ui.all()
     if not buttons:
         raise UnrecoverableError("Failed to find any buttons.")
-    target_btn = buttons[1]
+    target_btn = buttons[min(1, len(buttons) - 1)]
     logger.debug('Clicking "%s".', target_btn.description)
     if target_btn.selected:
         device.click(target_btn)
