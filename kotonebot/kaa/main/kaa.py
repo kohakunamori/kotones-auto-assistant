@@ -5,7 +5,6 @@ import logging
 import traceback
 import importlib.metadata
 from datetime import datetime
-from importlib import resources
 from typing_extensions import override
 
 import cv2
@@ -13,6 +12,7 @@ import cv2
 from ...client import Device
 from kotonebot.ui import user
 from kotonebot import KotoneBot
+from ..util.paths import get_ahk_path
 from ..kaa_context import _set_instance
 from .dmm_host import DmmHost, DmmInstance
 from ..common import BaseConfig, upgrade_config
@@ -210,13 +210,18 @@ class Kaa(KotoneBot):
 
         if isinstance(self.backend_instance, DmmInstance):
             if impl_name == 'windows':
-                ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
+                ahk_path = get_ahk_path()
                 host_conf = WindowsHostConfig(
                     window_title='gakumas',
                     ahk_exe_path=ahk_path
                 )
             elif impl_name == 'remote_windows':
+                ahk_path = get_ahk_path()
                 host_conf = RemoteWindowsHostConfig(
+                    windows_host_config=WindowsHostConfig(
+                        window_title='gakumas',
+                        ahk_exe_path=ahk_path
+                    ),
                     host=user_config.backend.adb_ip,
                     port=user_config.backend.adb_port
                 )

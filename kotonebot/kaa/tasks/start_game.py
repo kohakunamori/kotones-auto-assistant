@@ -156,8 +156,8 @@ def windows_launch():
             logger.info('Gakumas Localify disabled.')
     
     from ahk import AHK
-    from importlib import resources
-    ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
+    from kotonebot.kaa.util.paths import get_ahk_path
+    ahk_path = get_ahk_path()
     ahk = AHK(executable_path=ahk_path)
 
     if ahk.find_window(title='gakumas', title_match_mode=3): # 3=精确匹配

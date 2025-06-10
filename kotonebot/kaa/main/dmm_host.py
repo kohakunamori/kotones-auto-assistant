@@ -40,15 +40,19 @@ class DmmInstance(Instance[DmmHostConfigs]):
     def create_device(self, impl: DeviceImpl, host_config: DmmHostConfigs) -> Device:
         if impl == 'windows':
             assert isinstance(host_config, WindowsHostConfig)
-            config = WindowsImplConfig(
+            win_config = WindowsImplConfig(
                 window_title=host_config.window_title,
                 ahk_exe_path=host_config.ahk_exe_path
             )
-            return create_device(impl, config)
+            return create_device(impl, win_config)
 
         elif impl == 'remote_windows':
             assert isinstance(host_config, RemoteWindowsHostConfig)
             config = RemoteWindowsImplConfig(
+                windows_impl_config=WindowsImplConfig(
+                    window_title=host_config.windows_host_config.window_title,
+                    ahk_exe_path=host_config.windows_host_config.ahk_exe_path
+                ),
                 host=host_config.host,
                 port=host_config.port
             )
