@@ -850,10 +850,6 @@ if __name__ == '__main__':
     file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s'))
     logging.getLogger().addHandler(file_handler)
 
-    from kotonebot.backend.context import init_context, manual_context
-    from kotonebot.kaa.common import BaseConfig
     from kotonebot.backend.debug import debug
-    init_context(config_type=BaseConfig)
-    manual_context().begin()
     debug.auto_save_to_folder = 'dumps'
     debug.enabled = True

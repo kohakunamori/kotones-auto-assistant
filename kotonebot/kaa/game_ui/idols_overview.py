@@ -10,6 +10,7 @@ from kotonebot.kaa.util import paths
 from kotonebot.primitives import RectTuple, Rect
 from kotonebot.kaa.game_ui import Scrollable
 from kotonebot import device, action
+from kotonebot.util import cv2_imread
 from kotonebot.kaa.image_db import ImageDatabase, HistDescriptor, FileDataSource
 from kotonebot.backend.preprocessor import HsvColorsRemover
 
@@ -147,14 +148,5 @@ def locate_idol(skin_id: str):
     # # 使用新函数绘制预览图
     # preview_img = draw_idol_preview(img, rects, db, path)
     
-
-def test():
-    from kotonebot.backend.context import init_context, manual_context
-    init_context()
-    manual_context().begin()
-    locate_idol('i_card-skin-fktn-3-006')
-
 if __name__ == '__main__':
-    from kotonebot.util import cv2_imread
-
-    test()
+    locate_idol('i_card-skin-fktn-3-006')

@@ -300,7 +300,4 @@ def enter_outing():
     logger.info("おでかけ completed.")
 
 if __name__ == '__main__':
-    from kotonebot.backend.context import manual_context, init_context
-    init_context()
-    manual_context().begin()
     enter_consult()
