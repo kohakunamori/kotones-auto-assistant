@@ -112,6 +112,10 @@ class Kaa(KotoneBot):
         if self.backend_instance is None:
             raise ValueError('Backend instance is not set.')
         _set_instance(self.backend_instance)
+        from kotonebot import device
+        logger.info('Set target resolution to 720x1280.')
+        device.orientation = 'portrait'
+        device.target_resolution = (720, 1280)
 
     def __get_backend_instance(self, config: UserConfig) -> Instance:
         """
