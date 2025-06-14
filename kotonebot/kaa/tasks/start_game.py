@@ -95,8 +95,9 @@ def android_launch():
     前置条件：-
     结束状态：-
     """
+    _device = device.of_android()
     # 如果已经在游戏中，直接返回home
-    if device.current_package() == conf().start_game.game_package_name:
+    if _device.current_package() == conf().start_game.game_package_name:
         logger.info("Game already started")
         if not at_home():
             logger.info("Not at home, going to home")
@@ -106,15 +107,15 @@ def android_launch():
     # 如果不在游戏中，启动游戏
     if not conf().start_game.start_through_kuyo:
         # 直接启动
-        device.launch_app(conf().start_game.game_package_name)
+        _device.launch_app(conf().start_game.game_package_name)
     else:
         # 通过Kuyo启动
-        if device.current_package() == conf().start_game.kuyo_package_name:
+        if _device.current_package() == conf().start_game.kuyo_package_name:
             logger.warning("Kuyo already started. Auto start game failed.")
             # TODO: Kuyo支持改进
             return
         # 启动kuyo
-        device.launch_app('org.kuyo.game')
+        _device.launch_app('org.kuyo.game')
         # 点击"加速"
         device.click(image.expect_wait(R.Kuyo.ButtonTab3Speedup, timeout=10))
         # Kuyo会延迟加入广告，导致识别后，原位置突然弹出广告，导致进入广告页面
@@ -156,8 +157,8 @@ def windows_launch():
             logger.info('Gakumas Localify disabled.')
     
     from ahk import AHK
-    from importlib import resources
-    ahk_path = str(resources.files('kaa.res.bin') / 'AutoHotkey.exe')
+    from kotonebot.kaa.util.paths import get_ahk_path
+    ahk_path = get_ahk_path()
     ahk = AHK(executable_path=ahk_path)
 
     if ahk.find_window(title='gakumas', title_match_mode=3): # 3=精确匹配

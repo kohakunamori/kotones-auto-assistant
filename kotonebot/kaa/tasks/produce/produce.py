@@ -364,12 +364,7 @@ if __name__ == '__main__':
     file_handler = logging.FileHandler(log_filename, encoding='utf-8')
     file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s'))
     logging.getLogger().addHandler(file_handler)
-    
-    import time
-    from kotonebot.backend.context import init_context
-    from kotonebot.kaa.common import BaseConfig
 
-    init_context(config_type=BaseConfig)
     conf().produce.enabled = True
     conf().produce.mode = 'pro'
     conf().produce.produce_count = 1
