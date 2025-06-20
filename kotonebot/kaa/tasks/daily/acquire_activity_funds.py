@@ -3,7 +3,7 @@ import logging
 
 from kotonebot.backend.loop import Loop
 from kotonebot.kaa.tasks import R
-from kotonebot.kaa.common import conf
+from kotonebot.kaa.config import conf
 from ..actions.scenes import at_home, goto_home
 from kotonebot import task, device, image, color
 

@@ -18,7 +18,7 @@ from kotonebot import KotoneBot
 from ..util.paths import get_ahk_path
 from ..kaa_context import _set_instance
 from .dmm_host import DmmHost, DmmInstance
-from ..common import BaseConfig, upgrade_config
+from ..config import BaseConfig, upgrade_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.client.host import (
     Mumu12Host, LeidianHost, Mumu12Instance,

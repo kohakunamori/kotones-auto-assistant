@@ -12,7 +12,8 @@ from ..actions.commu import handle_unread_commu
 from kotonebot.errors import UnrecoverableError
 from kotonebot.util import Countdown, Interval, cropped
 from kotonebot.backend.dispatch import DispatcherContext
-from kotonebot.kaa.common import ProduceAction, RecommendCardDetectionMode, conf
+from kotonebot.kaa.config import ProduceAction, RecommendCardDetectionMode
+from kotonebot.kaa.config import conf
 from ..produce.common import until_acquisition_clear, commu_event, fast_acquisitions
 from kotonebot import ocr, device, contains, image, regex, action, sleep, wait
 from ..produce.non_lesson_actions import (

@@ -7,7 +7,7 @@ import numpy as np
 from cv2.typing import MatLike
 
 from kotonebot.kaa.tasks import R
-from kotonebot.kaa.common import conf
+from kotonebot.kaa.config import conf
 from kotonebot.kaa.game_ui import dialog
 from kotonebot.kaa.util.trace import trace
 from kotonebot.primitives import RectTuple, Rect

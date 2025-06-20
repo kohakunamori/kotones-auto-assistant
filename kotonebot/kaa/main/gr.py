@@ -21,7 +21,7 @@ from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.context import task_registry, ContextStackVars
 from kotonebot.backend.context.context import vars
 from kotonebot.client.host import Mumu12Host, LeidianHost
-from kotonebot.kaa.common import (
+from kotonebot.kaa.config import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, DailyMoneyShopItems, ProduceAction,

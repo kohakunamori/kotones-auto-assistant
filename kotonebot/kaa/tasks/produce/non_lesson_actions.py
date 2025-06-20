@@ -8,7 +8,7 @@ from logging import getLogger
 from kotonebot.kaa.game_ui import dialog
 
 from kotonebot.kaa.tasks import R
-from kotonebot.kaa.common import conf
+from kotonebot.kaa.config import conf
 from ..produce.common import fast_acquisitions
 from kotonebot.kaa.game_ui.commu_event_buttons import CommuEventButtonUI
 from kotonebot.util import Countdown, Interval

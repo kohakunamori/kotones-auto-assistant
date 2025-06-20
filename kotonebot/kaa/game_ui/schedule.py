@@ -6,7 +6,7 @@ from cv2.typing import MatLike
 from kotonebot.primitives import Rect
 from kotonebot import ocr, device, image, action
 from kotonebot.backend.core import HintBox
-from kotonebot.kaa.common import ProduceAction
+from kotonebot.kaa.config import ProduceAction
 from kotonebot.kaa.tasks import R
 
 logger = logging.getLogger(__name__)

@@ -5,7 +5,7 @@ from typing_extensions import assert_never
 
 from kotonebot.ui import user
 from kotonebot.kaa.tasks import R
-from kotonebot.kaa.common import conf
+from kotonebot.kaa.config import conf
 from kotonebot.kaa.game_ui import dialog
 from ..actions.scenes import at_home, goto_home
 from kotonebot.backend.loop import Loop, StatedLoop
