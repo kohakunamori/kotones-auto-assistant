@@ -23,7 +23,8 @@ from .schema import (
 )
 
 # 配置升级逻辑
-from .upgrade import upgrade_config  # noqa: F401
+from .upgrade import upgrade_config
+from .migrations import MIGRATION_REGISTRY, LATEST_VERSION
 
 __all__ = [
     # schema 导出
@@ -47,7 +48,9 @@ __all__ = [
     "Priority",
     "RecommendCardDetectionMode",
     "APShopItems",
-    # 升级函数
     "upgrade_config",
     "conf",
+    "migrations",
+    "MIGRATION_REGISTRY",
+    "LATEST_VERSION",
 ]
