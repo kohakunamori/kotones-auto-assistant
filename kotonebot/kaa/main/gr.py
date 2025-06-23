@@ -555,7 +555,7 @@ class KotoneBotUI:
             #     choices = ['windows', 'remote_windows']
             # else:  # Mumu, Leidian, Custom
             #     choices = ['adb', 'adb_raw', 'uiautomator2']
-            choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows']
+            choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
             if impl_value not in choices:
                 new_value = choices[0]
             else:
@@ -661,7 +661,7 @@ class KotoneBotUI:
         #     choices = ['adb', 'adb_raw', 'uiautomator2']
         # else:
         #     raise ValueError(f'Unsupported backend type: {type_in_config}')
-        choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows']
+        choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
         screenshot_impl = gr.Dropdown(
             choices=choices,
             value=self.current_config.backend.screenshot_impl,

@@ -9,6 +9,8 @@ from typing_extensions import override
 
 import cv2
 
+from kotonebot.client.implements.nemu_ipc import NemuIpcImplConfig
+
 from ...client import Device
 from kotonebot.ui import user
 from kotonebot import KotoneBot
@@ -228,10 +230,9 @@ class Kaa(KotoneBot):
             else:
                 raise ValueError(f"Impl of '{impl_name}' is not supported on DMM.")
             return self.backend_instance.create_device(impl_name, host_conf)
-
         # 统一处理所有基于 ADB 的后端
         elif isinstance(self.backend_instance, (CustomInstance, Mumu12Instance, LeidianInstance)):
-            if impl_name in ['adb', 'adb_raw', 'uiautomator2']:
+            if impl_name in ['adb', 'adb_raw', 'uiautomator2'] or (impl_name == 'nemu_ipc' and isinstance(self.backend_instance, Mumu12Instance)):
                 host_conf = AdbHostConfig(timeout=180)
                 return self.backend_instance.create_device(impl_name, host_conf)
             else:
