@@ -1,5 +1,20 @@
 # 更新日志
 ## kaa
+### v2025.6.23.0
+脚本：
+* [新增] 优化了培育开始的逻辑，修复若干 bug（#86313ec）
+
+框架：
+* [修复] 修复由于分离 AndroidDevice 方法导致的 typing 问题（#4d76e1a）
+* [重构] 将 Commandable 分离为 WindowsCommandable 与 AndroidCommandable（#16a267d）
+* [重构] 将启动 remote_server 的逻辑移动到 kaa cli 中（#b8b5ba8）
+* [重构] 提取三个 adb-based 截图方法的工厂函数的共同部分（#bd57dc4）
+* [重构] 将创建设备的逻辑从 init_context 中移除（#f2599e6）
+* [重构] 重构 Device 与 Impl 的创建方式（#2fc9ad5）
+
+其他：
+* [其他] 更新上游 submodules（#810c341）
+
 ### v2025.6.8.0
 脚本：
 * [新增] 新增支持自动禁用与恢复 Gakumasu Localify 汉化插件（#264dac2）
