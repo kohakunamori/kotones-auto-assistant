@@ -1,18 +1,15 @@
-from importlib import resources
 from typing_extensions import override
 
-from kotonebot.client import Device, DeviceImpl
-from kotonebot.client.registration import create_device
-from kotonebot.client.implements.windows import WindowsImplConfig
-from kotonebot.client.implements.remote_windows import RemoteWindowsImplConfig
+from kotonebot.client import Device
 from kotonebot.client.host import HostProtocol, Instance
-from kotonebot.client.host.protocol import WindowsHostConfig, RemoteWindowsHostConfig
+from kotonebot.client.host.windows_common import WindowsRecipes, WindowsHostConfigs, CommonWindowsCreateDeviceMixin
 
 
-DmmHostConfigs = WindowsHostConfig | RemoteWindowsHostConfig
+DmmHostConfigs = WindowsHostConfigs
+DmmRecipes = WindowsRecipes
 
 # TODO: 可能应该把 start_game 和 end_game 里对启停的操作移动到这里来
-class DmmInstance(Instance[DmmHostConfigs]):
+class DmmInstance(CommonWindowsCreateDeviceMixin, Instance[DmmHostConfigs]):
     def __init__(self):
         super().__init__('dmm', 'gakumas')
 
@@ -37,31 +34,11 @@ class DmmInstance(Instance[DmmHostConfigs]):
         raise NotImplementedError()
 
     @override
-    def create_device(self, impl: DeviceImpl, host_config: DmmHostConfigs) -> Device:
-        if impl == 'windows':
-            assert isinstance(host_config, WindowsHostConfig)
-            win_config = WindowsImplConfig(
-                window_title=host_config.window_title,
-                ahk_exe_path=host_config.ahk_exe_path
-            )
-            return create_device(impl, win_config)
+    def create_device(self, impl: DmmRecipes, host_config: DmmHostConfigs) -> Device:
+        """为 DMM 实例创建 Device。"""
+        return super().create_device(impl, host_config)
 
-        elif impl == 'remote_windows':
-            assert isinstance(host_config, RemoteWindowsHostConfig)
-            config = RemoteWindowsImplConfig(
-                windows_impl_config=WindowsImplConfig(
-                    window_title=host_config.windows_host_config.window_title,
-                    ahk_exe_path=host_config.windows_host_config.ahk_exe_path
-                ),
-                host=host_config.host,
-                port=host_config.port
-            )
-            return create_device(impl, config)
-
-        else:
-            raise ValueError(f'Unsupported impl for DMM: {impl}')
-
-class DmmHost(HostProtocol):
+class DmmHost(HostProtocol[DmmRecipes]):
     instance = DmmInstance()
     """DmmInstance 单例。"""
 
@@ -77,3 +54,7 @@ class DmmHost(HostProtocol):
     @staticmethod
     def query(*, id: str) -> Instance | None:
         raise NotImplementedError()
+
+    @staticmethod
+    def recipes() -> 'list[DmmRecipes]':
+        return ['windows', 'remote_windows']
