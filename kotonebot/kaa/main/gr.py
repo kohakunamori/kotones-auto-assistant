@@ -395,6 +395,13 @@ class KotoneBotUI:
                 gr.Markdown('### 配置升级报告')
                 gr.Markdown(self._kaa.upgrade_msg)
             gr.Markdown('脚本报错或者卡住？点击"日志"选项卡中的"一键导出报告"可以快速反馈！')
+            
+            # 添加调试模式警告
+            if self.current_config.keep_screenshots:
+                gr.Markdown(
+                    '<div style="color: red; font-size: larger;">当前启用了调试功能「保留截图数据」，调试结束后正常使用时建议关闭此选项！</div>',
+                    elem_classes=["debug-warning"]
+                )
 
             task_status = gr.Dataframe(
                 headers=["任务", "状态"],
