@@ -241,9 +241,9 @@ class Kaa(KotoneBot):
                 impl_name = cast(Literal['nemu_ipc'], impl_name)
                 options = cast(BaseConfig, user_config.options)
                 host_conf = MuMu12HostConfig(
-                    display_id=None,
-                    target_package_name=options.start_game.game_package_name,
-                    app_index=0,
+                    # display_id=None,
+                    # target_package_name=options.start_game.game_package_name,
+                    # app_index=0,
                     timeout=180
                 )
                 return self.backend_instance.create_device(impl_name, host_conf)
