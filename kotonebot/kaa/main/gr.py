@@ -33,6 +33,7 @@ ConfigKey = Literal[
     'check_emulator', 'emulator_path',
     'adb_emulator_name', 'emulator_args',
     '_mumu_index', '_leidian_index',
+    'mumu_background_mode',
 
     # purchase
     'purchase_enabled',
@@ -576,13 +577,21 @@ class KotoneBotUI:
                             choices=[(i.name, i.id) for i in instances],
                             interactive=True
                         )
+                        mumu_background_mode = gr.Checkbox(
+                            label="MuMu12 模拟器后台保活模式",
+                            value=self.current_config.backend.mumu_background_mode,
+                            info=BackendConfig.model_fields['mumu_background_mode'].description,
+                            interactive=True
+                        )
                     except:  # noqa: E722
                         logger.exception('Failed to list installed MuMu12')
                         gr.Markdown('获取 MuMu12 模拟器列表失败，请升级模拟器到最新版本。若问题依旧，前往 QQ 群、QQ 频道或 Github 反馈 bug。')
                         mumu_instance = gr.Dropdown(visible=False)
+                        mumu_background_mode = gr.Checkbox(visible=False)
                 else:
                     # 为了让 return 收集组件时不报错
                     mumu_instance = gr.Dropdown(visible=False)
+                    mumu_background_mode = gr.Checkbox(visible=False)
 
             with gr.Tab("雷电", interactive=has_leidian, id="leidian") as tab_leidian:
                 gr.Markdown("已选中雷电模拟器")
@@ -711,6 +720,7 @@ class KotoneBotUI:
             if current_tab == 0:  # Mumu
                 self.current_config.backend.type = 'mumu12'
                 self.current_config.backend.instance_id = data['_mumu_index']
+                self.current_config.backend.mumu_background_mode = data['mumu_background_mode']
             elif current_tab == 1:  # Leidian
                 self.current_config.backend.type = 'leidian'
                 self.current_config.backend.instance_id = data['_leidian_index']
@@ -741,7 +751,8 @@ class KotoneBotUI:
             'adb_emulator_name': adb_emulator_name,
             'emulator_args': emulator_args,
             '_mumu_index': mumu_instance,
-            '_leidian_index': leidian_instance
+            '_leidian_index': leidian_instance,
+            'mumu_background_mode': mumu_background_mode
         }
 
     def _create_purchase_settings(self) -> ConfigBuilderReturnValue:

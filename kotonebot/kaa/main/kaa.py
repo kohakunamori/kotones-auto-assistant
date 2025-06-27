@@ -240,12 +240,19 @@ class Kaa(KotoneBot):
             if impl_name == 'nemu_ipc' and isinstance(self.backend_instance, Mumu12Instance):
                 impl_name = cast(Literal['nemu_ipc'], impl_name)
                 options = cast(BaseConfig, user_config.options)
-                host_conf = MuMu12HostConfig(
-                    # display_id=None,
-                    # target_package_name=options.start_game.game_package_name,
-                    # app_index=0,
-                    timeout=180
-                )
+
+                # 根据 mumu_background_mode 决定是否传递后台保活参数
+                if user_config.backend.mumu_background_mode:
+                    host_conf = MuMu12HostConfig(
+                        display_id=None,
+                        target_package_name=options.start_game.game_package_name,
+                        app_index=0,
+                        timeout=180
+                    )
+                else:
+                    host_conf = MuMu12HostConfig(
+                        timeout=180
+                    )
                 return self.backend_instance.create_device(impl_name, host_conf)
             elif impl_name in ['adb', 'adb_raw', 'uiautomator2']:
                 impl_name = cast(Literal['adb', 'adb_raw', 'uiautomator2'], impl_name)
