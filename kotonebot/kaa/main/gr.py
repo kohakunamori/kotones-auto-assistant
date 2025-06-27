@@ -2,6 +2,7 @@ import os
 import traceback
 import zipfile
 import logging
+import copy
 from functools import partial
 from itertools import chain
 from datetime import datetime, timedelta
@@ -372,9 +373,41 @@ class KotoneBotUI:
             assert key in CONFIG_KEY_VALUE, f"未知的配置项：{key}"
             key = cast(ConfigKey, key)
             data[key] = value
-        # 设置结果
+        
+        # 先设置options
         for (set_func, _) in return_values:
             set_func(options, data)
+        
+        # 验证规则1：截图方法验证
+        screenshot_method = self.current_config.backend.screenshot_impl
+        backend_type = self.current_config.backend.type
+        
+        valid_screenshot_methods = {
+            'mumu12': ['adb', 'adb_raw', 'uiautomator2', 'nemu_ipc'],
+            'leidian': ['adb', 'adb_raw', 'uiautomator2'],
+            'custom': ['adb', 'adb_raw', 'uiautomator2'],
+            'dmm': ['remote_windows', 'windows']
+        }
+        
+        if screenshot_method not in valid_screenshot_methods.get(backend_type, []):
+            gr.Warning(f"截图方法 '{screenshot_method}' 不适用于当前选择的模拟器类型，配置未保存。")
+            return ""
+        
+        # 验证规则2：若启用培育，那么培育偶像不能为空
+        if options.produce.enabled and not options.produce.idols:
+            gr.Warning("启用培育时，培育偶像不能为空，配置未保存。")
+            return ""
+        
+        # 验证规则3：若启用AP/金币购买，对应的商品不能为空
+        if options.purchase.ap_enabled and not options.purchase.ap_items:
+            gr.Warning("启用AP购买时，AP商店购买物品不能为空，配置未保存。")
+            return ""
+        
+        if options.purchase.money_enabled and not options.purchase.money_items:
+            gr.Warning("启用金币购买时，金币商店购买物品不能为空，配置未保存。")
+            return ""
+        
+        # 验证通过，保存配置
         self.current_config.options = options
         try:
             save_config(self.config, "config.json")
