@@ -96,17 +96,30 @@ ConfigSetFunction = Callable[[BaseConfig, Dict[ConfigKey, Any]], None]
 ConfigBuilderReturnValue = Tuple[ConfigSetFunction, Dict[ConfigKey, GradioInput]]
 
 def _save_bug_report(
+    title: str,
+    description: str,
     version: str,
+    upload: bool,
     path: str | None = None
 ) -> Generator[str, None, str]:
     """
     保存报告
 
-    :param path: 保存的路径。若为 `None`，则保存到 `./reports/bug-{YY-MM-DD HH-MM-SS}.zip`。
+    :param title: 标题
+    :param description: 描述
+    :param version: 版本号
+    :param upload: 是否上传
+    :param path: 保存的路径。若为 `None`，则保存到 `./reports/bug-YY-MM-DD HH-MM-SS_标题.zip`。
     :return: 保存的路径
     """
     from kotonebot import device
     from kotonebot.backend.context import ContextStackVars
+    import re
+
+    # 过滤标题中的非法文件名字符
+    def sanitize_filename(s: str) -> str:
+        # 替换 \/:*?"<>| 为空或下划线
+        return re.sub(r'[\\/:*?"<>|]', '_', s)
 
     # 确保目录存在
     os.makedirs('logs', exist_ok=True)
@@ -114,8 +127,18 @@ def _save_bug_report(
 
     error = ""
     if path is None:
-        path = f'./reports/bug-{datetime.now().strftime("%y-%m-%d %H-%M-%S")}.zip'
+        safe_title = sanitize_filename(title)[:30] or "无标题"
+        timestamp = datetime.now().strftime("%y-%m-%d-%H-%M-%S")
+        path = f'./reports/bug_{timestamp}_{safe_title}.zip'
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
+        # 打包描述文件
+        yield "### 打包描述文件..."
+        try:
+            description_content = f"标题：{title}\n类型：bug\n内容：\n{description}"
+            zipf.writestr('description.txt', description_content.encode('utf-8'))
+        except Exception as e:
+            error += f"保存描述文件失败：{str(e)}\n"
+
         # 打包截图
         yield "### 打包上次截图..."
         try:
@@ -160,12 +183,16 @@ def _save_bug_report(
         # 写出版本号
         zipf.writestr('version.txt', version)
 
+    if not upload:
+        yield f"### 报告已保存至 {os.path.abspath(path)}"
+        return path
+
     # 上传报告
-    from kotonebot.ui.file_host.sensio import upload
+    from kotonebot.ui.file_host.sensio import upload as upload_file
     yield "### 上传报告..."
     url = ''
     try:
-        url = upload(path)
+        url = upload_file(path)
     except Exception as e:
         yield f"### 上传报告失败：{str(e)}\n\n"
         return ''
@@ -427,7 +454,7 @@ class KotoneBotUI:
             if self._kaa.upgrade_msg:
                 gr.Markdown('### 配置升级报告')
                 gr.Markdown(self._kaa.upgrade_msg)
-            gr.Markdown('脚本报错或者卡住？点击"日志"选项卡中的"一键导出报告"可以快速反馈！')
+            gr.Markdown('脚本报错或者卡住？前往"反馈"选项卡可以快速导出报告！')
             
             # 添加调试模式警告
             if self.current_config.keep_screenshots:
@@ -596,6 +623,8 @@ class KotoneBotUI:
             #     choices = ['windows', 'remote_windows']
             # else:  # Mumu, Leidian, Custom
             #     choices = ['adb', 'adb_raw', 'uiautomator2']
+            # else:
+            #     raise ValueError(f'Unsupported backend type: {type_in_config}')
             choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
             if impl_value not in choices:
                 new_value = choices[0]
@@ -1511,27 +1540,33 @@ class KotoneBotUI:
             )
 
     def _create_log_tab(self) -> None:
-        with gr.Tab("日志"):
-            gr.Markdown("## 日志")
-
+        with gr.Tab("反馈"):
+            gr.Markdown("## 反馈")
+            gr.Markdown('脚本报错或者卡住？在这里填写信息可以快速反馈！')
             with gr.Column():
+                report_title = gr.Textbox(label="标题", placeholder="用一句话概括问题")
+                report_type = gr.Dropdown(label="反馈类型", choices=["bug"], value="bug", interactive=False)
+                report_description = gr.Textbox(label="描述", lines=5, placeholder="详细描述问题。例如：什么时候出错、是否每次都出错、出错时的步骤是什么")
                 with gr.Row():
-                    export_dumps_btn = gr.Button("导出 dump")
-                    export_logs_btn = gr.Button("导出日志")
-                with gr.Row():
-                    save_report_btn = gr.Button("一键导出报告")
+                    upload_report_btn = gr.Button("上传")
+                    save_local_report_btn = gr.Button("保存至本地")
+
                 result_text = gr.Markdown("等待操作\n\n\n")
 
-            export_dumps_btn.click(
-                fn=self.export_dumps,
+            def on_upload_click(title: str, description: str):
+                yield from _save_bug_report(title, description, self._kaa.version, upload=True)
+
+            def on_save_local_click(title: str, description: str):
+                yield from _save_bug_report(title, description, self._kaa.version, upload=False)
+
+            upload_report_btn.click(
+                fn=on_upload_click,
+                inputs=[report_title, report_description],
                 outputs=[result_text]
             )
-            export_logs_btn.click(
-                fn=self.export_logs,
-                outputs=[result_text]
-            )
-            save_report_btn.click(
-                fn=partial(_save_bug_report, version=self._kaa.version),
+            save_local_report_btn.click(
+                fn=on_save_local_click,
+                inputs=[report_title, report_description],
                 outputs=[result_text]
             )
 
