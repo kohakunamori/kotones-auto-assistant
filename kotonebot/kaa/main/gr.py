@@ -2,6 +2,7 @@ import os
 import traceback
 import zipfile
 import logging
+import copy
 from functools import partial
 from itertools import chain
 from datetime import datetime, timedelta
@@ -33,6 +34,7 @@ ConfigKey = Literal[
     'check_emulator', 'emulator_path',
     'adb_emulator_name', 'emulator_args',
     '_mumu_index', '_leidian_index',
+    'mumu_background_mode',
 
     # purchase
     'purchase_enabled',
@@ -94,17 +96,30 @@ ConfigSetFunction = Callable[[BaseConfig, Dict[ConfigKey, Any]], None]
 ConfigBuilderReturnValue = Tuple[ConfigSetFunction, Dict[ConfigKey, GradioInput]]
 
 def _save_bug_report(
+    title: str,
+    description: str,
     version: str,
+    upload: bool,
     path: str | None = None
 ) -> Generator[str, None, str]:
     """
     保存报告
 
-    :param path: 保存的路径。若为 `None`，则保存到 `./reports/bug-{YY-MM-DD HH-MM-SS}.zip`。
+    :param title: 标题
+    :param description: 描述
+    :param version: 版本号
+    :param upload: 是否上传
+    :param path: 保存的路径。若为 `None`，则保存到 `./reports/bug-YY-MM-DD HH-MM-SS_标题.zip`。
     :return: 保存的路径
     """
     from kotonebot import device
     from kotonebot.backend.context import ContextStackVars
+    import re
+
+    # 过滤标题中的非法文件名字符
+    def sanitize_filename(s: str) -> str:
+        # 替换 \/:*?"<>| 为空或下划线
+        return re.sub(r'[\\/:*?"<>|]', '_', s)
 
     # 确保目录存在
     os.makedirs('logs', exist_ok=True)
@@ -112,8 +127,18 @@ def _save_bug_report(
 
     error = ""
     if path is None:
-        path = f'./reports/bug-{datetime.now().strftime("%y-%m-%d %H-%M-%S")}.zip'
+        safe_title = sanitize_filename(title)[:30] or "无标题"
+        timestamp = datetime.now().strftime("%y-%m-%d-%H-%M-%S")
+        path = f'./reports/bug_{timestamp}_{safe_title}.zip'
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
+        # 打包描述文件
+        yield "### 打包描述文件..."
+        try:
+            description_content = f"标题：{title}\n类型：bug\n内容：\n{description}"
+            zipf.writestr('description.txt', description_content.encode('utf-8'))
+        except Exception as e:
+            error += f"保存描述文件失败：{str(e)}\n"
+
         # 打包截图
         yield "### 打包上次截图..."
         try:
@@ -158,12 +183,16 @@ def _save_bug_report(
         # 写出版本号
         zipf.writestr('version.txt', version)
 
+    if not upload:
+        yield f"### 报告已保存至 {os.path.abspath(path)}"
+        return path
+
     # 上传报告
-    from kotonebot.ui.file_host.sensio import upload
+    from kotonebot.ui.file_host.sensio import upload as upload_file
     yield "### 上传报告..."
     url = ''
     try:
-        url = upload(path)
+        url = upload_file(path)
     except Exception as e:
         yield f"### 上传报告失败：{str(e)}\n\n"
         return ''
@@ -371,9 +400,41 @@ class KotoneBotUI:
             assert key in CONFIG_KEY_VALUE, f"未知的配置项：{key}"
             key = cast(ConfigKey, key)
             data[key] = value
-        # 设置结果
+        
+        # 先设置options
         for (set_func, _) in return_values:
             set_func(options, data)
+        
+        # 验证规则1：截图方法验证
+        screenshot_method = self.current_config.backend.screenshot_impl
+        backend_type = self.current_config.backend.type
+        
+        valid_screenshot_methods = {
+            'mumu12': ['adb', 'adb_raw', 'uiautomator2', 'nemu_ipc'],
+            'leidian': ['adb', 'adb_raw', 'uiautomator2'],
+            'custom': ['adb', 'adb_raw', 'uiautomator2'],
+            'dmm': ['remote_windows', 'windows']
+        }
+        
+        if screenshot_method not in valid_screenshot_methods.get(backend_type, []):
+            gr.Warning(f"截图方法 '{screenshot_method}' 不适用于当前选择的模拟器类型，配置未保存。")
+            return ""
+        
+        # 验证规则2：若启用培育，那么培育偶像不能为空
+        if options.produce.enabled and not options.produce.idols:
+            gr.Warning("启用培育时，培育偶像不能为空，配置未保存。")
+            return ""
+        
+        # 验证规则3：若启用AP/金币购买，对应的商品不能为空
+        if options.purchase.ap_enabled and not options.purchase.ap_items:
+            gr.Warning("启用AP购买时，AP商店购买物品不能为空，配置未保存。")
+            return ""
+        
+        if options.purchase.money_enabled and not options.purchase.money_items:
+            gr.Warning("启用金币购买时，金币商店购买物品不能为空，配置未保存。")
+            return ""
+        
+        # 验证通过，保存配置
         self.current_config.options = options
         try:
             save_config(self.config, "config.json")
@@ -393,7 +454,14 @@ class KotoneBotUI:
             if self._kaa.upgrade_msg:
                 gr.Markdown('### 配置升级报告')
                 gr.Markdown(self._kaa.upgrade_msg)
-            gr.Markdown('脚本报错或者卡住？点击"日志"选项卡中的"一键导出报告"可以快速反馈！')
+            gr.Markdown('脚本报错或者卡住？前往"反馈"选项卡可以快速导出报告！')
+            
+            # 添加调试模式警告
+            if self.current_config.keep_screenshots:
+                gr.Markdown(
+                    '<div style="color: red; font-size: larger;">当前启用了调试功能「保留截图数据」，调试结束后正常使用时建议关闭此选项！</div>',
+                    elem_classes=["debug-warning"]
+                )
 
             task_status = gr.Dataframe(
                 headers=["任务", "状态"],
@@ -555,7 +623,9 @@ class KotoneBotUI:
             #     choices = ['windows', 'remote_windows']
             # else:  # Mumu, Leidian, Custom
             #     choices = ['adb', 'adb_raw', 'uiautomator2']
-            choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows']
+            # else:
+            #     raise ValueError(f'Unsupported backend type: {type_in_config}')
+            choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
             if impl_value not in choices:
                 new_value = choices[0]
             else:
@@ -576,13 +646,21 @@ class KotoneBotUI:
                             choices=[(i.name, i.id) for i in instances],
                             interactive=True
                         )
+                        mumu_background_mode = gr.Checkbox(
+                            label="MuMu12 模拟器后台保活模式",
+                            value=self.current_config.backend.mumu_background_mode,
+                            info=BackendConfig.model_fields['mumu_background_mode'].description,
+                            interactive=True
+                        )
                     except:  # noqa: E722
                         logger.exception('Failed to list installed MuMu12')
                         gr.Markdown('获取 MuMu12 模拟器列表失败，请升级模拟器到最新版本。若问题依旧，前往 QQ 群、QQ 频道或 Github 反馈 bug。')
                         mumu_instance = gr.Dropdown(visible=False)
+                        mumu_background_mode = gr.Checkbox(visible=False)
                 else:
                     # 为了让 return 收集组件时不报错
                     mumu_instance = gr.Dropdown(visible=False)
+                    mumu_background_mode = gr.Checkbox(visible=False)
 
             with gr.Tab("雷电", interactive=has_leidian, id="leidian") as tab_leidian:
                 gr.Markdown("已选中雷电模拟器")
@@ -661,7 +739,7 @@ class KotoneBotUI:
         #     choices = ['adb', 'adb_raw', 'uiautomator2']
         # else:
         #     raise ValueError(f'Unsupported backend type: {type_in_config}')
-        choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows']
+        choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
         screenshot_impl = gr.Dropdown(
             choices=choices,
             value=self.current_config.backend.screenshot_impl,
@@ -711,6 +789,7 @@ class KotoneBotUI:
             if current_tab == 0:  # Mumu
                 self.current_config.backend.type = 'mumu12'
                 self.current_config.backend.instance_id = data['_mumu_index']
+                self.current_config.backend.mumu_background_mode = data['mumu_background_mode']
             elif current_tab == 1:  # Leidian
                 self.current_config.backend.type = 'leidian'
                 self.current_config.backend.instance_id = data['_leidian_index']
@@ -741,7 +820,8 @@ class KotoneBotUI:
             'adb_emulator_name': adb_emulator_name,
             'emulator_args': emulator_args,
             '_mumu_index': mumu_instance,
-            '_leidian_index': leidian_instance
+            '_leidian_index': leidian_instance,
+            'mumu_background_mode': mumu_background_mode
         }
 
     def _create_purchase_settings(self) -> ConfigBuilderReturnValue:
@@ -1460,27 +1540,33 @@ class KotoneBotUI:
             )
 
     def _create_log_tab(self) -> None:
-        with gr.Tab("日志"):
-            gr.Markdown("## 日志")
-
+        with gr.Tab("反馈"):
+            gr.Markdown("## 反馈")
+            gr.Markdown('脚本报错或者卡住？在这里填写信息可以快速反馈！')
             with gr.Column():
+                report_title = gr.Textbox(label="标题", placeholder="用一句话概括问题")
+                report_type = gr.Dropdown(label="反馈类型", choices=["bug"], value="bug", interactive=False)
+                report_description = gr.Textbox(label="描述", lines=5, placeholder="详细描述问题。例如：什么时候出错、是否每次都出错、出错时的步骤是什么")
                 with gr.Row():
-                    export_dumps_btn = gr.Button("导出 dump")
-                    export_logs_btn = gr.Button("导出日志")
-                with gr.Row():
-                    save_report_btn = gr.Button("一键导出报告")
+                    upload_report_btn = gr.Button("上传")
+                    save_local_report_btn = gr.Button("保存至本地")
+
                 result_text = gr.Markdown("等待操作\n\n\n")
 
-            export_dumps_btn.click(
-                fn=self.export_dumps,
+            def on_upload_click(title: str, description: str):
+                yield from _save_bug_report(title, description, self._kaa.version, upload=True)
+
+            def on_save_local_click(title: str, description: str):
+                yield from _save_bug_report(title, description, self._kaa.version, upload=False)
+
+            upload_report_btn.click(
+                fn=on_upload_click,
+                inputs=[report_title, report_description],
                 outputs=[result_text]
             )
-            export_logs_btn.click(
-                fn=self.export_logs,
-                outputs=[result_text]
-            )
-            save_report_btn.click(
-                fn=partial(_save_bug_report, version=self._kaa.version),
+            save_local_report_btn.click(
+                fn=on_save_local_click,
+                inputs=[report_title, report_description],
                 outputs=[result_text]
             )
 
@@ -1493,6 +1579,7 @@ class KotoneBotUI:
     def _create_screen_tab(self) -> None:
         with gr.Tab("画面"):
             gr.Markdown("## 当前设备画面")
+            refresh_btn = gr.Button("刷新画面", variant="primary")
             WIDTH = 720 // 3
             HEIGHT = 1280 // 3
             last_update_text = gr.Markdown("上次更新时间：无数据")
@@ -1501,14 +1588,14 @@ class KotoneBotUI:
             def update_screenshot():
                 ctx = ContextStackVars.current()
                 if ctx is None:
-                    return [None, last_update_text.value]
+                    return [None, "上次更新时间：无上下文数据"]
                 screenshot = ctx._screenshot
                 if screenshot is None:
-                    return [None, last_update_text.value]
+                    return [None, "上次更新时间：无截图数据"]
                 screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGR2RGB)
                 return screenshot, f"上次更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
-            gr.Timer(0.3).tick(
+            refresh_btn.click(
                 fn=update_screenshot,
                 outputs=[screenshot_display, last_update_text]
             )

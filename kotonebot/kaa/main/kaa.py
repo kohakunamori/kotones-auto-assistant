@@ -1,5 +1,6 @@
 import io
 import os
+from typing import Any, Literal, cast
 import zipfile
 import logging
 import traceback
@@ -8,6 +9,8 @@ from datetime import datetime
 from typing_extensions import override
 
 import cv2
+
+from kotonebot.client.host.mumu12_host import MuMu12HostConfig
 
 from ...client import Device
 from kotonebot.ui import user
@@ -112,6 +115,10 @@ class Kaa(KotoneBot):
         if self.backend_instance is None:
             raise ValueError('Backend instance is not set.')
         _set_instance(self.backend_instance)
+        from kotonebot import device
+        logger.info('Set target resolution to 720x1280.')
+        device.orientation = 'portrait'
+        device.target_resolution = (720, 1280)
 
     def __get_backend_instance(self, config: UserConfig) -> Instance:
         """
@@ -228,12 +235,32 @@ class Kaa(KotoneBot):
             else:
                 raise ValueError(f"Impl of '{impl_name}' is not supported on DMM.")
             return self.backend_instance.create_device(impl_name, host_conf)
-
         # 统一处理所有基于 ADB 的后端
         elif isinstance(self.backend_instance, (CustomInstance, Mumu12Instance, LeidianInstance)):
-            if impl_name in ['adb', 'adb_raw', 'uiautomator2']:
-                host_conf = AdbHostConfig(timeout=180)
+            if impl_name == 'nemu_ipc' and isinstance(self.backend_instance, Mumu12Instance):
+                impl_name = cast(Literal['nemu_ipc'], impl_name)
+                options = cast(BaseConfig, user_config.options)
+
+                # 根据 mumu_background_mode 决定是否传递后台保活参数
+                if user_config.backend.mumu_background_mode:
+                    host_conf = MuMu12HostConfig(
+                        display_id=None,
+                        target_package_name=options.start_game.game_package_name,
+                        app_index=0,
+                        timeout=180
+                    )
+                else:
+                    host_conf = MuMu12HostConfig(
+                        timeout=180
+                    )
                 return self.backend_instance.create_device(impl_name, host_conf)
+            elif impl_name in ['adb', 'adb_raw', 'uiautomator2']:
+                impl_name = cast(Literal['adb', 'adb_raw', 'uiautomator2'], impl_name)
+                host_conf = AdbHostConfig(timeout=180)
+                return self.backend_instance.create_device(
+                    cast(Any, impl_name), # :(
+                    host_conf
+                )
             else:
                 raise ValueError(f"{user_config.backend.type} backend does not support implementation '{impl_name}'")
 
