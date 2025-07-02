@@ -12,7 +12,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hInstance);
     UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
     UNREFERENCED_PARAMETER(nCmdShow);
 
     // 设置当前目录为程序所在目录
@@ -51,6 +50,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // 构建命令行
     std::wstring cmd = pythonPath + L" " + bootstrapPath;
+
+    // 如果有命令行参数，将其传递给 bootstrap
+    if (lpCmdLine && wcslen(lpCmdLine) > 0) {
+        cmd += L" ";
+        cmd += lpCmdLine;
+    }
     
     // 启动信息
     STARTUPINFOW si = { sizeof(si) };
