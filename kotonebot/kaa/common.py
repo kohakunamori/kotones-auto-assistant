@@ -461,6 +461,21 @@ class EndGameConfig(ConfigBaseModel):
     （目前仅对 DMM 版有效。）
     """
 
+class MiscConfig(ConfigBaseModel):
+    check_update: Literal['never', 'startup'] = 'startup'
+    """
+    检查更新时机。
+    
+    * never: 从不检查更新。
+    * startup: 启动时检查更新。
+    """
+    auto_install_update: bool = True
+    """
+    是否自动安装更新。
+    
+    若启用，则每次自动检查更新时若有新版本会自动安装，否则只是会提示。
+    """
+
 class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
     """商店购买配置"""
@@ -500,6 +515,9 @@ class BaseConfig(ConfigBaseModel):
 
     end_game: EndGameConfig = EndGameConfig()
     """关闭游戏配置"""
+
+    misc: MiscConfig = MiscConfig()
+    """杂项配置"""
 
 
 def conf() -> BaseConfig:

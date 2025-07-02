@@ -22,7 +22,7 @@ from kotonebot.kaa.common import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, DailyMoneyShopItems, ProduceAction,
-    RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig,
+    RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig, MiscConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -87,6 +87,9 @@ ConfigKey = Literal[
     'activity_funds_enabled',
     'presents_enabled',
     'trace_recommend_card_detection',
+    
+    # misc
+    'check_update', 'auto_install_update',
     
     '_selected_backend_index'
     
@@ -1469,6 +1472,35 @@ class KotoneBotUI:
             'trace_recommend_card_detection': trace_recommend_card_detection
         }
 
+    def _create_misc_settings(self) -> ConfigBuilderReturnValue:
+        with gr.Column():
+            gr.Markdown("### 杂项设置")
+            check_update = gr.Dropdown(
+                choices=[
+                    ("启动时检查更新", "startup"),
+                    ("从不检查更新", "never")
+                ],
+                value=self.current_config.options.misc.check_update,
+                label="检查更新时机",
+                info=MiscConfig.model_fields['check_update'].description,
+                interactive=True
+            )
+            auto_install_update = gr.Checkbox(
+                label="自动安装更新",
+                value=self.current_config.options.misc.auto_install_update,
+                info=MiscConfig.model_fields['auto_install_update'].description,
+                interactive=True
+            )
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.misc.check_update = data['check_update']
+            config.misc.auto_install_update = data['auto_install_update']
+        
+        return set_config, {
+            'check_update': check_update,
+            'auto_install_update': auto_install_update
+        }
+
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
             gr.Markdown("## 设置")
@@ -1506,6 +1538,9 @@ class KotoneBotUI:
             # 跟踪设置
             trace_settings = self._create_trace_settings()
 
+            # 杂项设置
+            misc_settings = self._create_misc_settings()
+
             # 启动游戏设置
             start_game_settings = self._create_start_game_settings()
 
@@ -1529,7 +1564,8 @@ class KotoneBotUI:
                 capsule_toys_settings,
                 start_game_settings,
                 end_game_settings,
-                trace_settings
+                trace_settings,
+                misc_settings
             ] # list of (set_func, { 'key': component, ... })
             all_components = [list(ret[1].values()) for ret in all_return_values] # [[c1, c2], [c3], ...]
             all_components = list(chain(*all_components)) # [c1, c2, c3, ...]

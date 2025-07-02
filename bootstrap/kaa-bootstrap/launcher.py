@@ -1,16 +1,17 @@
-import importlib.metadata
-import json
-import logging
 import os
 import sys
-import subprocess
+import json
 import ctypes
 import codecs
 import locale
-from typing import Optional, Dict, Any
+import logging
+import subprocess
+import importlib.metadata
 from pathlib import Path
 from collections import deque
 from datetime import datetime
+from time import sleep
+from typing import Optional, Dict, Any, TypedDict, Literal, List
 
 from request import head, HTTPError, NetworkError
 from terminal import (
@@ -18,6 +19,29 @@ from terminal import (
     get_terminal_width, get_display_width, truncate_string,
     hide_cursor, show_cursor, move_cursor_up, wait_key, get_terminal_height
 )
+from repo import Version
+
+# 配置文件的类型定义
+class BackendConfig(TypedDict, total=False):
+    type: Literal['custom', 'mumu12', 'leidian', 'dmm']
+    screenshot_impl: Literal['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
+    
+class MiscConfig(TypedDict, total=False):
+    check_update: Literal['never', 'startup']
+    auto_install_update: bool
+
+class UserConfig(TypedDict, total=False):
+    name: str
+    id: str
+    category: str
+    description: str
+    backend: BackendConfig
+    keep_screenshots: bool
+    options: Dict[str, Any]  # 这里包含 misc 等配置
+
+class Config(TypedDict, total=False):
+    version: int
+    user_configs: List[UserConfig]
 
 # 获取当前Python解释器路径
 python_executable = sys.executable
@@ -296,40 +320,123 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
         
     return success
 
-def install_pip_and_ksaa(pip_server: str) -> bool:
+def check_ksaa_update_available(pip_server: str, current_version: Version) -> tuple[bool, Version | None, Version | None]:
+    """
+    检查ksaa包是否有新版本可用。
+    
+    :param pip_server: pip服务器URL
+    :type pip_server: str
+    :param current_version: 当前版本
+    :type current_version: Version
+    :return: (是否有更新, 当前版本, 最新版本)
+    :rtype: tuple[bool, Optional[Version], Optional[Version]]
+    """
+    try:
+        # 使用repo.py中的list_versions函数和Version类获取最新版本信息
+        from repo import list_versions, Version
+
+        try:
+            versions = list_versions("ksaa", server_url=pip_server)
+            if versions and len(versions) > 0:
+                latest_version = versions[0].version
+                
+                # 使用Version类的比较功能
+                if latest_version > current_version:
+                    return True, current_version, latest_version
+        except Exception as e:
+            logging.warning(f"从服务器 {pip_server} 获取版本信息失败: {e}")
+            print_status(f"从服务器 {pip_server} 获取版本信息失败: {e}", status='error')
+            # 如果指定服务器失败，尝试使用默认PyPI服务器
+            try:
+                versions = list_versions("ksaa")
+                if versions and len(versions) > 0:
+                    latest_version = versions[0].version
+                    
+                    # 使用Version类的比较功能
+                    if latest_version > current_version:
+                        return True, current_version, latest_version
+            except Exception as e2:
+                logging.warning(f"从PyPI获取版本信息也失败: {e2}")
+        
+        return False, current_version, latest_version if 'latest_version' in locals() else None
+        
+    except Exception as e:
+        logging.warning(f"检查ksaa更新时发生错误: {e}")
+        return False, None, None
+
+def print_update_notice(current_version: str, latest_version: str):
+    """
+    打印更新提示信息。
+    
+    :param current_version: 当前版本
+    :type current_version: str
+    :param latest_version: 最新版本
+    :type latest_version: str
+    """
+    clear_screen()
+    print()
+    print(f"{Color.YELLOW}{Color.BOLD}" + "=" * 60)
+    print(f"{Color.YELLOW}{Color.BOLD}⚠️  发现新版本可用！")
+    print(f"{Color.YELLOW}{Color.BOLD}" + "=" * 60)
+    print(f"{Color.YELLOW}当前版本: {current_version}")
+    print(f"{Color.YELLOW}最新版本: {latest_version}")
+    print(f"{Color.YELLOW}建议开启自动更新或在设置中手动安装新版本。")
+    print(f"{Color.YELLOW}5s 后继续启动")
+    print(f"{Color.YELLOW}{Color.BOLD}" + "=" * 60 + f"{Color.RESET}")
+    print()
+    sleep(5)
+
+def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_update: bool = True) -> bool:
     """
     安装和更新pip以及ksaa包。
     
     :param pip_server: pip服务器URL
     :type pip_server: str
+    :param check_update: 是否检查更新
+    :type check_update: bool
+    :param install_update: 是否安装更新
+    :type install_update: bool
     :return: 安装是否成功
     :rtype: bool
     """
-    print_header("安装与更新依赖", color=Color.BLUE)
+    print_header("安装与更新小助手", color=Color.BLUE)
     
     # 定义信任的主机列表
     trusted_hosts = "pypi.org files.pythonhosted.org pypi.python.org mirrors.aliyun.com mirrors.cloud.tencent.com mirrors.tuna.tsinghua.edu.cn"
     
     # 升级pip
-    print_status("检查并更新 pip", status='info')
+    print_status("更新 pip", status='info')
     upgrade_pip_command = f'"{python_executable}" -m pip install -i {pip_server} --trusted-host "{trusted_hosts}" --upgrade pip'
     if not run_command(upgrade_pip_command):
         return False
     
-    # 安装ksaa，通过命令行参数传递配置
-    print_status("安装或更新 ksaa", status='info')
-    install_command = f'"{python_executable}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{trusted_hosts}" ksaa'
-    if not run_command(install_command):
-        return False
-    
+    install_command = f'"{python_executable}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{trusted_hosts}" --no-warn-script-location ksaa'
+    ksaa_version_str = package_version("ksaa")
+    # 未安装
+    if not ksaa_version_str:
+        print_status("安装琴音小助手", status='info')
+        return run_command(install_command)
+    # 已安装，检查更新
+    else:
+        ksaa_version = Version(ksaa_version_str)
+        if check_update:
+            has_update, current_version, latest_version = check_ksaa_update_available(pip_server, ksaa_version)
+            if has_update:
+                if install_update:
+                    print_status("更新琴音小助手", status='info')
+                    return run_command(install_command)
+                else:
+                    print_update_notice(str(current_version), str(latest_version))
+            else:
+                print_status("已是最新版本", status='success')
     return True
 
-def load_config() -> Optional[Dict[str, Any]]:
+def load_config() -> Optional[Config]:
     """
     加载config.json配置文件。
     
     :return: 配置字典，如果加载失败返回None
-    :rtype: Optional[Dict[str, Any]]
+    :rtype: Optional[Config]
     """
     config_path = Path("./config.json")
     if not config_path.exists():
@@ -350,6 +457,38 @@ def load_config() -> Optional[Dict[str, Any]]:
         print_status(msg, status='error')
         logging.error(msg, exc_info=True)
         return None
+
+def get_update_settings(config: Config) -> tuple[bool, bool]:
+    """
+    从配置中获取更新设置。
+    
+    :param config: 配置字典
+    :type config: Config
+    :return: (是否检查更新, 是否自动安装更新)
+    :rtype: tuple[bool, bool]
+    """
+    # 默认值
+    check_update = True
+    auto_install_update = True
+    
+    # 检查是否有用户配置
+    user_configs = config.get("user_configs", [])
+    if user_configs:
+        first_config = user_configs[0]
+        options = first_config.get("options", {})
+        misc = options.get("misc", {})
+        
+        # 获取检查更新设置
+        check_update_setting = misc.get("check_update", "startup")
+        check_update = check_update_setting == "startup"
+        
+        # 获取自动安装更新设置
+        auto_install_update = misc.get("auto_install_update", True)
+        
+        msg = f"更新设置: 检查更新={check_update}, 自动安装={auto_install_update}"
+        logging.info(msg)
+    
+    return check_update, auto_install_update
 
 def restart_as_admin() -> None:
     """
@@ -382,24 +521,25 @@ def restart_as_admin() -> None:
         logging.error(msg, exc_info=True)
         return
 
-def check_admin(config: Dict[str, Any]) -> bool:
+def check_admin(config: Config) -> bool:
     """
     检查Windows截图权限（管理员权限）。
     
     :param config: 配置字典
-    :type config: Dict[str, Any]
+    :type config: Config
     :return: 权限检查是否通过
     :rtype: bool
     """
     # 检查是否有用户配置
-    if not config.get("user_configs"):
+    user_configs = config.get("user_configs", [])
+    if not user_configs:
         msg = "配置文件中没有用户配置"
         print_status(msg, status='warning')
         logging.warning(msg)
         return True # Not a fatal error, allow to continue
     
     # 检查第一个用户配置的截图方式
-    first_config = config["user_configs"][0]
+    first_config = user_configs[0]
     backend = first_config.get("backend", {})
     screenshot_impl = backend.get("screenshot_impl")
     
@@ -457,27 +597,31 @@ def main_launch():
     logging.info("启动器已启动。")
     
     try:
-        # 1. 获取可用的pip服务器
+        # 1. 加载配置文件（提前加载以获取更新设置）
+        print_header("加载配置", color=Color.BLUE)
+        logging.info("加载配置。")
+        config = load_config()
+        
+        # 2. 获取更新设置
+        check_update, auto_install_update = get_update_settings(config if config else {"version": 5, "user_configs": []})
+        
+        # 3. 根据配置决定是否检查更新
         print_status("正在寻找最快的 PyPI 镜像源...", status='info')
         logging.info("正在寻找最快的 PyPI 镜像源...")
         pip_server = get_working_pip_server()
         if not pip_server:
             raise RuntimeError("没有找到可用的pip服务器，请检查网络连接。")
         
-        # 2. 安装和更新pip以及ksaa包
-        if not install_pip_and_ksaa(pip_server):
+        # 4. 安装和更新pip以及ksaa包
+        if not install_pip_and_ksaa(pip_server, check_update, auto_install_update):
             raise RuntimeError("依赖安装失败，请检查上面的错误日志。")
         
-        # 3. 加载配置文件
-        print_header("加载配置", color=Color.BLUE)
-        logging.info("加载配置。")
-        config = load_config()
+        # 5. 检查Windows截图权限
         if config:
-            # 4. 检查Windows截图权限
             if not check_admin(config):
                 raise RuntimeError("权限检查失败。")
         
-        # 5. 运行KAA
+        # 6. 运行KAA
         if not run_kaa():
             raise RuntimeError("KAA 主程序运行失败。")
         

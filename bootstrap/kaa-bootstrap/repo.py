@@ -78,6 +78,8 @@ class Version:
     def __repr__(self):
         return f"Version('{self.version_str}')"
 
+    def __str__(self):
+        return self.version_str
 
 @dataclass
 class PackageVersion:
