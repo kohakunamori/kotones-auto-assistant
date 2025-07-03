@@ -3,6 +3,9 @@ import traceback
 import zipfile
 import logging
 import copy
+import sys
+import subprocess
+import json
 from functools import partial
 from itertools import chain
 from datetime import datetime, timedelta
@@ -22,7 +25,7 @@ from kotonebot.kaa.common import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, DailyMoneyShopItems, ProduceAction,
-    RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig,
+    RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig, MiscConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -87,6 +90,9 @@ ConfigKey = Literal[
     'activity_funds_enabled',
     'presents_enabled',
     'trace_recommend_card_detection',
+    
+    # misc
+    'check_update', 'auto_install_update',
     
     '_selected_backend_index'
     
@@ -1469,6 +1475,35 @@ class KotoneBotUI:
             'trace_recommend_card_detection': trace_recommend_card_detection
         }
 
+    def _create_misc_settings(self) -> ConfigBuilderReturnValue:
+        with gr.Column():
+            gr.Markdown("### 杂项设置")
+            check_update = gr.Dropdown(
+                choices=[
+                    ("启动时检查更新", "startup"),
+                    ("从不检查更新", "never")
+                ],
+                value=self.current_config.options.misc.check_update,
+                label="检查更新时机",
+                info=MiscConfig.model_fields['check_update'].description,
+                interactive=True
+            )
+            auto_install_update = gr.Checkbox(
+                label="自动安装更新",
+                value=self.current_config.options.misc.auto_install_update,
+                info=MiscConfig.model_fields['auto_install_update'].description,
+                interactive=True
+            )
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.misc.check_update = data['check_update']
+            config.misc.auto_install_update = data['auto_install_update']
+        
+        return set_config, {
+            'check_update': check_update,
+            'auto_install_update': auto_install_update
+        }
+
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
             gr.Markdown("## 设置")
@@ -1506,6 +1541,9 @@ class KotoneBotUI:
             # 跟踪设置
             trace_settings = self._create_trace_settings()
 
+            # 杂项设置
+            misc_settings = self._create_misc_settings()
+
             # 启动游戏设置
             start_game_settings = self._create_start_game_settings()
 
@@ -1529,7 +1567,8 @@ class KotoneBotUI:
                 capsule_toys_settings,
                 start_game_settings,
                 end_game_settings,
-                trace_settings
+                trace_settings,
+                misc_settings
             ] # list of (set_func, { 'key': component, ... })
             all_components = [list(ret[1].values()) for ret in all_return_values] # [[c1, c2], [c3], ...]
             all_components = list(chain(*all_components)) # [c1, c2, c3, ...]
@@ -1571,10 +1610,224 @@ class KotoneBotUI:
             )
 
     def _create_whats_new_tab(self) -> None:
-        """创建更新日志标签页，并显示最新版本更新内容"""
-        with gr.Tab("更新日志"):
-            from kotonebot.kaa.metadata import WHATS_NEW
-            gr.Markdown(WHATS_NEW)
+        """创建更新标签页"""
+        with gr.Tab("更新"):
+            gr.Markdown("## 版本管理")
+
+            # 更新日志
+            with gr.Accordion("更新日志", open=False):
+                from kotonebot.kaa.metadata import WHATS_NEW
+                gr.Markdown(WHATS_NEW)
+
+            # 载入信息按钮
+            load_info_btn = gr.Button("载入信息", variant="primary")
+
+            # 状态信息
+            status_text = gr.Markdown("")
+
+            # 版本选择下拉框（用于安装）
+            version_dropdown = gr.Dropdown(
+                label="选择要安装的版本",
+                choices=[],
+                value=None,
+                visible=False,
+                interactive=True
+            )
+
+            # 安装选定版本按钮
+            install_selected_btn = gr.Button("安装选定版本", visible=False)
+
+            def list_all_versions():
+                """列出所有可用版本"""
+                import logging
+                logger = logging.getLogger(__name__)
+
+                try:
+                    # 构建命令，使用清华镜像源
+                    cmd = [
+                        sys.executable, "-m", "pip", "index", "versions", "ksaa", "--json",
+                        "--index-url", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+                        "--trusted-host", "mirrors.tuna.tsinghua.edu.cn"
+                    ]
+                    logger.info(f"执行命令: {' '.join(cmd)}")
+
+                    # 使用 pip index versions --json 来获取版本信息
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+
+                    logger.info(f"命令返回码: {result.returncode}")
+                    if result.stdout:
+                        logger.info(f"命令输出: {result.stdout[:500]}...")  # 只记录前500字符
+                    if result.stderr:
+                        logger.warning(f"命令错误输出: {result.stderr}")
+
+                    if result.returncode != 0:
+                        error_msg = f"获取版本列表失败: {result.stderr}"
+                        logger.error(error_msg)
+                        return (
+                            error_msg,
+                            gr.Button(value="载入信息", interactive=True),
+                            gr.Dropdown(visible=False),
+                            gr.Button(visible=False)
+                        )
+
+                    # 解析 JSON 输出
+                    try:
+                        data = json.loads(result.stdout)
+                        versions = data.get("versions", [])
+                        latest_version = data.get("latest", "")
+                        installed_version = data.get("installed_version", "")
+
+                        logger.info(f"解析到 {len(versions)} 个版本")
+                        logger.info(f"最新版本: {latest_version}")
+                        logger.info(f"已安装版本: {installed_version}")
+
+                    except json.JSONDecodeError as e:
+                        error_msg = f"解析版本信息失败: {str(e)}"
+                        logger.error(error_msg)
+                        return (
+                            error_msg,
+                            gr.Button(value="载入信息", interactive=True),
+                            gr.Dropdown(visible=False),
+                            gr.Button(visible=False)
+                        )
+
+                    if not versions:
+                        error_msg = "未找到可用版本"
+                        logger.warning(error_msg)
+                        return (
+                            error_msg,
+                            gr.Button(value="载入信息", interactive=True),
+                            gr.Dropdown(visible=False),
+                            gr.Button(visible=False)
+                        )
+
+                    # 构建状态信息
+                    status_info = []
+                    if installed_version:
+                        status_info.append(f"**当前安装版本:** {installed_version}")
+                    if latest_version:
+                        status_info.append(f"**最新版本:** {latest_version}")
+                    status_info.append(f"**找到 {len(versions)} 个可用版本**")
+
+                    status_message = "\n\n".join(status_info)
+                    logger.info(f"版本信息载入完成: {status_message}")
+
+                    # 返回更新后的组件
+                    return (
+                        status_message,
+                        gr.Button(value="载入信息", interactive=True),
+                        gr.Dropdown(choices=versions, value=versions[0] if versions else None, visible=True, label="选择要安装的版本"),
+                        gr.Button(visible=True, value="安装选定版本")
+                    )
+
+                except subprocess.TimeoutExpired:
+                    error_msg = "获取版本列表超时"
+                    logger.error(error_msg)
+                    return (
+                        error_msg,
+                        gr.Button(value="载入信息", interactive=True),
+                        gr.Dropdown(visible=False),
+                        gr.Button(visible=False)
+                    )
+                except Exception as e:
+                    error_msg = f"获取版本列表失败: {str(e)}"
+                    logger.error(error_msg)
+                    return (
+                        error_msg,
+                        gr.Button(value="载入信息", interactive=True),
+                        gr.Dropdown(visible=False),
+                        gr.Button(visible=False)
+                    )
+
+            def install_selected_version(selected_version: str):
+                """安装选定的版本"""
+                import logging
+                import threading
+                import time
+                logger = logging.getLogger(__name__)
+
+                if not selected_version:
+                    error_msg = "请先选择一个版本"
+                    logger.warning(error_msg)
+                    return error_msg
+
+                def install_and_exit():
+                    """在后台线程中执行安装并退出程序"""
+                    try:
+                        # 等待一小段时间确保UI响应已返回
+                        time.sleep(1)
+
+                        # 构建启动器命令
+                        bootstrap_path = os.path.join(os.getcwd(), "bootstrap.pyz")
+                        cmd = [sys.executable, bootstrap_path, f"--install-version={selected_version}"]
+                        logger.info(f"开始通过启动器安装版本 {selected_version}")
+                        logger.info(f"执行命令: {' '.join(cmd)}")
+
+                        # 启动启动器进程（不等待完成）
+                        subprocess.Popen(
+                            cmd,
+                            cwd=os.getcwd(),
+                            creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
+                        )
+
+                        # 等待一小段时间确保启动器启动
+                        time.sleep(2)
+
+                        # 退出当前程序
+                        logger.info("安装即将开始，正在退出当前程序...")
+                        os._exit(0)
+
+                    except Exception as e:
+                        raise
+
+                try:
+                    # 在后台线程中执行安装和退出
+                    install_thread = threading.Thread(target=install_and_exit, daemon=True)
+                    install_thread.start()
+
+                    return f"正在启动器中安装版本 {selected_version}，程序将自动重启..."
+
+                except Exception as e:
+                    error_msg = f"启动安装进程失败: {str(e)}"
+                    logger.error(error_msg)
+                    return error_msg
+
+            def load_info_with_button_state():
+                """载入信息并管理按钮状态"""
+                import logging
+                logger = logging.getLogger(__name__)
+
+                logger.info("开始载入版本信息")
+
+                # 先禁用按钮
+                yield (
+                    "正在载入版本信息...",
+                    gr.Button(value="载入中...", interactive=False),
+                    gr.Dropdown(visible=False),
+                    gr.Button(visible=False)
+                )
+
+                # 执行载入操作
+                result = list_all_versions()
+                logger.info("版本信息载入操作完成")
+                yield result
+
+            # 绑定事件
+            load_info_btn.click(
+                fn=load_info_with_button_state,
+                outputs=[status_text, load_info_btn, version_dropdown, install_selected_btn]
+            )
+
+            install_selected_btn.click(
+                fn=install_selected_version,
+                inputs=[version_dropdown],
+                outputs=[status_text]
+            )
 
     def _create_screen_tab(self) -> None:
         with gr.Tab("画面"):
