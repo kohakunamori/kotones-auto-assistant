@@ -155,17 +155,15 @@ def assignment():
     if not at_home():
         goto_home()
     btn_assignment = image.expect_wait(R.Daily.ButtonAssignmentPartial)
-    notification_rect = rect_expand(btn_assignment.rect, top=40, right=40)
-    complete_rect = rect_expand(btn_assignment.rect, right=40, bottom=60)
-    with device.pinned():
-        completed = color.find('#ff6085', rect=complete_rect)
-        if completed:
-            logger.info('Assignment completed. Acquiring...')
-        notification_dot = color.find('#ff134a', rect=notification_rect)
-        if not notification_dot and not completed:
-            logger.info('No action needed.')
-            # TODO: 获取剩余时间，并根据时间更新调度
-            return
+
+    completed = color.find('#ff6085', rect=R.Daily.BoxHomeAssignment)
+    if completed:
+        logger.info('Assignment completed. Acquiring...')
+    notification_dot = color.find('#ff134a', rect=R.Daily.BoxHomeAssignment)
+    if not notification_dot and not completed:
+        logger.info('No action needed.')
+        # TODO: 获取剩余时间，并根据时间更新调度
+        return
 
     # 点击工作按钮
     logger.debug('Clicking assignment icon.')
