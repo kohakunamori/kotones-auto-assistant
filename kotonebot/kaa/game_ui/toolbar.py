@@ -34,10 +34,11 @@ def toolbar_menu(critical: Literal[True]) -> TemplateMatchResult:
     """寻找工具栏上的菜单按钮。若未找到，则抛出异常。"""
     ...
 
+_TOOLBAR_THRESHOLD = 0.6
 @action('工具栏按钮.寻找菜单', screenshot_mode='manual-inherit')
 def toolbar_menu(critical: bool = False):
     device.screenshot()
     if critical:
-        return image.expect_wait(R.Common.ButtonToolbarMenu, preprocessors=[WhiteFilter()])
+        return image.expect_wait(R.Common.ButtonToolbarMenu, preprocessors=[WhiteFilter()], threshold=_TOOLBAR_THRESHOLD)
     else:
-        return image.find(R.Common.ButtonToolbarMenu, preprocessors=[WhiteFilter()])
+        return image.find(R.Common.ButtonToolbarMenu, preprocessors=[WhiteFilter()], threshold=_TOOLBAR_THRESHOLD)
