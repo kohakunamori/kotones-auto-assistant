@@ -205,11 +205,18 @@ def do_produce(
         goto_home()
 
     device.screenshot()
-    # 有进行中培育的情况
-    if ocr.find(contains('中'), rect=R.Produce.BoxProduceOngoing):
-        logger.info('Ongoing produce found. Try to resume produce.')
-        resume_produce()
-        return True
+    # 点击培育按钮，然后判断是新开还是再开培育
+    for _ in Loop(interval=0.6):
+        if image.find(R.Produce.TitleIconProudce):
+            # 新开
+            break
+        elif image.find(R.Produce.ButtonResume):
+            # 再开
+            resume_produce()
+            return True
+        else:
+            device.click(R.Produce.BoxProduceOngoing)
+            sleep(2)
 
     # 0. 进入培育页面
     logger.info(f'Enter produce page. Mode: {mode}')
