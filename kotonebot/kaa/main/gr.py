@@ -37,7 +37,7 @@ ConfigKey = Literal[
     'check_emulator', 'emulator_path',
     'adb_emulator_name', 'emulator_args',
     '_mumu_index', '_leidian_index',
-    'mumu_background_mode',
+    'mumu_background_mode', 'target_screenshot_interval',
 
     # purchase
     'purchase_enabled',
@@ -761,6 +761,15 @@ class KotoneBotUI:
             interactive=True
         )
 
+        target_screenshot_interval = gr.Number(
+            label="最小截图间隔（秒）",
+            value=self.current_config.backend.target_screenshot_interval,
+            info=BackendConfig.model_fields['target_screenshot_interval'].description,
+            minimum=0,
+            step=0.1,
+            interactive=True
+        )
+
         tab_mumu12.select(fn=partial(_update_emulator_tab_options, selected_index=0), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_leidian.select(fn=partial(_update_emulator_tab_options, selected_index=1), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_custom.select(fn=partial(_update_emulator_tab_options, selected_index=2), inputs=[screenshot_impl], outputs=[screenshot_impl])
@@ -814,12 +823,14 @@ class KotoneBotUI:
 
             # Common settings for all backend types
             self.current_config.backend.screenshot_impl = data['screenshot_method']
+            self.current_config.backend.target_screenshot_interval = data['target_screenshot_interval']
             self.current_config.keep_screenshots = data['keep_screenshots']  # This is a UserConfig field
 
         return set_config, {
             'adb_ip': adb_ip,
             'adb_port': adb_port,
             'screenshot_method': screenshot_impl,  # screenshot_impl is the component
+            'target_screenshot_interval': target_screenshot_interval,
             'keep_screenshots': keep_screenshots,
             'check_emulator': check_emulator,
             'emulator_path': emulator_path,
