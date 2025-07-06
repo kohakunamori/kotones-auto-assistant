@@ -80,7 +80,7 @@ class DailyMoneyShopItems(IntEnum):
     """紫云清夏 Tame-Lie-One-Step 碎片"""
     IdolPiece_葛城リーリヤ_白線 = 17
     """葛城リーリヤ 白線 碎片"""
-    IdolPiece_姫崎薪波_cIclumsy_trick = 18
+    IdolPiece_姬崎莉波_clumsy_trick = 18
     """姫崎薪波 cIclumsy trick 碎片"""
     IdolPiece_花海咲季_FightingMyWay = 19
     """花海咲季 FightingMyWay 碎片"""
@@ -90,6 +90,8 @@ class DailyMoneyShopItems(IntEnum):
     """花海佑芽 The Rolling Riceball 碎片"""
     IdolPiece_月村手毬_LunaSayMaybe = 22
     """月村手毬 Luna say maybe 碎片"""
+    IdolPiece_有村麻央_Fluorite = 23
+    """有村麻央 Fluorite 碎片"""
 
     @classmethod
     def to_ui_text(cls, item: "DailyMoneyShopItems") -> str:
@@ -126,23 +128,25 @@ class DailyMoneyShopItems(IntEnum):
             case cls.RecordKey:
                 return "记录钥匙"
             case cls.IdolPiece_倉本千奈_WonderScale:
-                return "倉本千奈 WonderScale 碎片"
+                return "倉本千奈　WonderScale 碎片"
             case cls.IdolPiece_篠泽广_光景:
-                return "篠泽广 光景 碎片"
+                return "篠泽广　光景 碎片"
             case cls.IdolPiece_紫云清夏_TameLieOneStep:
-                return "紫云清夏 Tame-Lie-One-Step 碎片"
+                return "紫云清夏　Tame-Lie-One-Step 碎片"
             case cls.IdolPiece_葛城リーリヤ_白線:
-                return "葛城リーリヤ 白線 碎片"
-            case cls.IdolPiece_姫崎薪波_cIclumsy_trick:
-                return "姫崎薪波 cIclumsy trick 碎片"
+                return "葛城リーリヤ　白線 碎片"
+            case cls.IdolPiece_姬崎莉波_clumsy_trick:
+                return "姫崎薪波　clumsy trick 碎片"
             case cls.IdolPiece_花海咲季_FightingMyWay:
-                return "花海咲季 FightingMyWay 碎片"
+                return "花海咲季　FightingMyWay 碎片"
             case cls.IdolPiece_藤田ことね_世界一可愛い私:
-                return "藤田ことね 世界一可愛い私 碎片"
+                return "藤田ことね　世界一可愛い私 碎片"
             case cls.IdolPiece_花海佑芽_TheRollingRiceball:
-                return "花海佑芽 The Rolling Riceball 碎片"
+                return "花海佑芽　The Rolling Riceball 碎片"
             case cls.IdolPiece_月村手毬_LunaSayMaybe:
-                return "月村手毬 Luna say maybe 碎片"
+                return "月村手毬　Luna say maybe 碎片"
+            case cls.IdolPiece_有村麻央_Fluorite:
+                return "有村麻央　Fluorite 碎片"
             case _:
                 assert_never(item)
 
@@ -202,8 +206,8 @@ class DailyMoneyShopItems(IntEnum):
                 return R.Shop.IdolPiece.紫云清夏_TameLieOneStep
             case DailyMoneyShopItems.IdolPiece_葛城リーリヤ_白線:
                 return R.Shop.IdolPiece.葛城リーリヤ_白線
-            case DailyMoneyShopItems.IdolPiece_姫崎薪波_cIclumsy_trick:
-                return R.Shop.IdolPiece.姫崎薪波_cIclumsy_trick
+            case DailyMoneyShopItems.IdolPiece_姬崎莉波_clumsy_trick:
+                return R.Shop.IdolPiece.姬崎莉波_clumsy_trick
             case DailyMoneyShopItems.IdolPiece_花海咲季_FightingMyWay:
                 return R.Shop.IdolPiece.花海咲季_FightingMyWay
             case DailyMoneyShopItems.IdolPiece_藤田ことね_世界一可愛い私:
@@ -212,6 +216,8 @@ class DailyMoneyShopItems(IntEnum):
                 return R.Shop.IdolPiece.花海佑芽_TheRollingRiceball
             case DailyMoneyShopItems.IdolPiece_月村手毬_LunaSayMaybe:
                 return R.Shop.IdolPiece.月村手毬_LunaSayMaybe
+            case DailyMoneyShopItems.IdolPiece_有村麻央_Fluorite:
+                return R.Shop.IdolPiece.有村麻央_Fluorite
             case _:
                 assert_never(self)
 
