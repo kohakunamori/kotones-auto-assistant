@@ -189,6 +189,12 @@ def purchase():
         image.expect_wait(R.Daily.IconShopMoney)
         money_items2()
         sleep(0.5)
+        if image.find(R.Daily.ButtonRefreshMoneyShop):
+            logger.info('Refreshing money shop.')
+            device.click()
+            sleep(0.5)
+            money_items2()
+            sleep(0.5)
     else:
         logger.info('Money purchase is disabled.')
     

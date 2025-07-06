@@ -225,13 +225,9 @@ class PurchaseConfig(ConfigBaseModel):
     """是否启用金币购买"""
     money_items: list[DailyMoneyShopItems] = []
     """金币商店要购买的物品"""
-    money_refresh_on: Literal['never', 'not_found', 'always'] = 'never'
+    money_refresh: bool = True
     """
-    金币商店刷新逻辑。
-
-    * never: 从不刷新。
-    * not_found: 仅当要购买的物品不存在时刷新。
-    * always: 总是刷新。
+    是否使用每日一次免费刷新金币商店。
     """
     ap_enabled: bool = False
     """是否启用AP购买"""

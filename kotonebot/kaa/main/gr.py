@@ -42,7 +42,7 @@ ConfigKey = Literal[
     # purchase
     'purchase_enabled',
     'money_enabled', 'ap_enabled',
-    'ap_items', 'money_items',
+    'ap_items', 'money_items', 'money_refresh',
     
     # assignment
     'assignment_enabled',
@@ -865,6 +865,12 @@ class KotoneBotUI:
                     info=PurchaseConfig.model_fields['money_items'].description
                 )
 
+                money_refresh = gr.Checkbox(
+                    label="每日一次免费刷新金币商店",
+                    value=self.current_config.options.purchase.money_refresh,
+                    info=PurchaseConfig.model_fields['money_refresh'].description
+                )
+
                 ap_enabled = gr.Checkbox(
                     label="启用AP购买",
                     value=self.current_config.options.purchase.ap_enabled,
@@ -902,6 +908,7 @@ class KotoneBotUI:
             config.purchase.enabled = data['purchase_enabled']
             config.purchase.money_enabled = data['money_enabled']
             config.purchase.money_items = [DailyMoneyShopItems(x) for x in data['money_items']]
+            config.purchase.money_refresh = data['money_refresh']
             config.purchase.ap_enabled = data['ap_enabled']
             ap_items_enum: List[Literal[0, 1, 2, 3]] = []
             ap_items_map: Dict[str, APShopItems] = {
@@ -920,7 +927,8 @@ class KotoneBotUI:
             'money_enabled': money_enabled,
             'ap_enabled': ap_enabled,
             'ap_items': ap_items,
-            'money_items': money_items
+            'money_items': money_items,
+            'money_refresh': money_refresh
         }
 
     def _create_work_settings(self) -> ConfigBuilderReturnValue:
