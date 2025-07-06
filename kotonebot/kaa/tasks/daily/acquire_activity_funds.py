@@ -1,6 +1,7 @@
 """收取活动费"""
 import logging
 
+from kotonebot.backend.loop import Loop
 from kotonebot.kaa.tasks import R
 from kotonebot.kaa.common import conf
 from ..actions.scenes import at_home, goto_home
@@ -16,17 +17,18 @@ def acquire_activity_funds():
 
     if not at_home():
         goto_home()
-    device.screenshot()
-    if color.find('#ff1249', rect=R.Daily.BoxHomeActivelyFunds):
-        logger.info('Claiming activity funds.')
-        device.click(R.Daily.BoxHomeActivelyFunds)
-        device.click(image.expect_wait(R.Common.ButtonClose))
-        logger.info('Activity funds claimed.')
-    else:
-        logger.info('No activity funds to claim.')
     
-    while not at_home():
-        pass
+    for _ in Loop():
+        if (
+            not color.find('#ff1249', rect=R.Daily.BoxHomeActivelyFunds)
+            and at_home()
+        ): 
+            break
+        elif image.find(R.Common.ButtonClose):
+            logger.info('Closing popup dialog.')
+            device.click()
+        else:
+            device.click(R.Daily.BoxHomeActivelyFunds)
 
 if __name__ == '__main__':
     import logging
