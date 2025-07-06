@@ -197,7 +197,7 @@ def purchase():
         # 点击 AP 选项卡
         device.click(ap_tab)
         # 等待 AP 选项卡加载完成
-        image.expect_wait(R.Daily.IconShopAp)
+        image.expect_wait(R.Daily.IconShopAp, threshold=0.7)
         ap_items()
         sleep(0.5)
     else:
