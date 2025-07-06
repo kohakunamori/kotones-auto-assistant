@@ -92,8 +92,8 @@ ConfigKey = Literal[
     'trace_recommend_card_detection',
     
     # misc
-    'check_update', 'auto_install_update',
-    
+    'check_update', 'auto_install_update', 'expose_to_lan',
+
     '_selected_backend_index'
     
 ]
@@ -1513,14 +1513,22 @@ class KotoneBotUI:
                 info=MiscConfig.model_fields['auto_install_update'].description,
                 interactive=True
             )
-        
+            expose_to_lan = gr.Checkbox(
+                label="允许局域网访问",
+                value=self.current_config.options.misc.expose_to_lan,
+                info=MiscConfig.model_fields['expose_to_lan'].description,
+                interactive=True
+            )
+
         def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
             config.misc.check_update = data['check_update']
             config.misc.auto_install_update = data['auto_install_update']
+            config.misc.expose_to_lan = data['expose_to_lan']
         
         return set_config, {
             'check_update': check_update,
-            'auto_install_update': auto_install_update
+            'auto_install_update': auto_install_update,
+            'expose_to_lan': expose_to_lan
         }
 
     def _create_settings_tab(self) -> None:
@@ -1907,7 +1915,9 @@ def main(kaa: Kaa | None = None) -> None:
     kaa = kaa or Kaa('./config.json')
     ui = KotoneBotUI(kaa)
     app = ui.create_ui()
-    app.launch(inbrowser=True, show_error=True)
+
+    server_name = "0.0.0.0" if ui.current_config.options.misc.expose_to_lan else "127.0.0.1"
+    app.launch(inbrowser=True, show_error=True, server_name=server_name)
 
 if __name__ == "__main__":
     main()

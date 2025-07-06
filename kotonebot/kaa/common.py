@@ -461,15 +461,21 @@ class MiscConfig(ConfigBaseModel):
     check_update: Literal['never', 'startup'] = 'startup'
     """
     检查更新时机。
-    
+
     * never: 从不检查更新。
     * startup: 启动时检查更新。
     """
     auto_install_update: bool = True
     """
     是否自动安装更新。
-    
+
     若启用，则每次自动检查更新时若有新版本会自动安装，否则只是会提示。
+    """
+    expose_to_lan: bool = False
+    """
+    是否允许局域网访问 Web 界面。
+
+    启用后，局域网内的其他设备可以通过本机 IP 地址访问 Web 界面。
     """
 
 class BaseConfig(ConfigBaseModel):
