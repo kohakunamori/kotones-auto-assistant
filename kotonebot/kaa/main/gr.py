@@ -489,11 +489,76 @@ class KotoneBotUI:
             with gr.Row():
                 run_btn = gr.Button("启动", scale=2)
                 pause_btn = gr.Button("暂停", scale=1)
+
+            # 快速功能启停控制区域
+            gr.Markdown("### 快速功能启停")
+            with gr.Row(elem_classes=["quick-controls-row"]):
+                purchase_quick = gr.Checkbox(
+                    label="商店",
+                    value=self.current_config.options.purchase.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                assignment_quick = gr.Checkbox(
+                    label="工作",
+                    value=self.current_config.options.assignment.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                contest_quick = gr.Checkbox(
+                    label="竞赛",
+                    value=self.current_config.options.contest.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                produce_quick = gr.Checkbox(
+                    label="培育",
+                    value=self.current_config.options.produce.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                mission_reward_quick = gr.Checkbox(
+                    label="任务",
+                    value=self.current_config.options.mission_reward.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                club_reward_quick = gr.Checkbox(
+                    label="社团",
+                    value=self.current_config.options.club_reward.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                activity_funds_quick = gr.Checkbox(
+                    label="活动费",
+                    value=self.current_config.options.activity_funds.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                presents_quick = gr.Checkbox(
+                    label="礼物",
+                    value=self.current_config.options.presents.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                capsule_toys_quick = gr.Checkbox(
+                    label="扭蛋",
+                    value=self.current_config.options.capsule_toys.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+                upgrade_support_card_quick = gr.Checkbox(
+                    label="支援卡",
+                    value=self.current_config.options.upgrade_support_card.enabled,
+                    interactive=True,
+                    elem_classes=["quick-checkbox"]
+                )
+
             if self._kaa.upgrade_msg:
                 gr.Markdown('### 配置升级报告')
                 gr.Markdown(self._kaa.upgrade_msg)
             gr.Markdown('脚本报错或者卡住？前往"反馈"选项卡可以快速导出报告！')
-            
+
             # 添加调试模式警告
             if self.current_config.keep_screenshots:
                 gr.Markdown(
@@ -517,6 +582,45 @@ class KotoneBotUI:
             def on_pause_click(evt: gr.EventData) -> str:
                 return self.toggle_pause()
 
+            # 快速功能控制的事件处理函数
+            def save_quick_setting(field_name: str, value: bool, display_name: str):
+                """保存快速设置并立即应用"""
+                try:
+                    # 更新配置
+                    if field_name == 'purchase':
+                        self.current_config.options.purchase.enabled = value
+                    elif field_name == 'assignment':
+                        self.current_config.options.assignment.enabled = value
+                    elif field_name == 'contest':
+                        self.current_config.options.contest.enabled = value
+                    elif field_name == 'produce':
+                        self.current_config.options.produce.enabled = value
+                    elif field_name == 'mission_reward':
+                        self.current_config.options.mission_reward.enabled = value
+                    elif field_name == 'club_reward':
+                        self.current_config.options.club_reward.enabled = value
+                    elif field_name == 'activity_funds':
+                        self.current_config.options.activity_funds.enabled = value
+                    elif field_name == 'presents':
+                        self.current_config.options.presents.enabled = value
+                    elif field_name == 'capsule_toys':
+                        self.current_config.options.capsule_toys.enabled = value
+                    elif field_name == 'upgrade_support_card':
+                        self.current_config.options.upgrade_support_card.enabled = value
+                    elif field_name == 'start_game':
+                        self.current_config.options.start_game.enabled = value
+
+                    # 保存配置
+                    save_config(self.config, "config.json")
+
+                    # 尝试热重载配置
+                    if self.reload_config():
+                        gr.Success(f"✓ {display_name} 已{'启用' if value else '禁用'}")
+                    else:
+                        gr.Warning(f"⚠ {display_name} 已保存，但重新加载失败")
+                except Exception as e:
+                    gr.Error(f"✗ 保存失败：{str(e)}")
+
             run_btn.click(
                 fn=on_run_click,
                 outputs=[run_btn, task_status]
@@ -527,10 +631,67 @@ class KotoneBotUI:
                 outputs=[pause_btn]
             )
 
+            # 绑定快速功能控制的事件
+            purchase_quick.change(
+                fn=lambda x: save_quick_setting('purchase', x, '商店'),
+                inputs=[purchase_quick]
+            )
+            assignment_quick.change(
+                fn=lambda x: save_quick_setting('assignment', x, '工作'),
+                inputs=[assignment_quick]
+            )
+            contest_quick.change(
+                fn=lambda x: save_quick_setting('contest', x, '竞赛'),
+                inputs=[contest_quick]
+            )
+            produce_quick.change(
+                fn=lambda x: save_quick_setting('produce', x, '培育'),
+                inputs=[produce_quick]
+            )
+            mission_reward_quick.change(
+                fn=lambda x: save_quick_setting('mission_reward', x, '任务奖励'),
+                inputs=[mission_reward_quick]
+            )
+            club_reward_quick.change(
+                fn=lambda x: save_quick_setting('club_reward', x, '社团奖励'),
+                inputs=[club_reward_quick]
+            )
+            activity_funds_quick.change(
+                fn=lambda x: save_quick_setting('activity_funds', x, '活动费'),
+                inputs=[activity_funds_quick]
+            )
+            presents_quick.change(
+                fn=lambda x: save_quick_setting('presents', x, '礼物'),
+                inputs=[presents_quick]
+            )
+            capsule_toys_quick.change(
+                fn=lambda x: save_quick_setting('capsule_toys', x, '扭蛋'),
+                inputs=[capsule_toys_quick]
+            )
+            upgrade_support_card_quick.change(
+                fn=lambda x: save_quick_setting('upgrade_support_card', x, '支援卡升级'),
+                inputs=[upgrade_support_card_quick]
+            )
+
             # 添加定时器，分别更新按钮状态和任务状态
             def update_run_button_status():
                 text, interactive = self.get_button_status()
                 return gr.Button(value=text, interactive=interactive)
+
+            def update_quick_checkboxes():
+                """更新快速功能控制的 checkbox 状态，确保与设置同步"""
+                return [
+                    gr.Checkbox(value=self.current_config.options.purchase.enabled),
+                    gr.Checkbox(value=self.current_config.options.assignment.enabled),
+                    gr.Checkbox(value=self.current_config.options.contest.enabled),
+                    gr.Checkbox(value=self.current_config.options.produce.enabled),
+                    gr.Checkbox(value=self.current_config.options.mission_reward.enabled),
+                    gr.Checkbox(value=self.current_config.options.club_reward.enabled),
+                    gr.Checkbox(value=self.current_config.options.activity_funds.enabled),
+                    gr.Checkbox(value=self.current_config.options.presents.enabled),
+                    gr.Checkbox(value=self.current_config.options.capsule_toys.enabled),
+                    gr.Checkbox(value=self.current_config.options.upgrade_support_card.enabled),
+                ]
 
             gr.Timer(1.0).tick(
                 fn=update_run_button_status,
@@ -539,6 +700,14 @@ class KotoneBotUI:
             gr.Timer(1.0).tick(
                 fn=self.get_pause_button_with_interactive,
                 outputs=[pause_btn]
+            )
+            gr.Timer(2.0).tick(
+                fn=update_quick_checkboxes,
+                outputs=[
+                    purchase_quick, assignment_quick, contest_quick, produce_quick,
+                    mission_reward_quick, club_reward_quick, activity_funds_quick, presents_quick,
+                    capsule_toys_quick, upgrade_support_card_quick
+                ]
             )
             gr.Timer(1.0).tick(
                 fn=self.update_task_status,
@@ -1929,7 +2098,20 @@ class KotoneBotUI:
         self.current_config = self.config.user_configs[0]
 
     def create_ui(self) -> gr.Blocks:
-        with gr.Blocks(title="琴音小助手", css="#container { max-width: 800px; margin: auto; padding: 20px; }") as app:
+        custom_css = """
+        #container { max-width: 800px; margin: auto; padding: 20px; }
+        .quick-controls-row > div {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: 0 !important;
+            overflow-x: auto !important;
+        }
+        .quick-controls-row > div > div {
+            min-width: auto !important;
+            padding: 0;
+        }
+        """
+        with gr.Blocks(title="琴音小助手", css=custom_css) as app:
             with gr.Column(elem_id="container"):
                 gr.Markdown(f"# 琴音小助手 v{self._kaa.version}")
 
