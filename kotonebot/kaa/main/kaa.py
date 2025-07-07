@@ -128,7 +128,8 @@ class Kaa(KotoneBot):
             config_path=self.config_path,
             config_type=self.config_type,
             target_device=d,
-            target_screenshot_interval=target_screenshot_interval
+            target_screenshot_interval=target_screenshot_interval,
+            force=True  # 强制重新初始化，用于配置热重载
         )
 
     @override

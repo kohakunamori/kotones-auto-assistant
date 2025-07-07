@@ -395,6 +395,33 @@ class KotoneBotUI:
         interactive = not (self.is_stopping or self.is_single_task_stopping)
         return gr.Button(value=text, interactive=interactive)
         
+    def reload_config(self) -> bool:
+        """
+        重新加载配置并重新初始化相关组件
+
+        :return: 是否成功重新加载
+        """
+        try:
+            # 重新加载配置文件
+            self._load_config()
+
+            # 重新设置 kaa 的配置
+            self._kaa.config_path = "config.json"
+            self._kaa.config_type = BaseConfig
+
+            # 重新初始化 kaa（这会重新创建设备和 Context）
+            self._setup_kaa()
+
+            # 重新加载 Context 中的配置数据
+            from kotonebot.backend.context.context import config
+            config.load()
+
+            logger.info("配置已成功重新加载")
+            return True
+        except Exception as e:
+            logger.error(f"重新加载配置失败：{str(e)}")
+            return False
+
     def save_settings2(self, return_values: list[ConfigBuilderReturnValue], *args) -> str:
         options = BaseConfig()
         # return_values: (set_func, { 'key': component })
@@ -406,45 +433,50 @@ class KotoneBotUI:
             assert key in CONFIG_KEY_VALUE, f"未知的配置项：{key}"
             key = cast(ConfigKey, key)
             data[key] = value
-        
+
         # 先设置options
         for (set_func, _) in return_values:
             set_func(options, data)
-        
+
         # 验证规则1：截图方法验证
         screenshot_method = self.current_config.backend.screenshot_impl
         backend_type = self.current_config.backend.type
-        
+
         valid_screenshot_methods = {
             'mumu12': ['adb', 'adb_raw', 'uiautomator2', 'nemu_ipc'],
             'leidian': ['adb', 'adb_raw', 'uiautomator2'],
             'custom': ['adb', 'adb_raw', 'uiautomator2'],
             'dmm': ['remote_windows', 'windows']
         }
-        
+
         if screenshot_method not in valid_screenshot_methods.get(backend_type, []):
             gr.Warning(f"截图方法 '{screenshot_method}' 不适用于当前选择的模拟器类型，配置未保存。")
             return ""
-        
+
         # 验证规则2：若启用培育，那么培育偶像不能为空
         if options.produce.enabled and not options.produce.idols:
             gr.Warning("启用培育时，培育偶像不能为空，配置未保存。")
             return ""
-        
+
         # 验证规则3：若启用AP/金币购买，对应的商品不能为空
         if options.purchase.ap_enabled and not options.purchase.ap_items:
             gr.Warning("启用AP购买时，AP商店购买物品不能为空，配置未保存。")
             return ""
-        
+
         if options.purchase.money_enabled and not options.purchase.money_items:
             gr.Warning("启用金币购买时，金币商店购买物品不能为空，配置未保存。")
             return ""
-        
+
         # 验证通过，保存配置
         self.current_config.options = options
         try:
             save_config(self.config, "config.json")
-            gr.Success("设置已保存，请重启程序！")
+
+            # 尝试热重载配置
+            if self.reload_config():
+                gr.Success("设置已保存并应用！")
+            else:
+                gr.Warning("设置已保存，但重新加载失败，请重启程序。")
             return ""
         except Exception as e:
             gr.Warning(f"保存设置失败：{str(e)}")
