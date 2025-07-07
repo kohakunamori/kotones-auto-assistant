@@ -14,12 +14,15 @@ from .schema import (
     StartGameConfig,
     EndGameConfig,
     MiscConfig,
+    conf,
+)
+from .const import (
+    ConfigEnum,
+    Priority,
+    APShopItems,
     DailyMoneyShopItems,
     ProduceAction,
-    Priority,
     RecommendCardDetectionMode,
-    APShopItems,
-    conf,
 )
 
 # 配置升级逻辑
@@ -43,13 +46,16 @@ __all__ = [
     "StartGameConfig",
     "EndGameConfig",
     "MiscConfig",
+    "conf",
+    # const 导出
+    "ConfigEnum",
+    "Priority",
+    "APShopItems",
     "DailyMoneyShopItems",
     "ProduceAction",
-    "Priority",
     "RecommendCardDetectionMode",
-    "APShopItems",
+    # upgrade 导出
     "upgrade_config",
-    "conf",
     "migrations",
     "MIGRATION_REGISTRY",
     "LATEST_VERSION",
