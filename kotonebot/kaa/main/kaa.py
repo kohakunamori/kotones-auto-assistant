@@ -111,6 +111,27 @@ class Kaa(KotoneBot):
             return ''
 
     @override
+    def _on_init_context(self) -> None:
+        """
+        初始化 Context，从配置中读取 target_screenshot_interval。
+        """
+        from kotonebot.config.manager import load_config
+        from kotonebot.backend.context import init_context
+
+        # 加载配置以获取 target_screenshot_interval
+        config = load_config(self.config_path, type=self.config_type)
+        user_config = config.user_configs[0]  # HACK: 硬编码
+        target_screenshot_interval = user_config.backend.target_screenshot_interval
+
+        d = self._on_create_device()
+        init_context(
+            config_path=self.config_path,
+            config_type=self.config_type,
+            target_device=d,
+            target_screenshot_interval=target_screenshot_interval
+        )
+
+    @override
     def _on_after_init_context(self):
         if self.backend_instance is None:
             raise ValueError('Backend instance is not set.')

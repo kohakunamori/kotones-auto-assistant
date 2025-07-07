@@ -37,12 +37,12 @@ ConfigKey = Literal[
     'check_emulator', 'emulator_path',
     'adb_emulator_name', 'emulator_args',
     '_mumu_index', '_leidian_index',
-    'mumu_background_mode',
+    'mumu_background_mode', 'target_screenshot_interval',
 
     # purchase
     'purchase_enabled',
     'money_enabled', 'ap_enabled',
-    'ap_items', 'money_items',
+    'ap_items', 'money_items', 'money_refresh',
     
     # assignment
     'assignment_enabled',
@@ -92,8 +92,8 @@ ConfigKey = Literal[
     'trace_recommend_card_detection',
     
     # misc
-    'check_update', 'auto_install_update',
-    
+    'check_update', 'auto_install_update', 'expose_to_lan',
+
     '_selected_backend_index'
     
 ]
@@ -761,6 +761,15 @@ class KotoneBotUI:
             interactive=True
         )
 
+        target_screenshot_interval = gr.Number(
+            label="最小截图间隔（秒）",
+            value=self.current_config.backend.target_screenshot_interval,
+            info=BackendConfig.model_fields['target_screenshot_interval'].description,
+            minimum=0,
+            step=0.1,
+            interactive=True
+        )
+
         tab_mumu12.select(fn=partial(_update_emulator_tab_options, selected_index=0), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_leidian.select(fn=partial(_update_emulator_tab_options, selected_index=1), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_custom.select(fn=partial(_update_emulator_tab_options, selected_index=2), inputs=[screenshot_impl], outputs=[screenshot_impl])
@@ -814,12 +823,14 @@ class KotoneBotUI:
 
             # Common settings for all backend types
             self.current_config.backend.screenshot_impl = data['screenshot_method']
+            self.current_config.backend.target_screenshot_interval = data['target_screenshot_interval']
             self.current_config.keep_screenshots = data['keep_screenshots']  # This is a UserConfig field
 
         return set_config, {
             'adb_ip': adb_ip,
             'adb_port': adb_port,
             'screenshot_method': screenshot_impl,  # screenshot_impl is the component
+            'target_screenshot_interval': target_screenshot_interval,
             'keep_screenshots': keep_screenshots,
             'check_emulator': check_emulator,
             'emulator_path': emulator_path,
@@ -852,6 +863,12 @@ class KotoneBotUI:
                     value=self.current_config.options.purchase.money_items,
                     label="金币商店购买物品",
                     info=PurchaseConfig.model_fields['money_items'].description
+                )
+
+                money_refresh = gr.Checkbox(
+                    label="每日一次免费刷新金币商店",
+                    value=self.current_config.options.purchase.money_refresh,
+                    info=PurchaseConfig.model_fields['money_refresh'].description
                 )
 
                 ap_enabled = gr.Checkbox(
@@ -891,6 +908,7 @@ class KotoneBotUI:
             config.purchase.enabled = data['purchase_enabled']
             config.purchase.money_enabled = data['money_enabled']
             config.purchase.money_items = [DailyMoneyShopItems(x) for x in data['money_items']]
+            config.purchase.money_refresh = data['money_refresh']
             config.purchase.ap_enabled = data['ap_enabled']
             ap_items_enum: List[Literal[0, 1, 2, 3]] = []
             ap_items_map: Dict[str, APShopItems] = {
@@ -909,7 +927,8 @@ class KotoneBotUI:
             'money_enabled': money_enabled,
             'ap_enabled': ap_enabled,
             'ap_items': ap_items,
-            'money_items': money_items
+            'money_items': money_items,
+            'money_refresh': money_refresh
         }
 
     def _create_work_settings(self) -> ConfigBuilderReturnValue:
@@ -1494,14 +1513,22 @@ class KotoneBotUI:
                 info=MiscConfig.model_fields['auto_install_update'].description,
                 interactive=True
             )
-        
+            expose_to_lan = gr.Checkbox(
+                label="允许局域网访问",
+                value=self.current_config.options.misc.expose_to_lan,
+                info=MiscConfig.model_fields['expose_to_lan'].description,
+                interactive=True
+            )
+
         def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
             config.misc.check_update = data['check_update']
             config.misc.auto_install_update = data['auto_install_update']
+            config.misc.expose_to_lan = data['expose_to_lan']
         
         return set_config, {
             'check_update': check_update,
-            'auto_install_update': auto_install_update
+            'auto_install_update': auto_install_update,
+            'expose_to_lan': expose_to_lan
         }
 
     def _create_settings_tab(self) -> None:
@@ -1888,7 +1915,9 @@ def main(kaa: Kaa | None = None) -> None:
     kaa = kaa or Kaa('./config.json')
     ui = KotoneBotUI(kaa)
     app = ui.create_ui()
-    app.launch(inbrowser=True, show_error=True)
+
+    server_name = "0.0.0.0" if ui.current_config.options.misc.expose_to_lan else "127.0.0.1"
+    app.launch(inbrowser=True, show_error=True, server_name=server_name)
 
 if __name__ == "__main__":
     main()
