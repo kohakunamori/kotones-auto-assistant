@@ -150,7 +150,7 @@ def resume_produce():
     max_retries = 5
     current_week = None
     while retry_count < max_retries:
-        week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks).squash().regex(r'\d+/\d+')
+        week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks, lang='en').squash().regex(r'\d+/\d+')
         if week_text:
             weeks = week_text[0].split('/')
             logger.info(f'Current week: {weeks[0]}/{weeks[1]}')
