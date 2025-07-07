@@ -151,20 +151,19 @@ def ap_items():
             logger.info(f'Purchasing #{index} AP item.')
             device.click(results[index])
             sleep(0.5)
-            with cropped(device, y1=0.3):
-                purchased = image.wait_for(R.Daily.TextShopItemSoldOut, timeout=1)
-                if purchased is not None:
-                    logger.info(f'AP item #{index} already purchased.')
-                    continue
-                comfirm = image.expect_wait(R.Common.ButtonConfirm, timeout=2)
-                # 如果数量不是最大,调到最大
-                while image.find(R.Daily.ButtonShopCountAdd, colored=True):
-                    logger.debug('Adjusting quantity(+1)...')
-                    device.click()
-                    sleep(0.3)
-                logger.debug(f'Confirming purchase...')
-                device.click(comfirm)
-                sleep(1.5)
+            purchased = image.wait_for(R.Daily.TextShopItemSoldOut, timeout=1)
+            if purchased is not None:
+                logger.info(f'AP item #{index} already purchased.')
+                continue
+            comfirm = image.expect_wait(R.Common.ButtonConfirm, timeout=2)
+            # 如果数量不是最大,调到最大
+            while image.find(R.Daily.ButtonShopCountAdd, colored=True):
+                logger.debug('Adjusting quantity(+1)...')
+                device.click()
+                sleep(0.3)
+            logger.debug(f'Confirming purchase...')
+            device.click(comfirm)
+            sleep(1.5)
         else:
             logger.warning(f'AP item #{index} not found')
     logger.info(f'Purchasing AP items completed. {len(item_indices)} items purchased.')
