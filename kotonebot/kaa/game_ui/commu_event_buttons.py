@@ -32,10 +32,13 @@ YELLOW_TARGET = (39, 81, 97)
 YELLOW_LOW = (30, 70, 90)
 YELLOW_HIGH = (45, 90, 100)
 
+ORANGE_RANGE = ((14, 178, 229), (16, 229, 255))
+
 DEFAULT_COLORS = [
     (web2cv(PINK_LOW), web2cv(PINK_HIGH)),
     (web2cv(YELLOW_LOW), web2cv(YELLOW_HIGH)),
     (web2cv(BLUE_LOW), web2cv(BLUE_HIGH)),
+    ORANGE_RANGE
 ]
 
 # 参考图片：
