@@ -1,5 +1,4 @@
 import logging
-from itertools import cycle
 from typing import Optional, Literal
 from typing_extensions import assert_never
 
@@ -192,7 +191,7 @@ def do_produce(
 
     前置条件：可导航至首页的任意页面\n
     结束状态：游戏首页\n
-    
+
     :param memory_set_index: 回忆编成编号。
     :param idol_skin_id: 要培育的偶像。如果为 None，则使用配置文件中的偶像。
     :param mode: 培育模式。
@@ -385,33 +384,38 @@ def produce():
     """
     培育任务
     """
-    if not produce_solution().data.enabled:
+    if not conf().produce.enabled:
         logger.info('Produce is disabled.')
         return
     import time
-    count = produce_solution().data.produce_count
-    idols = produce_solution().data.idols
-    memory_sets = produce_solution().data.memory_sets
+    count = conf().produce.produce_count
+    idol = produce_solution().data.idol
+    memory_set = produce_solution().data.memory_set
+    support_card_set = produce_solution().data.support_card_set
     mode = produce_solution().data.mode
     # 数据验证
     if count < 0:
         user.warning('配置有误', '培育次数不能小于 0。将跳过本次培育。')
         return
+    if idol is None:
+        user.warning('配置有误', '未设置要培育的偶像。将跳过本次培育。')
+        return
 
-    idol_iterator = cycle(idols)
-    memory_set_iterator = cycle(memory_sets)
     for i in range(count):
         start_time = time.time()
-        idol = next(idol_iterator)
         if produce_solution().data.auto_set_memory:
-            memory_set = None
+            memory_set_to_use = None
         else:
-            memory_set = next(memory_set_iterator, None)
+            memory_set_to_use = memory_set
+        if produce_solution().data.auto_set_support_card:
+            support_card_set_to_use = None
+        else:
+            support_card_set_to_use = support_card_set
         logger.info(
             f'Produce start with: '
-            f'idol: {idol}, mode: {mode}, memory_set: #{memory_set}'
+            f'idol: {idol}, mode: {mode}, memory_set: #{memory_set_to_use}, support_card_set: #{support_card_set_to_use}'
         )
-        if not do_produce(idol, mode, memory_set):
+        if not do_produce(idol, mode, memory_set_to_use):
             user.info('AP 不足', f'由于 AP 不足，跳过了 {count - i} 次培育。')
             logger.info('%d produce(s) skipped because of insufficient AP.', count - i)
             break
@@ -427,11 +431,11 @@ if __name__ == '__main__':
     from kotonebot.kaa.common import BaseConfig
     from kotonebot.kaa.main import Kaa
 
-    produce_solution().data.enabled = True
+    conf().produce.enabled = True
+    conf().produce.produce_count = 1
     produce_solution().data.mode = 'pro'
-    produce_solution().data.produce_count = 1
-    # produce_solution().data.idols = ['i_card-skin-hski-3-002']
-    produce_solution().data.memory_sets = [1]
+    # produce_solution().data.idol = 'i_card-skin-hski-3-002'
+    produce_solution().data.memory_set = 1
     produce_solution().data.auto_set_memory = False
     # do_produce(PIdol.月村手毬_初声, 'pro', 5)
     produce()

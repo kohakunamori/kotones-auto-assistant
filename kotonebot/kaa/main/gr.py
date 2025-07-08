@@ -27,6 +27,7 @@ from kotonebot.kaa.config import (
     MissionRewardConfig, DailyMoneyShopItems, ProduceAction,
     RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig, MiscConfig,
 )
+from kotonebot.kaa.config.produce import ProduceSolution, ProduceSolutionManager, ProduceData
 
 logger = logging.getLogger(__name__)
 GradioInput = gr.Textbox | gr.Number | gr.Checkbox | gr.Dropdown | gr.Radio | gr.Slider | gr.Tabs | gr.Tab
@@ -52,14 +53,7 @@ ConfigKey = Literal[
     'select_which_contestant',
     
     # produce
-    'produce_enabled', 'produce_mode',
-    'produce_count', 'produce_idols',
-    'memory_sets', 'auto_set_memory',
-    'auto_set_support', 'use_pt_boost',
-    'use_note_boost', 'follow_producer',
-    'self_study_lesson', 'prefer_lesson_ap',
-    'actions_order', 'recommend_card_detection_mode',
-    'use_ap_drink', 'skip_commu',
+    'produce_enabled', 'selected_solution_id', 'produce_count',
     'mission_reward_enabled',
     
     # club reward
@@ -453,9 +447,9 @@ class KotoneBotUI:
             gr.Warning(f"截图方法 '{screenshot_method}' 不适用于当前选择的模拟器类型，配置未保存。")
             return ""
 
-        # 验证规则2：若启用培育，那么培育偶像不能为空
-        if options.produce.enabled and not options.produce.idols:
-            gr.Warning("启用培育时，培育偶像不能为空，配置未保存。")
+        # 验证规则2：若启用培育，那么必须选择培育方案
+        if options.produce.enabled and not options.produce.selected_solution_id:
+            gr.Warning("启用培育时，必须选择培育方案，配置未保存。")
             return ""
 
         # 验证规则3：若启用AP/金币购买，对应的商品不能为空
@@ -1230,13 +1224,21 @@ class KotoneBotUI:
                 value=self.current_config.options.produce.enabled,
                 info=ProduceConfig.model_fields['enabled'].description
             )
+
             with gr.Group(visible=self.current_config.options.produce.enabled) as produce_group:
-                produce_mode = gr.Dropdown(
-                    choices=["regular", "pro", "master"],
-                    value=self.current_config.options.produce.mode,
-                    label="培育模式",
-                    info=ProduceConfig.model_fields['mode'].description
+                # 培育方案管理区域
+                solution_manager = ProduceSolutionManager()
+                solutions = solution_manager.list()
+                solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
+
+                selected_solution_id = self.current_config.options.produce.selected_solution_id
+                solution_dropdown = gr.Dropdown(
+                    choices=solution_choices,
+                    value=selected_solution_id,
+                    label="当前使用的培育方案",
+                    interactive=True
                 )
+
                 produce_count = gr.Number(
                     minimum=1,
                     value=self.current_config.options.produce.produce_count,
@@ -1244,106 +1246,523 @@ class KotoneBotUI:
                     interactive=True,
                     info=ProduceConfig.model_fields['produce_count'].description
                 )
-                # 添加偶像选择
-                idol_choices = []
-                for idol in IdolCard.all():
-                    if idol.is_another:
-                        idol_choices.append((f'{idol.name}　「{idol.another_name}」', idol.skin_id))
-                    else:
-                        idol_choices.append((f'{idol.name}', idol.skin_id))
-                selected_idols = self.current_config.options.produce.idols
-                produce_idols = gr.Dropdown(
-                    choices=idol_choices,
-                    value=selected_idols,
-                    label="选择要培育的偶像",
-                    multiselect=True,
-                    interactive=True,
-                    info=ProduceConfig.model_fields['idols'].description
-                )
-                has_kotone = any("藤田ことね" in idol for idol in selected_idols)
-                is_strict_mode = self.current_config.options.produce.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
-                kotone_warning = gr.Markdown(
-                    visible=has_kotone and not is_strict_mode,
-                    value="使用「藤田ことね」进行培育时，确保将「推荐卡检测模式」设置为「严格模式」"
-                )
-                auto_set_memory = gr.Checkbox(
-                    label="自动编成回忆",
-                    value=self.current_config.options.produce.auto_set_memory,
-                    info=ProduceConfig.model_fields['auto_set_memory'].description
-                )
-                with gr.Group(visible=not self.current_config.options.produce.auto_set_memory) as memory_sets_group:
-                    memory_sets = gr.Dropdown(
-                        choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
-                        value=[str(i) for i in self.current_config.options.produce.memory_sets],
-                        label="回忆编成编号",
-                        multiselect=True,
-                        interactive=True,
-                        info=ProduceConfig.model_fields['memory_sets'].description
+
+            # 绑定启用状态变化事件
+            def on_produce_enabled_change(enabled):
+                return gr.Group(visible=enabled)
+
+            produce_enabled.change(
+                fn=on_produce_enabled_change,
+                inputs=[produce_enabled],
+                outputs=[produce_group]
+            )
+
+        # 存储设置Tab中的下拉框引用，供培育Tab使用
+        self._settings_solution_dropdown = solution_dropdown
+
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.produce.enabled = data['produce_enabled']
+            config.produce.selected_solution_id = data.get('selected_solution_id')
+            config.produce.produce_count = data.get('produce_count', 1)
+
+        return set_config, {
+            'produce_enabled': produce_enabled,
+            'selected_solution_id': solution_dropdown,
+            'produce_count': produce_count
+        }
+
+
+    def _create_produce_tab(self) -> None:
+        """创建培育Tab"""
+        with gr.Tab("培育"):
+            gr.Markdown("## 培育管理")
+
+            # 培育方案管理区域
+            solution_manager = ProduceSolutionManager()
+            solutions = solution_manager.list()
+            solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
+
+            selected_solution_id = self.current_config.options.produce.selected_solution_id
+            solution_dropdown = gr.Dropdown(
+                choices=solution_choices,
+                value=selected_solution_id,
+                label="选择培育方案",
+                interactive=True
+            )
+
+            # 获取设置Tab中的下拉框引用
+            settings_dropdown = getattr(self, '_settings_solution_dropdown', None)
+
+            with gr.Row():
+                new_solution_btn = gr.Button("新建培育", scale=1)
+                delete_solution_btn = gr.Button("删除当前培育", scale=1)
+
+            # 培育方案详细设置区域
+            with gr.Group() as solution_settings_group:
+                # 获取当前选中的方案数据
+                current_solution = None
+                if selected_solution_id:
+                    try:
+                        current_solution = solution_manager.read(selected_solution_id)
+                    except FileNotFoundError:
+                        pass
+
+                if current_solution is None:
+                    # 如果没有选中方案，隐藏所有设置组件
+                    solution_name = gr.Textbox(label="方案名称", value="", visible=False)
+                    solution_description = gr.Textbox(label="方案描述", value="", visible=False)
+                    # 其他设置组件都设为不可见
+                    produce_mode = gr.Dropdown(
+                        choices=["regular", "pro", "master"],
+                        label="培育模式",
+                        info="进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h（具体视设备性能而定）。",
+                        visible=False
+                    )
+                    produce_count = gr.Number(
+                        minimum=1,
+                        label="培育次数",
+                        info="培育的次数。",
+                        visible=False
                     )
 
-                # 添加偶像选择变化时的回调
-                def update_kotone_warning(selected_idols, recommend_card_detection_mode):
-                    has_kotone = any("藤田ことね" in idol for idol in selected_idols)
-                    is_strict_mode = recommend_card_detection_mode == RecommendCardDetectionMode.STRICT.value
-                    return gr.Markdown(visible=has_kotone and not is_strict_mode)
+                    # 添加偶像选择
+                    idol_choices = []
+                    for idol in IdolCard.all():
+                        if idol.is_another:
+                            idol_choices.append((f'{idol.name}　「{idol.another_name}」', idol.skin_id))
+                        else:
+                            idol_choices.append((f'{idol.name}', idol.skin_id))
 
-                auto_set_support = gr.Checkbox(
-                    label="自动编成支援卡",
-                    value=self.current_config.options.produce.auto_set_support_card,
-                    info=ProduceConfig.model_fields['auto_set_support_card'].description
-                )
-                use_pt_boost = gr.Checkbox(
-                    label="使用支援强化 Pt 提升",
-                    value=self.current_config.options.produce.use_pt_boost,
-                    info=ProduceConfig.model_fields['use_pt_boost'].description
-                )
-                use_note_boost = gr.Checkbox(
-                    label="使用笔记数提升",
-                    value=self.current_config.options.produce.use_note_boost,
-                    info=ProduceConfig.model_fields['use_note_boost'].description
-                )
-                follow_producer = gr.Checkbox(
-                    label="关注租借了支援卡的制作人",
-                    value=self.current_config.options.produce.follow_producer,
-                    info=ProduceConfig.model_fields['follow_producer'].description
-                )
-                self_study_lesson = gr.Dropdown(
-                    choices=['dance', 'visual', 'vocal'],
-                    value=self.current_config.options.produce.self_study_lesson,
-                    label='文化课自习时选项',
-                    info='选择自习课类型'
-                )
-                prefer_lesson_ap = gr.Checkbox(
-                    label="SP 课程优先",
-                    value=self.current_config.options.produce.prefer_lesson_ap,
-                    info=ProduceConfig.model_fields['prefer_lesson_ap'].description
-                )
-                actions_order = gr.Dropdown(
-                    choices=[(action.display_name, action.value) for action in ProduceAction],
-                    value=[action.value for action in self.current_config.options.produce.actions_order],
-                    label="行动优先级",
-                    info="设置每周行动的优先级顺序",
-                    multiselect=True
-                )
-                recommend_card_detection_mode = gr.Dropdown(
-                    choices=[
-                        (RecommendCardDetectionMode.NORMAL.display_name, RecommendCardDetectionMode.NORMAL.value),
-                        (RecommendCardDetectionMode.STRICT.display_name, RecommendCardDetectionMode.STRICT.value)
-                    ],
-                    value=self.current_config.options.produce.recommend_card_detection_mode.value,
-                    label="推荐卡检测模式",
-                    info=ProduceConfig.model_fields['recommend_card_detection_mode'].description
-                )
-                use_ap_drink = gr.Checkbox(
-                    label="AP 不足时自动使用 AP 饮料",
-                    value=self.current_config.options.produce.use_ap_drink,
-                    info=ProduceConfig.model_fields['use_ap_drink'].description
-                )
-                skip_commu = gr.Checkbox(
-                    label="检测并跳过交流",
-                    value=self.current_config.options.produce.skip_commu,
-                    info=ProduceConfig.model_fields['skip_commu'].description
-                )
+                    produce_idols = gr.Dropdown(
+                        choices=idol_choices,
+                        label="选择要培育的偶像",
+                        multiselect=False,
+                        info="要培育偶像的 IdolCardSkin.id。",
+                        visible=False
+                    )
+                    kotone_warning = gr.Markdown(visible=False)
+                    auto_set_memory = gr.Checkbox(
+                        label="自动编成回忆",
+                        info="是否自动编成回忆。此选项优先级高于回忆编成编号。",
+                        visible=False
+                    )
+                    with gr.Group(visible=False) as memory_sets_group:
+                        memory_sets = gr.Dropdown(
+                            choices=[str(i) for i in range(1, 11)],
+                            label="回忆编成编号",
+                            multiselect=False,
+                            info="要使用的回忆编成编号，从 1 开始。",
+                            visible=False
+                        )
+                    auto_set_support = gr.Checkbox(
+                        label="自动编成支援卡",
+                        info="是否自动编成支援卡。此选项优先级高于支援卡编成编号。",
+                        visible=False
+                    )
+                    with gr.Group(visible=False) as support_card_sets_group:
+                        support_card_sets = gr.Dropdown(
+                            choices=[str(i) for i in range(1, 11)],
+                            label="支援卡编成编号",
+                            multiselect=False,
+                            info="要使用的支援卡编成编号，从 1 开始。",
+                            visible=False
+                        )
+                    use_pt_boost = gr.Checkbox(
+                        label="使用支援强化 Pt 提升",
+                        info="是否使用支援强化 Pt 提升。",
+                        visible=False
+                    )
+                    use_note_boost = gr.Checkbox(
+                        label="使用笔记数提升",
+                        info="是否使用笔记数提升。",
+                        visible=False
+                    )
+                    follow_producer = gr.Checkbox(
+                        label="关注租借了支援卡的制作人",
+                        info="是否关注租借了支援卡的制作人。",
+                        visible=False
+                    )
+                    self_study_lesson = gr.Dropdown(
+                        choices=['dance', 'visual', 'vocal'],
+                        label='文化课自习时选项',
+                        info='自习课类型。',
+                        visible=False
+                    )
+                    prefer_lesson_ap = gr.Checkbox(
+                        label="SP 课程优先",
+                        info="优先 SP 课程。启用后，若出现 SP 课程，则会优先执行 SP 课程，而不是推荐课程。若出现多个 SP 课程，随机选择一个。",
+                        visible=False
+                    )
+                    actions_order = gr.Dropdown(
+                        choices=[(action.display_name, action.value) for action in ProduceAction],
+                        label="行动优先级",
+                        info="每一周的行动将会按这里设置的优先级执行。",
+                        multiselect=True,
+                        visible=False
+                    )
+                    recommend_card_detection_mode = gr.Dropdown(
+                        choices=[
+                            (RecommendCardDetectionMode.NORMAL.display_name, RecommendCardDetectionMode.NORMAL.value),
+                            (RecommendCardDetectionMode.STRICT.display_name, RecommendCardDetectionMode.STRICT.value)
+                        ],
+                        label="推荐卡检测模式",
+                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。",
+                        visible=False
+                    )
+                    use_ap_drink = gr.Checkbox(
+                        label="AP 不足时自动使用 AP 饮料",
+                        info="AP 不足时自动使用 AP 饮料",
+                        visible=False
+                    )
+                    skip_commu = gr.Checkbox(
+                        label="检测并跳过交流",
+                        info="检测并跳过交流",
+                        visible=False
+                    )
+                    save_solution_btn = gr.Button("保存培育方案", variant="primary", visible=False)
+                else:
+                    # 显示选中方案的设置
+                    solution_name = gr.Textbox(
+                        label="方案名称",
+                        value=current_solution.name,
+                        interactive=True
+                    )
+                    solution_description = gr.Textbox(
+                        label="方案描述",
+                        value=current_solution.description or "",
+                        interactive=True
+                    )
+
+                    produce_mode = gr.Dropdown(
+                        choices=["regular", "pro", "master"],
+                        value=current_solution.data.mode,
+                        label="培育模式",
+                        info="进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h（具体视设备性能而定）。"
+                    )
+                    produce_count = gr.Number(
+                        minimum=1,
+                        value=self.current_config.options.produce.produce_count,
+                        label="培育次数",
+                        interactive=True,
+                        info="培育的次数。"
+                    )
+
+                    # 添加偶像选择
+                    idol_choices = []
+                    for idol in IdolCard.all():
+                        if idol.is_another:
+                            idol_choices.append((f'{idol.name}　「{idol.another_name}」', idol.skin_id))
+                        else:
+                            idol_choices.append((f'{idol.name}', idol.skin_id))
+
+                    produce_idols = gr.Dropdown(
+                        choices=idol_choices,
+                        value=current_solution.data.idol,
+                        label="选择要培育的偶像",
+                        multiselect=False,
+                        interactive=True,
+                        info="要培育偶像的 IdolCardSkin.id。"
+                    )
+
+                    has_kotone = bool(current_solution.data.idol and "藤田ことね" in current_solution.data.idol)
+                    is_strict_mode = current_solution.data.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
+                    kotone_warning = gr.Markdown(
+                        visible=has_kotone and not is_strict_mode,
+                        value="使用「藤田ことね」进行培育时，确保将「推荐卡检测模式」设置为「严格模式」"
+                    )
+
+                    auto_set_memory = gr.Checkbox(
+                        label="自动编成回忆",
+                        value=current_solution.data.auto_set_memory,
+                        info="是否自动编成回忆。此选项优先级高于回忆编成编号。"
+                    )
+
+                    with gr.Group(visible=not current_solution.data.auto_set_memory) as memory_sets_group:
+                        memory_sets = gr.Dropdown(
+                            choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
+                            value=str(current_solution.data.memory_set) if current_solution.data.memory_set else None,
+                            label="回忆编成编号",
+                            multiselect=False,
+                            interactive=True,
+                            info="要使用的回忆编成编号，从 1 开始。"
+                        )
+
+                    auto_set_support = gr.Checkbox(
+                        label="自动编成支援卡",
+                        value=current_solution.data.auto_set_support_card,
+                        info="是否自动编成支援卡。此选项优先级高于支援卡编成编号。"
+                    )
+
+                    with gr.Group(visible=not current_solution.data.auto_set_support_card) as support_card_sets_group:
+                        support_card_sets = gr.Dropdown(
+                            choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
+                            value=str(current_solution.data.support_card_set) if current_solution.data.support_card_set else None,
+                            label="支援卡编成编号",
+                            multiselect=False,
+                            interactive=True,
+                            info="要使用的支援卡编成编号，从 1 开始。"
+                        )
+                    use_pt_boost = gr.Checkbox(
+                        label="使用支援强化 Pt 提升",
+                        value=current_solution.data.use_pt_boost,
+                        info="是否使用支援强化 Pt 提升。"
+                    )
+                    use_note_boost = gr.Checkbox(
+                        label="使用笔记数提升",
+                        value=current_solution.data.use_note_boost,
+                        info="是否使用笔记数提升。"
+                    )
+                    follow_producer = gr.Checkbox(
+                        label="关注租借了支援卡的制作人",
+                        value=current_solution.data.follow_producer,
+                        info="是否关注租借了支援卡的制作人。"
+                    )
+                    self_study_lesson = gr.Dropdown(
+                        choices=['dance', 'visual', 'vocal'],
+                        value=current_solution.data.self_study_lesson,
+                        label='文化课自习时选项',
+                        info='自习课类型。'
+                    )
+                    prefer_lesson_ap = gr.Checkbox(
+                        label="SP 课程优先",
+                        value=current_solution.data.prefer_lesson_ap,
+                        info="优先 SP 课程。启用后，若出现 SP 课程，则会优先执行 SP 课程，而不是推荐课程。若出现多个 SP 课程，随机选择一个。"
+                    )
+                    actions_order = gr.Dropdown(
+                        choices=[(action.display_name, action.value) for action in ProduceAction],
+                        value=[action.value for action in current_solution.data.actions_order],
+                        label="行动优先级",
+                        info="每一周的行动将会按这里设置的优先级执行。",
+                        multiselect=True
+                    )
+                    recommend_card_detection_mode = gr.Dropdown(
+                        choices=[
+                            (RecommendCardDetectionMode.NORMAL.display_name, RecommendCardDetectionMode.NORMAL.value),
+                            (RecommendCardDetectionMode.STRICT.display_name, RecommendCardDetectionMode.STRICT.value)
+                        ],
+                        value=current_solution.data.recommend_card_detection_mode.value,
+                        label="推荐卡检测模式",
+                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。"
+                    )
+                    use_ap_drink = gr.Checkbox(
+                        label="AP 不足时自动使用 AP 饮料",
+                        value=current_solution.data.use_ap_drink,
+                        info="AP 不足时自动使用 AP 饮料"
+                    )
+                    skip_commu = gr.Checkbox(
+                        label="检测并跳过交流",
+                        value=current_solution.data.skip_commu,
+                        info="检测并跳过交流"
+                    )
+
+                    # 添加保存按钮
+                    save_solution_btn = gr.Button("保存培育方案", variant="primary")
+
+            # 添加事件处理
+            def update_kotone_warning(selected_idol, recommend_card_detection_mode):
+                # Handle case where selected_idol is None (no selection)
+                # selected_idol is a single string (skin_id), not a list
+                if selected_idol is None:
+                    has_kotone = False
+                else:
+                    has_kotone = "藤田ことね" in selected_idol
+                is_strict_mode = recommend_card_detection_mode == RecommendCardDetectionMode.STRICT.value
+                return gr.Markdown(visible=has_kotone and not is_strict_mode)
+
+            def on_solution_change(solution_id):
+                """当选择的培育方案改变时，更新所有设置组件"""
+                if not solution_id:
+                    return [
+                        gr.Textbox(value="", visible=False),  # solution_name
+                        gr.Textbox(value="", visible=False),  # solution_description
+                        gr.Dropdown(visible=False),  # produce_mode
+                        gr.Number(visible=False),  # produce_count
+                        gr.Dropdown(visible=False),  # produce_idols
+                        gr.Markdown(visible=False),  # kotone_warning
+                        gr.Checkbox(visible=False),  # auto_set_memory
+                        gr.Group(visible=False),  # memory_sets_group
+                        gr.Dropdown(visible=False),  # memory_sets
+                        gr.Checkbox(visible=False),  # auto_set_support
+                        gr.Checkbox(visible=False),  # use_pt_boost
+                        gr.Checkbox(visible=False),  # use_note_boost
+                        gr.Checkbox(visible=False),  # follow_producer
+                        gr.Dropdown(visible=False),  # self_study_lesson
+                        gr.Checkbox(visible=False),  # prefer_lesson_ap
+                        gr.Dropdown(visible=False),  # actions_order
+                        gr.Dropdown(visible=False),  # recommend_card_detection_mode
+                        gr.Checkbox(visible=False),  # use_ap_drink
+                        gr.Checkbox(visible=False),  # skip_commu
+                        gr.Button(visible=False),  # save_solution_btn
+                    ]
+
+                try:
+                    solution = solution_manager.read(solution_id)
+                    has_kotone = bool(solution.data.idol and "藤田ことね" in solution.data.idol)
+                    is_strict_mode = solution.data.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
+
+                    return [
+                        gr.Textbox(value=solution.name, visible=True),
+                        gr.Textbox(value=solution.description or "", visible=True),
+                        gr.Dropdown(value=solution.data.mode, visible=True),
+                        gr.Number(value=self.current_config.options.produce.produce_count, visible=True),
+                        gr.Dropdown(value=solution.data.idol, visible=True),
+                        gr.Markdown(visible=has_kotone and not is_strict_mode),
+                        gr.Checkbox(value=solution.data.auto_set_memory, visible=True),
+                        gr.Group(visible=not solution.data.auto_set_memory),
+                        gr.Dropdown(value=str(solution.data.memory_set) if solution.data.memory_set else None, visible=True),
+                        gr.Checkbox(value=solution.data.auto_set_support_card, visible=True),
+                        gr.Group(visible=not solution.data.auto_set_support_card),
+                        gr.Dropdown(value=str(solution.data.support_card_set) if solution.data.support_card_set else None, visible=True),
+                        gr.Checkbox(value=solution.data.use_pt_boost, visible=True),
+                        gr.Checkbox(value=solution.data.use_note_boost, visible=True),
+                        gr.Checkbox(value=solution.data.follow_producer, visible=True),
+                        gr.Dropdown(value=solution.data.self_study_lesson, visible=True),
+                        gr.Checkbox(value=solution.data.prefer_lesson_ap, visible=True),
+                        gr.Dropdown(value=[action.value for action in solution.data.actions_order], visible=True),
+                        gr.Dropdown(value=solution.data.recommend_card_detection_mode.value, visible=True),
+                        gr.Checkbox(value=solution.data.use_ap_drink, visible=True),
+                        gr.Checkbox(value=solution.data.skip_commu, visible=True),
+                        gr.Button(visible=True),  # save_solution_btn
+                    ]
+                except FileNotFoundError:
+                    gr.Warning(f"培育方案 {solution_id} 不存在")
+                    return on_solution_change(None)
+                except Exception as e:
+                    gr.Error(f"加载培育方案失败：{str(e)}")
+                    return on_solution_change(None)
+
+            def on_new_solution():
+                """创建新的培育方案"""
+                try:
+                    new_solution = solution_manager.new("新培育方案")
+                    solution_manager.save(new_solution.id, new_solution)
+
+                    # 重新列出所有方案
+                    solutions = solution_manager.list()
+                    solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
+
+                    gr.Success("新培育方案创建成功")
+                    # 根据是否有设置Tab的下拉框来决定返回值
+                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=new_solution.id)
+                    if settings_dropdown is not None:
+                        return [updated_dropdown, updated_dropdown]
+                    else:
+                        return updated_dropdown
+                except Exception as e:
+                    gr.Error(f"创建培育方案失败：{str(e)}")
+                    if settings_dropdown is not None:
+                        return [gr.Dropdown(), gr.Dropdown()]
+                    else:
+                        return gr.Dropdown()
+
+            def on_delete_solution(solution_id):
+                """删除当前培育方案"""
+                if not solution_id:
+                    gr.Warning("请先选择要删除的培育方案")
+                    if settings_dropdown is not None:
+                        return [gr.Dropdown(), gr.Dropdown()]
+                    else:
+                        return gr.Dropdown()
+
+                try:
+                    solution_manager.delete(solution_id)
+
+                    # 重新列出所有方案
+                    solutions = solution_manager.list()
+                    solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
+
+                    gr.Success("培育方案删除成功")
+                    # 根据是否有设置Tab的下拉框来决定返回值
+                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=None)
+                    if settings_dropdown is not None:
+                        return [updated_dropdown, updated_dropdown]
+                    else:
+                        return updated_dropdown
+                except Exception as e:
+                    gr.Error(f"删除培育方案失败：{str(e)}")
+                    if settings_dropdown is not None:
+                        return [gr.Dropdown(), gr.Dropdown()]
+                    else:
+                        return gr.Dropdown()
+
+            def on_save_solution(solution_id, name, description, mode, count, idols, auto_memory, memory_sets,
+                               auto_support, support_card_sets, pt_boost, note_boost, follow_producer, study_lesson, prefer_ap,
+                               actions, detection_mode, ap_drink, skip_commu_val):
+                """保存培育方案"""
+                if not solution_id:
+                    gr.Warning("请先选择要保存的培育方案")
+                    if settings_dropdown is not None:
+                        return [gr.Dropdown(), gr.Dropdown()]
+                    else:
+                        return gr.Dropdown()
+
+                try:
+                    # 构建培育数据
+                    produce_data = ProduceData(
+                        mode=mode,
+                        idol=idols if idols else None,
+                        memory_set=int(memory_sets) if memory_sets else None,
+                        support_card_set=int(support_card_sets) if support_card_sets else None,
+                        auto_set_memory=auto_memory,
+                        auto_set_support_card=auto_support,
+                        use_pt_boost=pt_boost,
+                        use_note_boost=note_boost,
+                        follow_producer=follow_producer,
+                        self_study_lesson=study_lesson,
+                        prefer_lesson_ap=prefer_ap,
+                        actions_order=[ProduceAction(action) for action in actions] if actions else [],
+                        recommend_card_detection_mode=RecommendCardDetectionMode(detection_mode),
+                        use_ap_drink=ap_drink,
+                        skip_commu=skip_commu_val
+                    )
+
+                    # 构建方案对象
+                    solution = ProduceSolution(
+                        id=solution_id,
+                        name=name or "未命名方案",
+                        description=description,
+                        data=produce_data
+                    )
+
+                    # 保存方案
+                    solution_manager.save(solution_id, solution)
+
+                    # 同时更新配置中的 produce_count
+                    self.current_config.options.produce.produce_count = int(count)
+
+                    # 重新列出所有方案（确保没有重复项）
+                    solutions = solution_manager.list()
+                    solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
+
+                    gr.Success("培育方案保存成功")
+                    # 根据是否有设置Tab的下拉框来决定返回值
+                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=solution_id)
+                    if settings_dropdown is not None:
+                        return [updated_dropdown, updated_dropdown]
+                    else:
+                        return updated_dropdown
+                except Exception as e:
+                    gr.Error(f"保存培育方案失败：{str(e)}")
+                    if settings_dropdown is not None:
+                        return [gr.Dropdown(), gr.Dropdown()]
+                    else:
+                        return gr.Dropdown()
+
+            # 绑定事件
+            # 为所有控件绑定change事件，无论是否有选中方案
+            auto_set_memory.change(
+                fn=lambda x: gr.Group(visible=not x),
+                inputs=[auto_set_memory],
+                outputs=[memory_sets_group]
+            )
+
+            auto_set_support.change(
+                fn=lambda x: gr.Group(visible=not x),
+                inputs=[auto_set_support],
+                outputs=[support_card_sets_group]
+            )
+
+            if current_solution is not None:
                 recommend_card_detection_mode.change(
                     fn=update_kotone_warning,
                     inputs=[produce_idols, recommend_card_detection_mode],
@@ -1355,54 +1774,56 @@ class KotoneBotUI:
                     outputs=kotone_warning
                 )
 
-            produce_enabled.change(
-                fn=lambda x: gr.Group(visible=x),
-                inputs=[produce_enabled],
-                outputs=[produce_group]
+            # 绑定方案管理事件
+            solution_dropdown.change(
+                fn=on_solution_change,
+                inputs=[solution_dropdown],
+                outputs=[
+                    solution_name, solution_description,
+                    produce_mode, produce_count, produce_idols, kotone_warning,
+                    auto_set_memory, memory_sets_group, memory_sets,
+                    auto_set_support, support_card_sets_group, support_card_sets,
+                    use_pt_boost, use_note_boost, follow_producer,
+                    self_study_lesson, prefer_lesson_ap, actions_order,
+                    recommend_card_detection_mode, use_ap_drink, skip_commu,
+                    save_solution_btn
+                ]
             )
 
-            auto_set_memory.change(
-                fn=lambda x: gr.Group(visible=not x),
-                inputs=[auto_set_memory],
-                outputs=[memory_sets_group]
+            # 准备输出列表，如果设置Tab的下拉框存在，则同时更新
+            outputs_for_new = [solution_dropdown]
+            outputs_for_delete = [solution_dropdown]
+            outputs_for_save = [solution_dropdown]
+
+            if settings_dropdown is not None:
+                outputs_for_new.append(settings_dropdown)
+                outputs_for_delete.append(settings_dropdown)
+                outputs_for_save.append(settings_dropdown)
+
+            new_solution_btn.click(
+                fn=on_new_solution,
+                outputs=outputs_for_new
             )
-        
-        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
-            config.produce.enabled = data['produce_enabled']
-            config.produce.mode = data['produce_mode']
-            config.produce.produce_count = data['produce_count']
-            config.produce.idols = data['produce_idols']
-            config.produce.memory_sets = [int(i) for i in data['memory_sets']]
-            config.produce.auto_set_memory = data['auto_set_memory']
-            config.produce.auto_set_support_card = data['auto_set_support']
-            config.produce.use_pt_boost = data['use_pt_boost']
-            config.produce.use_note_boost = data['use_note_boost']
-            config.produce.follow_producer = data['follow_producer']
-            config.produce.self_study_lesson = data['self_study_lesson']
-            config.produce.prefer_lesson_ap = data['prefer_lesson_ap']
-            config.produce.actions_order = [ProduceAction(action) for action in data['actions_order']]
-            config.produce.recommend_card_detection_mode = RecommendCardDetectionMode(data['recommend_card_detection_mode'])
-            config.produce.use_ap_drink = data['use_ap_drink']
-            config.produce.skip_commu = data['skip_commu']
-        
-        return set_config, {
-            'produce_enabled': produce_enabled,
-            'produce_mode': produce_mode,
-            'produce_count': produce_count,
-            'produce_idols': produce_idols,
-            'memory_sets': memory_sets,
-            'auto_set_memory': auto_set_memory,
-            'auto_set_support': auto_set_support,
-            'use_pt_boost': use_pt_boost,
-            'use_note_boost': use_note_boost,
-            'follow_producer': follow_producer,
-            'self_study_lesson': self_study_lesson,
-            'prefer_lesson_ap': prefer_lesson_ap,
-            'actions_order': actions_order,
-            'recommend_card_detection_mode': recommend_card_detection_mode,
-            'use_ap_drink': use_ap_drink,
-            'skip_commu': skip_commu
-        }
+
+            delete_solution_btn.click(
+                fn=on_delete_solution,
+                inputs=[solution_dropdown],
+                outputs=outputs_for_delete
+            )
+
+            # 绑定保存按钮事件
+            save_solution_btn.click(
+                fn=on_save_solution,
+                inputs=[
+                    solution_dropdown, solution_name, solution_description,
+                    produce_mode, produce_count, produce_idols,
+                    auto_set_memory, memory_sets, auto_set_support, support_card_sets,
+                    use_pt_boost, use_note_boost, follow_producer,
+                    self_study_lesson, prefer_lesson_ap, actions_order,
+                    recommend_card_detection_mode, use_ap_drink, skip_commu
+                ],
+                outputs=outputs_for_save
+            )
 
     def _create_club_reward_settings(self) -> ConfigBuilderReturnValue:
         with gr.Column():
@@ -2119,6 +2540,7 @@ class KotoneBotUI:
                     self._create_status_tab()
                     self._create_task_tab()
                     self._create_settings_tab()
+                    self._create_produce_tab()
                     self._create_log_tab()
                     self._create_whats_new_tab()
                     self._create_screen_tab()

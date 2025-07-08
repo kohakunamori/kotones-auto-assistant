@@ -71,6 +71,8 @@ class ProduceConfig(ConfigBaseModel):
     """是否启用培育"""
     selected_solution_id: str | None = None
     """选中的培育方案ID"""
+    produce_count: int = 1
+    """培育的次数。"""
 
 class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
