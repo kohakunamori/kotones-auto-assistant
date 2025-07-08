@@ -2,13 +2,12 @@ from typing import TypeVar, Literal, Sequence
 from pydantic import BaseModel, ConfigDict
 
 from kotonebot import config
+from kotonebot.kaa.config.produce import ProduceSolution, ProduceSolutionManager
 from .const import (
     ConfigEnum,
     Priority,
     APShopItems,
     DailyMoneyShopItems,
-    ProduceAction,
-    RecommendCardDetectionMode,
 )
 
 T = TypeVar('T')
@@ -70,68 +69,8 @@ class ContestConfig(ConfigBaseModel):
 class ProduceConfig(ConfigBaseModel):
     enabled: bool = False
     """是否启用培育"""
-    mode: Literal['regular', 'pro', 'master'] = 'regular'
-    """
-    培育模式。
-    进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h（具体视设备性能而定）。
-    """
-    produce_count: int = 1
-    """培育的次数。"""
-    idols: list[str] = []
-    """
-    要培育偶像的 IdolCardSkin.id。将会按顺序循环选择培育。
-    """
-    memory_sets: list[int] = []
-    """要使用的回忆编成编号，从 1 开始。将会按顺序循环选择使用。"""
-    support_card_sets: list[int] = []
-    """要使用的支援卡编成编号，从 1 开始。将会按顺序循环选择使用。"""
-    auto_set_memory: bool = False
-    """是否自动编成回忆。此选项优先级高于回忆编成编号。"""
-    auto_set_support_card: bool = False
-    """是否自动编成支援卡。此选项优先级高于支援卡编成编号。"""
-    use_pt_boost: bool = False
-    """是否使用支援强化 Pt 提升。"""
-    use_note_boost: bool = False
-    """是否使用笔记数提升。"""
-    follow_producer: bool = False
-    """是否关注租借了支援卡的制作人。"""
-    self_study_lesson: Literal['dance', 'visual', 'vocal'] = 'dance'
-    """自习课类型。"""
-    prefer_lesson_ap: bool = False
-    """
-    优先 SP 课程。
-
-    启用后，若出现 SP 课程，则会优先执行 SP 课程，而不是推荐课程。
-    若出现多个 SP 课程，随机选择一个。
-    """
-    actions_order: list[ProduceAction] = [
-        ProduceAction.RECOMMENDED,
-        ProduceAction.VISUAL,
-        ProduceAction.VOCAL,
-        ProduceAction.DANCE,
-        ProduceAction.ALLOWANCE,
-        ProduceAction.OUTING,
-        ProduceAction.STUDY,
-        ProduceAction.CONSULT,
-        ProduceAction.REST,
-    ]
-    """
-    行动优先级
-
-    每一周的行动将会按这里设置的优先级执行。
-    """
-    recommend_card_detection_mode: RecommendCardDetectionMode = RecommendCardDetectionMode.NORMAL
-    """
-    推荐卡检测模式
-
-    严格模式下，识别速度会降低，但识别准确率会提高。
-    """
-    use_ap_drink: bool = False
-    """
-    AP 不足时自动使用 AP 饮料
-    """
-    skip_commu: bool = True
-    """检测并跳过交流"""
+    selected_solution_id: str | None = None
+    """选中的培育方案ID"""
 
 class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False
@@ -285,3 +224,11 @@ def conf() -> BaseConfig:
     """获取当前配置数据"""
     c = config.to(BaseConfig).current
     return c.options
+
+def produce_solution() -> ProduceSolution:
+    """获取当前培育方案"""
+    id = conf().produce.selected_solution_id
+    if id is None:
+        raise ValueError("No produce solution selected")
+    # TODO: 这里需要缓存，不能每次都从磁盘读取
+    return ProduceSolutionManager().read(id)

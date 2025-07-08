@@ -3,6 +3,7 @@ from itertools import cycle
 from typing import Optional, Literal
 from typing_extensions import assert_never
 
+from kotonebot.kaa.config.schema import produce_solution
 from kotonebot.ui import user
 from kotonebot.kaa.tasks import R
 from kotonebot.kaa.config import conf
@@ -242,7 +243,7 @@ def do_produce(
             result = False
             break
     if not result:
-        if conf().produce.use_ap_drink:
+        if produce_solution().data.use_ap_drink:
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_1.png]
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_2.png]
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_3.png]
@@ -351,11 +352,11 @@ def do_produce(
 
     # 4. 选择道具 [screenshots/produce/screenshot_produce_start_4_end.png]
     # TODO: 如果道具不足，这里加入推送提醒
-    if conf().produce.use_note_boost:
+    if produce_solution().data.use_note_boost:
         if image.find(R.Produce.CheckboxIconNoteBoost):
             device.click()
             sleep(0.1)
-    if conf().produce.use_pt_boost:
+    if produce_solution().data.use_pt_boost:
         if image.find(R.Produce.CheckboxIconSupportPtBoost):
             device.click()
             sleep(0.1)
@@ -384,14 +385,14 @@ def produce():
     """
     培育任务
     """
-    if not conf().produce.enabled:
+    if not produce_solution().data.enabled:
         logger.info('Produce is disabled.')
         return
     import time
-    count = conf().produce.produce_count
-    idols = conf().produce.idols
-    memory_sets = conf().produce.memory_sets
-    mode = conf().produce.mode
+    count = produce_solution().data.produce_count
+    idols = produce_solution().data.idols
+    memory_sets = produce_solution().data.memory_sets
+    mode = produce_solution().data.mode
     # 数据验证
     if count < 0:
         user.warning('配置有误', '培育次数不能小于 0。将跳过本次培育。')
@@ -402,7 +403,7 @@ def produce():
     for i in range(count):
         start_time = time.time()
         idol = next(idol_iterator)
-        if conf().produce.auto_set_memory:
+        if produce_solution().data.auto_set_memory:
             memory_set = None
         else:
             memory_set = next(memory_set_iterator, None)
@@ -426,12 +427,12 @@ if __name__ == '__main__':
     from kotonebot.kaa.common import BaseConfig
     from kotonebot.kaa.main import Kaa
 
-    conf().produce.enabled = True
-    conf().produce.mode = 'pro'
-    conf().produce.produce_count = 1
-    # conf().produce.idols = ['i_card-skin-hski-3-002']
-    conf().produce.memory_sets = [1]
-    conf().produce.auto_set_memory = False
+    produce_solution().data.enabled = True
+    produce_solution().data.mode = 'pro'
+    produce_solution().data.produce_count = 1
+    # produce_solution().data.idols = ['i_card-skin-hski-3-002']
+    produce_solution().data.memory_sets = [1]
+    produce_solution().data.auto_set_memory = False
     # do_produce(PIdol.月村手毬_初声, 'pro', 5)
     produce()
     # a()

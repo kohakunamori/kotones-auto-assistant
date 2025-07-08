@@ -5,6 +5,7 @@
 """
 from logging import getLogger
 
+from kotonebot.kaa.config.schema import produce_solution
 from kotonebot.kaa.game_ui import dialog
 
 from kotonebot.kaa.tasks import R
@@ -66,7 +67,7 @@ def enter_study():
         R.InPurodyuusu.TextSelfStudyVocal
     ]):
         logger.info("授業 type: Self study.")
-        target = conf().produce.self_study_lesson
+        target = produce_solution().data.self_study_lesson
         if target == 'dance':
             logger.debug("Clicking on lesson dance.")
             device.double_click(image.expect(R.InPurodyuusu.TextSelfStudyDance))
