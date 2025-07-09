@@ -2,6 +2,7 @@ import logging
 from typing_extensions import assert_never
 from typing import Literal
 
+from kotonebot.kaa.config.schema import produce_solution
 from kotonebot.kaa.game_ui.schedule import Schedule
 from kotonebot.kaa.tasks import R
 from ..actions import loading
@@ -12,7 +13,8 @@ from ..actions.commu import handle_unread_commu
 from kotonebot.errors import UnrecoverableError
 from kotonebot.util import Countdown, Interval, cropped
 from kotonebot.backend.dispatch import DispatcherContext
-from kotonebot.kaa.common import ProduceAction, RecommendCardDetectionMode, conf
+from kotonebot.kaa.config import ProduceAction, RecommendCardDetectionMode
+from kotonebot.kaa.config import conf
 from ..produce.common import until_acquisition_clear, commu_event, fast_acquisitions
 from kotonebot import ocr, device, contains, image, regex, action, sleep, wait
 from ..produce.non_lesson_actions import (
@@ -192,7 +194,7 @@ def practice():
 
     def threshold_predicate(card_count: int, result: CardDetectResult):
         border_scores = (result.left_score, result.right_score, result.top_score, result.bottom_score)
-        is_strict_mode = conf().produce.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
+        is_strict_mode = produce_solution().data.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
         if is_strict_mode:
             return (
                 result.score >= 0.05
@@ -224,7 +226,7 @@ def exam(type: Literal['mid', 'final']):
     logger.info("Exam started")
 
     def threshold_predicate(card_count: int, result: CardDetectResult):
-        is_strict_mode = conf().produce.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
+        is_strict_mode = produce_solution().data.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
         total = lambda t: result.score >= t
         def borders(t):
             # 卡片数量小于三时无遮挡，以及最后一张卡片也总是无遮挡
@@ -422,7 +424,7 @@ def produce_end():
         # [screenshots/produce_end/end_follow.png]
         elif image.find(R.InPurodyuusu.ButtonCancel):
             logger.info("Follow producer dialog found. Click to close.")
-            if conf().produce.follow_producer:
+            if produce_solution().data.follow_producer:
                 logger.info("Follow producer")
                 device.click(image.expect_wait(R.InPurodyuusu.ButtonFollowNoIcon))
             else:
@@ -506,12 +508,12 @@ def week_normal(week_first: bool = False):
     action: ProduceAction | None = None
     # SP 课程
     if (
-        conf().produce.prefer_lesson_ap
+        produce_solution().data.prefer_lesson_ap
         and handle_sp_lesson()
     ):
         action = ProduceAction.DANCE
     else:
-        actions = conf().produce.actions_order
+        actions = produce_solution().data.actions_order
         for action in actions:
             logger.debug("Checking action: %s", action)
             if action := handle_action(action):
@@ -539,7 +541,7 @@ def week_normal(week_first: bool = False):
 def week_final_lesson():
     until_action_scene()
     action: ProduceAction | None = None
-    actions = conf().produce.actions_order
+    actions = produce_solution().data.actions_order
     for action in actions:
         logger.debug("Checking action: %s", action)
         if action := handle_action(action, True):

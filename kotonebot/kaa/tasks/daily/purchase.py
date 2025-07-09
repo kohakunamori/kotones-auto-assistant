@@ -4,7 +4,7 @@ from typing import Optional
 
 from kotonebot.backend.loop import Loop
 from kotonebot.kaa.tasks import R
-from kotonebot.kaa.common import conf, DailyMoneyShopItems
+from kotonebot.kaa.config import conf, DailyMoneyShopItems
 from kotonebot.primitives.geometry import Point
 from kotonebot.util import Countdown, cropped
 from kotonebot import task, device, image, action, sleep

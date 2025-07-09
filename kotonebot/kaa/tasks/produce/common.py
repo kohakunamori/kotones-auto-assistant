@@ -9,11 +9,12 @@ from kotonebot import (
     sleep,
     Interval,
 )
+from kotonebot.kaa.config.schema import produce_solution
 from kotonebot.primitives import Rect
 from kotonebot.kaa.tasks import R
 from .p_drink import acquire_p_drink
 from kotonebot.util import measure_time
-from kotonebot.kaa.common import conf
+from kotonebot.kaa.config import conf
 from kotonebot.kaa.tasks.actions.loading import loading
 from kotonebot.kaa.game_ui import CommuEventButtonUI, dialog, badge
 from kotonebot.kaa.tasks.actions.commu import handle_unread_commu
@@ -188,7 +189,7 @@ def fast_acquisitions() -> AcquisitionType | None:
 
     # 跳过未读交流
     logger.debug("Check skip commu...")
-    if conf().produce.skip_commu and handle_unread_commu(img):
+    if produce_solution().data.skip_commu and handle_unread_commu(img):
         return "SkipCommu"
     device.click(10, 10)
 

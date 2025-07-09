@@ -4,7 +4,7 @@ import logging
 from kotonebot.kaa.tasks import R
 
 from kotonebot.primitives import Rect
-from kotonebot.kaa.common import conf, Priority
+from kotonebot.kaa.config import conf, Priority
 from ..actions.loading import wait_loading_end
 from ..actions.scenes import at_home, goto_home
 from kotonebot import device, image, color, task, action, rect_expand, sleep

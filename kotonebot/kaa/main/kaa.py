@@ -18,7 +18,7 @@ from kotonebot import KotoneBot
 from ..util.paths import get_ahk_path
 from ..kaa_context import _set_instance
 from .dmm_host import DmmHost, DmmInstance
-from ..common import BaseConfig, upgrade_config
+from ..config import BaseConfig, upgrade_config
 from kotonebot.config.base_config import UserConfig
 from kotonebot.client.host import (
     Mumu12Host, LeidianHost, Mumu12Instance,
@@ -30,32 +30,32 @@ from kotonebot.client.host.protocol import (
 )
 
 # 初始化日志
-log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
-
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(log_formatter)
-console_handler.setLevel(logging.CRITICAL)
+format = '[%(asctime)s][%(levelname)s][%(name)s:%(lineno)d] %(message)s'
+log_formatter = logging.Formatter(format)
+logging.basicConfig(level=logging.INFO, format=format)
 
 log_stream = io.StringIO()
-stream_handler = logging.StreamHandler(log_stream)
-stream_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s] [%(filename)s:%(lineno)d] - %(message)s'))
+memo_handler = logging.StreamHandler(log_stream)
+memo_handler.setFormatter(log_formatter)
+memo_handler.setLevel(logging.DEBUG)
 
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
-root_logger.addHandler(console_handler)
+root_logger.addHandler(memo_handler)
 
 logging.getLogger("kotonebot").setLevel(logging.DEBUG)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
-# 升级配置
-upgrade_msg = upgrade_config()
 
 class Kaa(KotoneBot):
     """
     琴音小助手 kaa 主类。由其他 GUI/TUI 调用。
     """
     def __init__(self, config_path: str):
+        # 升级配置
+        upgrade_msg = upgrade_config()
         super().__init__(module='kotonebot.kaa.tasks', config_path=config_path, config_type=BaseConfig)
         self.upgrade_msg = upgrade_msg
         self.version = importlib.metadata.version('ksaa')
@@ -70,7 +70,12 @@ class Kaa(KotoneBot):
         root_logger.addHandler(file_handler)
 
     def set_log_level(self, level: int):
-        console_handler.setLevel(level)
+        handlers = logging.getLogger().handlers
+        if len(handlers) == 0:
+            print('Warning: No default handler found.')
+        else:
+            # 第一个 handler 是默认的 StreamHandler
+            handlers[0].setLevel(level)
 
     def dump_error_report(
         self,
@@ -128,7 +133,8 @@ class Kaa(KotoneBot):
             config_path=self.config_path,
             config_type=self.config_type,
             target_device=d,
-            target_screenshot_interval=target_screenshot_interval
+            target_screenshot_interval=target_screenshot_interval,
+            force=True  # 强制重新初始化，用于配置热重载
         )
 
     @override

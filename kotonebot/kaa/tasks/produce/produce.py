@@ -1,11 +1,11 @@
 import logging
-from itertools import cycle
 from typing import Optional, Literal
 from typing_extensions import assert_never
 
+from kotonebot.kaa.config.schema import produce_solution
 from kotonebot.ui import user
 from kotonebot.kaa.tasks import R
-from kotonebot.kaa.common import conf
+from kotonebot.kaa.config import conf
 from kotonebot.kaa.game_ui import dialog
 from ..actions.scenes import at_home, goto_home
 from kotonebot.backend.loop import Loop, StatedLoop
@@ -150,7 +150,7 @@ def resume_produce():
     max_retries = 5
     current_week = None
     while retry_count < max_retries:
-        week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks).squash().regex(r'\d+/\d+')
+        week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks, lang='en').squash().regex(r'\d+/\d+')
         if week_text:
             weeks = week_text[0].split('/')
             logger.info(f'Current week: {weeks[0]}/{weeks[1]}')
@@ -191,7 +191,7 @@ def do_produce(
 
     前置条件：可导航至首页的任意页面\n
     结束状态：游戏首页\n
-    
+
     :param memory_set_index: 回忆编成编号。
     :param idol_skin_id: 要培育的偶像。如果为 None，则使用配置文件中的偶像。
     :param mode: 培育模式。
@@ -242,7 +242,7 @@ def do_produce(
             result = False
             break
     if not result:
-        if conf().produce.use_ap_drink:
+        if produce_solution().data.use_ap_drink:
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_1.png]
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_2.png]
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_3.png]
@@ -351,11 +351,11 @@ def do_produce(
 
     # 4. 选择道具 [screenshots/produce/screenshot_produce_start_4_end.png]
     # TODO: 如果道具不足，这里加入推送提醒
-    if conf().produce.use_note_boost:
+    if produce_solution().data.use_note_boost:
         if image.find(R.Produce.CheckboxIconNoteBoost):
             device.click()
             sleep(0.1)
-    if conf().produce.use_pt_boost:
+    if produce_solution().data.use_pt_boost:
         if image.find(R.Produce.CheckboxIconSupportPtBoost):
             device.click()
             sleep(0.1)
@@ -389,28 +389,33 @@ def produce():
         return
     import time
     count = conf().produce.produce_count
-    idols = conf().produce.idols
-    memory_sets = conf().produce.memory_sets
-    mode = conf().produce.mode
+    idol = produce_solution().data.idol
+    memory_set = produce_solution().data.memory_set
+    support_card_set = produce_solution().data.support_card_set
+    mode = produce_solution().data.mode
     # 数据验证
     if count < 0:
         user.warning('配置有误', '培育次数不能小于 0。将跳过本次培育。')
         return
+    if idol is None:
+        user.warning('配置有误', '未设置要培育的偶像。将跳过本次培育。')
+        return
 
-    idol_iterator = cycle(idols)
-    memory_set_iterator = cycle(memory_sets)
     for i in range(count):
         start_time = time.time()
-        idol = next(idol_iterator)
-        if conf().produce.auto_set_memory:
-            memory_set = None
+        if produce_solution().data.auto_set_memory:
+            memory_set_to_use = None
         else:
-            memory_set = next(memory_set_iterator, None)
+            memory_set_to_use = memory_set
+        if produce_solution().data.auto_set_support_card:
+            support_card_set_to_use = None
+        else:
+            support_card_set_to_use = support_card_set
         logger.info(
             f'Produce start with: '
-            f'idol: {idol}, mode: {mode}, memory_set: #{memory_set}'
+            f'idol: {idol}, mode: {mode}, memory_set: #{memory_set_to_use}, support_card_set: #{support_card_set_to_use}'
         )
-        if not do_produce(idol, mode, memory_set):
+        if not do_produce(idol, mode, memory_set_to_use):
             user.info('AP 不足', f'由于 AP 不足，跳过了 {count - i} 次培育。')
             logger.info('%d produce(s) skipped because of insufficient AP.', count - i)
             break
@@ -427,11 +432,11 @@ if __name__ == '__main__':
     from kotonebot.kaa.main import Kaa
 
     conf().produce.enabled = True
-    conf().produce.mode = 'pro'
     conf().produce.produce_count = 1
-    # conf().produce.idols = ['i_card-skin-hski-3-002']
-    conf().produce.memory_sets = [1]
-    conf().produce.auto_set_memory = False
+    produce_solution().data.mode = 'pro'
+    # produce_solution().data.idol = 'i_card-skin-hski-3-002'
+    produce_solution().data.memory_set = 1
+    produce_solution().data.auto_set_memory = False
     # do_produce(PIdol.月村手毬_初声, 'pro', 5)
     produce()
     # a()
