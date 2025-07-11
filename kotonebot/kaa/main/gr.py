@@ -180,6 +180,15 @@ def _save_bug_report(
                     zipf.write(file_path, arcname)
                     yield f"### 打包 log 文件：{arcname}"
 
+        # 打包 conf 文件夹
+        if os.path.exists('conf'):
+            for root, dirs, files in os.walk('conf'):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.join('conf', os.path.relpath(file_path, 'conf'))
+                    zipf.write(file_path, arcname)
+                    yield f"### 打包配置文件：{arcname}"
+
         # 写出版本号
         zipf.writestr('version.txt', version)
 
