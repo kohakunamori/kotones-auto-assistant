@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 from typing import Any, Literal, cast
 import zipfile
 import logging
@@ -60,6 +61,8 @@ class Kaa(KotoneBot):
         self.upgrade_msg = upgrade_msg
         self.version = importlib.metadata.version('ksaa')
         logger.info('Version: %s', self.version)
+        logger.info('Python Version: %s', sys.version)
+        logger.info('Python Executable: %s', sys.executable)
 
     def add_file_logger(self, log_path: str):
         log_dir = os.path.abspath(os.path.dirname(log_path))
@@ -143,6 +146,7 @@ class Kaa(KotoneBot):
             raise ValueError('Backend instance is not set.')
         _set_instance(self.backend_instance)
         from kotonebot import device
+        logger.info('Device resolution: %s', device.screen_size)
         logger.info('Set target resolution to 720x1280.')
         device.orientation = 'portrait'
         device.target_resolution = (720, 1280)
