@@ -197,8 +197,8 @@ def practice():
         is_strict_mode = produce_solution().data.recommend_card_detection_mode == RecommendCardDetectionMode.STRICT
         if is_strict_mode:
             return (
-                result.score >= 0.05
-                and len(list(filter(lambda x: x >= 0.05, border_scores))) >= 3
+                result.score >= 0.043
+                and len(list(filter(lambda x: x >= 0.04, border_scores))) >= 3
             )
         else:
             return result.score >= 0.03
@@ -255,7 +255,7 @@ def exam(type: Literal['mid', 'final']):
                 if result.type == 10: # SKIP
                     return total(0.4) and borders(0.02)
                 else:
-                    return total(0.2) and borders(0.02)
+                    return total(0.15) and borders(0.02)
             else:
                 return total(0.10) and borders(0.01)
 
