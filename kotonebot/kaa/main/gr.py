@@ -16,11 +16,12 @@ import gradio as gr
 
 from kotonebot.kaa.main import Kaa
 from kotonebot.kaa.db import IdolCard
+from kotonebot.backend.context.context import vars
+from kotonebot.errors import ContextNotInitializedError
+from kotonebot.client.host import Mumu12Host, LeidianHost
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.context import task_registry, ContextStackVars
-from kotonebot.backend.context.context import vars
-from kotonebot.client.host import Mumu12Host, LeidianHost
 from kotonebot.kaa.config import (
     BaseConfig, APShopItems, CapsuleToysConfig, ClubRewardConfig, PurchaseConfig, ActivityFundsConfig,
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
@@ -390,8 +391,8 @@ class KotoneBotUI:
         """获取暂停按钮的状态和交互性"""
         try:
             text = "恢复" if vars.flow.is_paused else "暂停"
-        except ValueError:
-            # ValueError: Forwarded object vars called before initialization.
+        except ContextNotInitializedError:
+            # ContextNotInitializedError: Forwarded object vars called before initialization.
             # TODO: vars.flow.is_paused 应该要可以在脚本正式启动前就能访问
             text = '未启动'
         # 如果正在停止过程中，禁用暂停按钮
@@ -417,7 +418,10 @@ class KotoneBotUI:
 
             # 重新加载 Context 中的配置数据
             from kotonebot.backend.context.context import config
-            config.load()
+            try:
+                config.load()
+            except ContextNotInitializedError:
+                pass
 
             logger.info("配置已成功重新加载")
             return True
