@@ -49,7 +49,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     // 构建命令行
-    std::wstring cmd = pythonPath + L" " + bootstrapPath;
+    std::wstring cmd = L"\"" + pythonPath + L"\" \"" + bootstrapPath + L"\"";
 
     // 如果有命令行参数，将其传递给 bootstrap
     if (lpCmdLine && wcslen(lpCmdLine) > 0) {
