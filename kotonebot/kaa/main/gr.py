@@ -497,8 +497,8 @@ class KotoneBotUI:
                 run_btn = gr.Button("启动", scale=2)
                 pause_btn = gr.Button("暂停", scale=1)
 
-            # 快速功能启停控制区域
-            gr.Markdown("### 快速功能启停")
+            # 快速设置控制区域
+            gr.Markdown("### 快速设置")
             with gr.Row(elem_classes=["quick-controls-row"]):
                 purchase_quick = gr.Checkbox(
                     label="商店",
@@ -561,6 +561,20 @@ class KotoneBotUI:
                     elem_classes=["quick-checkbox"]
                 )
 
+            def _get_end_action_value() -> str:
+                if self.current_config.options.end_game.shutdown:
+                    return "关机"
+                if self.current_config.options.end_game.hibernate:
+                    return "休眠"
+                return "什么都不做"
+
+            end_action_dropdown = gr.Dropdown(
+                label="完成后：",
+                choices=["什么都不做", "关机", "休眠"],
+                value=_get_end_action_value(),
+                interactive=True
+            )
+
             if self._kaa.upgrade_msg:
                 gr.Markdown('### 配置升级报告')
                 gr.Markdown(self._kaa.upgrade_msg)
@@ -589,7 +603,7 @@ class KotoneBotUI:
             def on_pause_click(evt: gr.EventData) -> str:
                 return self.toggle_pause()
 
-            # 快速功能控制的事件处理函数
+            # 快速设置控制的事件处理函数
             def save_quick_setting(field_name: str, value: bool, display_name: str):
                 """保存快速设置并立即应用"""
                 try:
@@ -638,7 +652,7 @@ class KotoneBotUI:
                 outputs=[pause_btn]
             )
 
-            # 绑定快速功能控制的事件
+            # 绑定快速设置控制的事件
             purchase_quick.change(
                 fn=lambda x: save_quick_setting('purchase', x, '商店'),
                 inputs=[purchase_quick]
@@ -680,13 +694,42 @@ class KotoneBotUI:
                 inputs=[upgrade_support_card_quick]
             )
 
+            # 处理完成后操作下拉框
+            def save_quick_end_action(action: str):
+                try:
+                    if action == "关机":
+                        self.current_config.options.end_game.shutdown = True
+                        self.current_config.options.end_game.hibernate = False
+                    elif action == "休眠":
+                        self.current_config.options.end_game.shutdown = False
+                        self.current_config.options.end_game.hibernate = True
+                    else:  # 什么都不做
+                        self.current_config.options.end_game.shutdown = False
+                        self.current_config.options.end_game.hibernate = False
+
+                    save_config(self.config, "config.json")
+
+                    # 尝试热重载配置
+                    if self.reload_config():
+                        gr.Success(f"✓ 完成后操作已设置为 {action}")
+                    else:
+                        gr.Warning("⚠ 设置已保存，但重新加载失败")
+                except Exception as e:
+                    gr.Error(f"✗ 保存失败：{str(e)}")
+
+            end_action_dropdown.change(
+                fn=save_quick_end_action,
+                inputs=[end_action_dropdown]
+            )
+
             # 添加定时器，分别更新按钮状态和任务状态
             def update_run_button_status():
                 text, interactive = self.get_button_status()
                 return gr.Button(value=text, interactive=interactive)
 
             def update_quick_checkboxes():
-                """更新快速功能控制的 checkbox 状态，确保与设置同步"""
+                """更新快速设置区域控件的状态，确保与设置同步"""
+                end_action_val = _get_end_action_value()
                 return [
                     gr.Checkbox(value=self.current_config.options.purchase.enabled),
                     gr.Checkbox(value=self.current_config.options.assignment.enabled),
@@ -698,6 +741,7 @@ class KotoneBotUI:
                     gr.Checkbox(value=self.current_config.options.presents.enabled),
                     gr.Checkbox(value=self.current_config.options.capsule_toys.enabled),
                     gr.Checkbox(value=self.current_config.options.upgrade_support_card.enabled),
+                    gr.Dropdown(value=end_action_val),
                 ]
 
             gr.Timer(1.0).tick(
@@ -713,7 +757,7 @@ class KotoneBotUI:
                 outputs=[
                     purchase_quick, assignment_quick, contest_quick, produce_quick,
                     mission_reward_quick, club_reward_quick, activity_funds_quick, presents_quick,
-                    capsule_toys_quick, upgrade_support_card_quick
+                    capsule_toys_quick, upgrade_support_card_quick, end_action_dropdown
                 ]
             )
             gr.Timer(1.0).tick(
