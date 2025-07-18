@@ -1640,6 +1640,8 @@ class KotoneBotUI:
                         gr.Group(visible=False),  # memory_sets_group
                         gr.Dropdown(visible=False),  # memory_sets
                         gr.Checkbox(visible=False),  # auto_set_support
+                        gr.Group(visible=False),  # support_card_sets_group
+                        gr.Dropdown(visible=False),  # support_card_sets
                         gr.Checkbox(visible=False),  # use_pt_boost
                         gr.Checkbox(visible=False),  # use_note_boost
                         gr.Checkbox(visible=False),  # follow_producer
