@@ -75,8 +75,9 @@ def dispatch_recommended_items():
         device.screenshot()
         if rec := image.find(R.Daily.TextShopRecommended):
             logger.info(f'Clicking on recommended item.') # TODO: 计数
-            device.click()
-            confirm_purchase(rec.position)
+            pos = rec.position.offset(dx=0, dy=80)
+            device.click(pos)
+            confirm_purchase(pos)
             sleep(2.5) # 
         elif image.find(R.Daily.IconTitleDailyShop) and not image.find(R.Daily.TextShopRecommended):
             logger.info(f'No recommended item found. Finished.')
