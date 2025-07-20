@@ -497,8 +497,8 @@ class KotoneBotUI:
                 run_btn = gr.Button("启动", scale=2)
                 pause_btn = gr.Button("暂停", scale=1)
 
-            # 快速功能启停控制区域
-            gr.Markdown("### 快速功能启停")
+            # 快速设置控制区域
+            gr.Markdown("### 快速设置")
             with gr.Row(elem_classes=["quick-controls-row"]):
                 purchase_quick = gr.Checkbox(
                     label="商店",
@@ -561,6 +561,20 @@ class KotoneBotUI:
                     elem_classes=["quick-checkbox"]
                 )
 
+            def _get_end_action_value() -> str:
+                if self.current_config.options.end_game.shutdown:
+                    return "关机"
+                if self.current_config.options.end_game.hibernate:
+                    return "休眠"
+                return "什么都不做"
+
+            end_action_dropdown = gr.Dropdown(
+                label="完成后：",
+                choices=["什么都不做", "关机", "休眠"],
+                value=_get_end_action_value(),
+                interactive=True
+            )
+
             if self._kaa.upgrade_msg:
                 gr.Markdown('### 配置升级报告')
                 gr.Markdown(self._kaa.upgrade_msg)
@@ -589,7 +603,7 @@ class KotoneBotUI:
             def on_pause_click(evt: gr.EventData) -> str:
                 return self.toggle_pause()
 
-            # 快速功能控制的事件处理函数
+            # 快速设置控制的事件处理函数
             def save_quick_setting(field_name: str, value: bool, display_name: str):
                 """保存快速设置并立即应用"""
                 try:
@@ -638,7 +652,7 @@ class KotoneBotUI:
                 outputs=[pause_btn]
             )
 
-            # 绑定快速功能控制的事件
+            # 绑定快速设置控制的事件
             purchase_quick.change(
                 fn=lambda x: save_quick_setting('purchase', x, '商店'),
                 inputs=[purchase_quick]
@@ -680,13 +694,42 @@ class KotoneBotUI:
                 inputs=[upgrade_support_card_quick]
             )
 
+            # 处理完成后操作下拉框
+            def save_quick_end_action(action: str):
+                try:
+                    if action == "关机":
+                        self.current_config.options.end_game.shutdown = True
+                        self.current_config.options.end_game.hibernate = False
+                    elif action == "休眠":
+                        self.current_config.options.end_game.shutdown = False
+                        self.current_config.options.end_game.hibernate = True
+                    else:  # 什么都不做
+                        self.current_config.options.end_game.shutdown = False
+                        self.current_config.options.end_game.hibernate = False
+
+                    save_config(self.config, "config.json")
+
+                    # 尝试热重载配置
+                    if self.reload_config():
+                        gr.Success(f"✓ 完成后操作已设置为 {action}")
+                    else:
+                        gr.Warning("⚠ 设置已保存，但重新加载失败")
+                except Exception as e:
+                    gr.Error(f"✗ 保存失败：{str(e)}")
+
+            end_action_dropdown.change(
+                fn=save_quick_end_action,
+                inputs=[end_action_dropdown]
+            )
+
             # 添加定时器，分别更新按钮状态和任务状态
             def update_run_button_status():
                 text, interactive = self.get_button_status()
                 return gr.Button(value=text, interactive=interactive)
 
             def update_quick_checkboxes():
-                """更新快速功能控制的 checkbox 状态，确保与设置同步"""
+                """更新快速设置区域控件的状态，确保与设置同步"""
+                end_action_val = _get_end_action_value()
                 return [
                     gr.Checkbox(value=self.current_config.options.purchase.enabled),
                     gr.Checkbox(value=self.current_config.options.assignment.enabled),
@@ -698,6 +741,7 @@ class KotoneBotUI:
                     gr.Checkbox(value=self.current_config.options.presents.enabled),
                     gr.Checkbox(value=self.current_config.options.capsule_toys.enabled),
                     gr.Checkbox(value=self.current_config.options.upgrade_support_card.enabled),
+                    gr.Dropdown(value=end_action_val),
                 ]
 
             gr.Timer(1.0).tick(
@@ -713,7 +757,7 @@ class KotoneBotUI:
                 outputs=[
                     purchase_quick, assignment_quick, contest_quick, produce_quick,
                     mission_reward_quick, club_reward_quick, activity_funds_quick, presents_quick,
-                    capsule_toys_quick, upgrade_support_card_quick
+                    capsule_toys_quick, upgrade_support_card_quick, end_action_dropdown
                 ]
             )
             gr.Timer(1.0).tick(
@@ -962,12 +1006,6 @@ class KotoneBotUI:
             interactive=True
         )
 
-        keep_screenshots = gr.Checkbox(
-            label="保留截图数据",
-            value=self.current_config.keep_screenshots,
-            info=UserConfig.model_fields['keep_screenshots'].description,
-            interactive=True
-        )
 
         target_screenshot_interval = gr.Number(
             label="最小截图间隔（秒）",
@@ -1032,14 +1070,12 @@ class KotoneBotUI:
             # Common settings for all backend types
             self.current_config.backend.screenshot_impl = data['screenshot_method']
             self.current_config.backend.target_screenshot_interval = data['target_screenshot_interval']
-            self.current_config.keep_screenshots = data['keep_screenshots']  # This is a UserConfig field
 
         return set_config, {
             'adb_ip': adb_ip,
             'adb_port': adb_port,
-            'screenshot_method': screenshot_impl,  # screenshot_impl is the component
+            'screenshot_method': screenshot_impl,
             'target_screenshot_interval': target_screenshot_interval,
-            'keep_screenshots': keep_screenshots,
             'check_emulator': check_emulator,
             'emulator_path': emulator_path,
             'adb_emulator_name': adb_emulator_name,
@@ -1596,6 +1632,8 @@ class KotoneBotUI:
                         gr.Group(visible=False),  # memory_sets_group
                         gr.Dropdown(visible=False),  # memory_sets
                         gr.Checkbox(visible=False),  # auto_set_support
+                        gr.Group(visible=False),  # support_card_sets_group
+                        gr.Dropdown(visible=False),  # support_card_sets
                         gr.Checkbox(visible=False),  # use_pt_boost
                         gr.Checkbox(visible=False),  # use_note_boost
                         gr.Checkbox(visible=False),  # follow_producer
@@ -1655,12 +1693,15 @@ class KotoneBotUI:
                     solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
 
                     gr.Success("新培育方案创建成功")
-                    # 根据是否有设置Tab的下拉框来决定返回值
-                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=new_solution.id)
+
+                    # 更新培育 Tab 下拉框并保持设置 Tab 当前选中值
+                    updated_dropdown_produce = gr.Dropdown(choices=solution_choices, value=new_solution.id)
                     if settings_dropdown is not None:
-                        return [updated_dropdown, updated_dropdown]
+                        current_selected = self.current_config.options.produce.selected_solution_id
+                        updated_dropdown_settings = gr.Dropdown(choices=solution_choices, value=current_selected)
+                        return [updated_dropdown_produce, updated_dropdown_settings]
                     else:
-                        return updated_dropdown
+                        return updated_dropdown_produce
                 except Exception as e:
                     gr.Error(f"创建培育方案失败：{str(e)}")
                     if settings_dropdown is not None:
@@ -1677,6 +1718,14 @@ class KotoneBotUI:
                     else:
                         return gr.Dropdown()
 
+                # 若尝试删除当前正在使用的培育方案，则拒绝并提示
+                if solution_id == self.current_config.options.produce.selected_solution_id:
+                    gr.Warning("不可删除选中方案。请先在设置中选择其他方案，保存后再删除此方案。")
+                    if settings_dropdown is not None:
+                        return [gr.Dropdown(), gr.Dropdown()]
+                    else:
+                        return gr.Dropdown()
+
                 try:
                     solution_manager.delete(solution_id)
 
@@ -1685,8 +1734,12 @@ class KotoneBotUI:
                     solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
 
                     gr.Success("培育方案删除成功")
-                    # 根据是否有设置Tab的下拉框来决定返回值
-                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=None)
+                    # 删除方案后，保持当前培育方案的选择不变
+                    current_selected = self.current_config.options.produce.selected_solution_id
+                    if current_selected not in [sol.id for sol in solutions]:
+                        current_selected = None  # 已不存在
+
+                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=current_selected)
                     if settings_dropdown is not None:
                         return [updated_dropdown, updated_dropdown]
                     else:
@@ -2166,6 +2219,37 @@ class KotoneBotUI:
             'expose_to_lan': expose_to_lan
         }
 
+    def _create_debug_settings(self) -> ConfigBuilderReturnValue:
+        """调试设置：仅在调试时使用"""
+        with gr.Column():
+            gr.Markdown("### 调试设置")
+            gr.Markdown('<div style="color: red;">仅供调试使用。正常运行时务必关闭下面所有的选项。</div>')
+
+            keep_screenshots = gr.Checkbox(
+                label="保留截图数据",
+                value=self.current_config.keep_screenshots,
+                info=UserConfig.model_fields['keep_screenshots'].description,
+                interactive=True
+            )
+
+            trace_recommend_card_detection = gr.Checkbox(
+                label="跟踪推荐卡检测",
+                value=self.current_config.options.trace.recommend_card_detection,
+                info=TraceConfig.model_fields['recommend_card_detection'].description,
+                interactive=True
+            )
+
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            # 保留截图数据属于 UserConfig
+            self.current_config.keep_screenshots = data['keep_screenshots']
+            # 跟踪推荐卡检测属于 BaseConfig.trace
+            config.trace.recommend_card_detection = data['trace_recommend_card_detection']
+
+        return set_config, {
+            'keep_screenshots': keep_screenshots,
+            'trace_recommend_card_detection': trace_recommend_card_detection
+        }
+
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
             gr.Markdown("## 设置")
@@ -2200,17 +2284,17 @@ class KotoneBotUI:
             # 升级支援卡设置
             capsule_toys_settings = self._create_capsule_toys_settings()
 
-            # 跟踪设置
-            trace_settings = self._create_trace_settings()
-
-            # 杂项设置
-            misc_settings = self._create_misc_settings()
-
             # 启动游戏设置
             start_game_settings = self._create_start_game_settings()
 
             # 关闭游戏设置
             end_game_settings = self._create_end_game_settings()
+
+            # 杂项设置
+            misc_settings = self._create_misc_settings()
+
+            # 调试设置（放在最后）
+            debug_settings = self._create_debug_settings()
 
             save_btn = gr.Button("保存设置")
             result = gr.Markdown()
@@ -2229,8 +2313,8 @@ class KotoneBotUI:
                 capsule_toys_settings,
                 start_game_settings,
                 end_game_settings,
-                trace_settings,
-                misc_settings
+                misc_settings,
+                debug_settings
             ] # list of (set_func, { 'key': component, ... })
             all_components = [list(ret[1].values()) for ret in all_return_values] # [[c1, c2], [c3], ...]
             all_components = list(chain(*all_components)) # [c1, c2, c3, ...]
