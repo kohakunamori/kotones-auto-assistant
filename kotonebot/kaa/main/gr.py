@@ -1006,12 +1006,6 @@ class KotoneBotUI:
             interactive=True
         )
 
-        keep_screenshots = gr.Checkbox(
-            label="保留截图数据",
-            value=self.current_config.keep_screenshots,
-            info=UserConfig.model_fields['keep_screenshots'].description,
-            interactive=True
-        )
 
         target_screenshot_interval = gr.Number(
             label="最小截图间隔（秒）",
@@ -1076,14 +1070,12 @@ class KotoneBotUI:
             # Common settings for all backend types
             self.current_config.backend.screenshot_impl = data['screenshot_method']
             self.current_config.backend.target_screenshot_interval = data['target_screenshot_interval']
-            self.current_config.keep_screenshots = data['keep_screenshots']  # This is a UserConfig field
 
         return set_config, {
             'adb_ip': adb_ip,
             'adb_port': adb_port,
-            'screenshot_method': screenshot_impl,  # screenshot_impl is the component
+            'screenshot_method': screenshot_impl,
             'target_screenshot_interval': target_screenshot_interval,
-            'keep_screenshots': keep_screenshots,
             'check_emulator': check_emulator,
             'emulator_path': emulator_path,
             'adb_emulator_name': adb_emulator_name,
@@ -2227,6 +2219,37 @@ class KotoneBotUI:
             'expose_to_lan': expose_to_lan
         }
 
+    def _create_debug_settings(self) -> ConfigBuilderReturnValue:
+        """调试设置：仅在调试时使用"""
+        with gr.Column():
+            gr.Markdown("### 调试设置")
+            gr.Markdown('<div style="color: red;">仅供调试使用。正常运行时务必关闭下面所有的选项。</div>')
+
+            keep_screenshots = gr.Checkbox(
+                label="保留截图数据",
+                value=self.current_config.keep_screenshots,
+                info=UserConfig.model_fields['keep_screenshots'].description,
+                interactive=True
+            )
+
+            trace_recommend_card_detection = gr.Checkbox(
+                label="跟踪推荐卡检测",
+                value=self.current_config.options.trace.recommend_card_detection,
+                info=TraceConfig.model_fields['recommend_card_detection'].description,
+                interactive=True
+            )
+
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            # 保留截图数据属于 UserConfig
+            self.current_config.keep_screenshots = data['keep_screenshots']
+            # 跟踪推荐卡检测属于 BaseConfig.trace
+            config.trace.recommend_card_detection = data['trace_recommend_card_detection']
+
+        return set_config, {
+            'keep_screenshots': keep_screenshots,
+            'trace_recommend_card_detection': trace_recommend_card_detection
+        }
+
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
             gr.Markdown("## 设置")
@@ -2261,17 +2284,17 @@ class KotoneBotUI:
             # 升级支援卡设置
             capsule_toys_settings = self._create_capsule_toys_settings()
 
-            # 跟踪设置
-            trace_settings = self._create_trace_settings()
-
-            # 杂项设置
-            misc_settings = self._create_misc_settings()
-
             # 启动游戏设置
             start_game_settings = self._create_start_game_settings()
 
             # 关闭游戏设置
             end_game_settings = self._create_end_game_settings()
+
+            # 杂项设置
+            misc_settings = self._create_misc_settings()
+
+            # 调试设置（放在最后）
+            debug_settings = self._create_debug_settings()
 
             save_btn = gr.Button("保存设置")
             result = gr.Markdown()
@@ -2290,8 +2313,8 @@ class KotoneBotUI:
                 capsule_toys_settings,
                 start_game_settings,
                 end_game_settings,
-                trace_settings,
-                misc_settings
+                misc_settings,
+                debug_settings
             ] # list of (set_func, { 'key': component, ... })
             all_components = [list(ret[1].values()) for ret in all_return_values] # [[c1, c2], [c3], ...]
             all_components = list(chain(*all_components)) # [c1, c2, c3, ...]
