@@ -1701,12 +1701,15 @@ class KotoneBotUI:
                     solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
 
                     gr.Success("新培育方案创建成功")
-                    # 根据是否有设置Tab的下拉框来决定返回值
-                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=new_solution.id)
+
+                    # 更新培育 Tab 下拉框并保持设置 Tab 当前选中值
+                    updated_dropdown_produce = gr.Dropdown(choices=solution_choices, value=new_solution.id)
                     if settings_dropdown is not None:
-                        return [updated_dropdown, updated_dropdown]
+                        current_selected = self.current_config.options.produce.selected_solution_id
+                        updated_dropdown_settings = gr.Dropdown(choices=solution_choices, value=current_selected)
+                        return [updated_dropdown_produce, updated_dropdown_settings]
                     else:
-                        return updated_dropdown
+                        return updated_dropdown_produce
                 except Exception as e:
                     gr.Error(f"创建培育方案失败：{str(e)}")
                     if settings_dropdown is not None:
@@ -1723,6 +1726,14 @@ class KotoneBotUI:
                     else:
                         return gr.Dropdown()
 
+                # 若尝试删除当前正在使用的培育方案，则拒绝并提示
+                if solution_id == self.current_config.options.produce.selected_solution_id:
+                    gr.Warning("不可删除选中方案。请先在设置中选择其他方案，保存后再删除此方案。")
+                    if settings_dropdown is not None:
+                        return [gr.Dropdown(), gr.Dropdown()]
+                    else:
+                        return gr.Dropdown()
+
                 try:
                     solution_manager.delete(solution_id)
 
@@ -1731,8 +1742,12 @@ class KotoneBotUI:
                     solution_choices = [(f"{sol.name} - {sol.description or '无描述'}", sol.id) for sol in solutions]
 
                     gr.Success("培育方案删除成功")
-                    # 根据是否有设置Tab的下拉框来决定返回值
-                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=None)
+                    # 删除方案后，保持当前培育方案的选择不变
+                    current_selected = self.current_config.options.produce.selected_solution_id
+                    if current_selected not in [sol.id for sol in solutions]:
+                        current_selected = None  # 已不存在
+
+                    updated_dropdown = gr.Dropdown(choices=solution_choices, value=current_selected)
                     if settings_dropdown is not None:
                         return [updated_dropdown, updated_dropdown]
                     else:
