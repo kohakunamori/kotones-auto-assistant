@@ -12,6 +12,7 @@ from .actions.scenes import at_home, goto_home
 from .actions.commu import handle_unread_commu
 from kotonebot.errors import GameUpdateNeededError
 from kotonebot import task, action, sleep, device, image, ocr, config
+from kotonebot.backend.context.context import vars
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +171,7 @@ def windows_launch():
     # 等待游戏窗口出现
     it = Interval()
     while True:
+        vars.flow.check()
         if ahk.find_window(title='gakumas', title_match_mode=3):
             logger.debug('Game window found.')
             break
