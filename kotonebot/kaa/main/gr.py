@@ -14,6 +14,7 @@ from typing import List, Dict, Tuple, Literal, Generator, Callable, Any, get_arg
 import cv2
 import gradio as gr
 
+from kotonebot.kaa.errors import ProduceSolutionNotFoundError
 from kotonebot.kaa.main import Kaa
 from kotonebot.kaa.db import IdolCard
 from kotonebot.backend.context.context import vars
@@ -1369,7 +1370,7 @@ class KotoneBotUI:
                 if selected_solution_id:
                     try:
                         current_solution = solution_manager.read(selected_solution_id)
-                    except FileNotFoundError:
+                    except ProduceSolutionNotFoundError:
                         pass
 
                 if current_solution is None:
@@ -1691,7 +1692,7 @@ class KotoneBotUI:
                         gr.Checkbox(value=solution.data.skip_commu, visible=True),
                         gr.Button(visible=True),  # save_solution_btn
                     ]
-                except FileNotFoundError:
+                except ProduceSolutionNotFoundError:
                     gr.Warning(f"培育方案 {solution_id} 不存在")
                     return on_solution_change(None)
                 except Exception as e:
