@@ -8,7 +8,6 @@ from kotonebot.kaa.config import conf, DailyMoneyShopItems
 from kotonebot.primitives.geometry import Point
 from kotonebot.util import Countdown, cropped
 from kotonebot import task, device, image, action, sleep
-from kotonebot.backend.dispatch import SimpleDispatcher
 from ..actions.scenes import goto_home, goto_shop, at_daily_shop
 
 logger = logging.getLogger(__name__)

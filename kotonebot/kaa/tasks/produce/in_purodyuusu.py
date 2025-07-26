@@ -12,9 +12,8 @@ from .cards import do_cards, CardDetectResult
 from ..actions.commu import handle_unread_commu
 from kotonebot.errors import UnrecoverableError
 from kotonebot.util import Countdown, Interval, cropped
-from kotonebot.backend.dispatch import DispatcherContext
+from kotonebot.backend.loop import Loop
 from kotonebot.kaa.config import ProduceAction, RecommendCardDetectionMode
-from kotonebot.kaa.config import conf
 from ..produce.common import until_acquisition_clear, commu_event, fast_acquisitions
 from kotonebot import ocr, device, contains, image, regex, action, sleep, wait
 from ..produce.non_lesson_actions import (
@@ -705,8 +704,8 @@ ProduceStage = Literal[
     'unknown', # 未知场景
 ]
 
-@action('检测当前培育场景', dispatcher=True)
-def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
+@action('检测当前培育场景')
+def detect_produce_scene() -> ProduceStage:
     """
     判断当前是培育的什么阶段，并开始 Regular 培育。
 
@@ -715,31 +714,35 @@ def detect_produce_scene(ctx: DispatcherContext) -> ProduceStage:
     """
     logger.info("Detecting current produce stage...")
     
-    # 行动场景
-    texts = ocr.ocr()
-    if (
-        image.find_multi([
-            R.InPurodyuusu.TextPDiary, # 普通周
-            R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
-        ]) 
-    ):
-        logger.info("Detection result: At action scene.")
-        ctx.finish()
-        return 'action'
-    elif texts.where(regex('CLEARまで|PERFECTまで')):
-        logger.info("Detection result: At practice ongoing.")
-        ctx.finish()
-        return 'practice-ongoing'
-    elif is_exam_scene():
-        logger.info("Detection result: At exam scene.")
-        ctx.finish()
-        return 'exam-ongoing'
-    else:
-        if fast_acquisitions():
-            return 'unknown'
-        if commu_event():
-            return 'unknown'
-        return 'unknown'
+    for _ in Loop():
+        # 行动场景
+        texts = ocr.ocr()
+        if (
+            image.find_multi([
+                R.InPurodyuusu.TextPDiary, # 普通周
+                R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
+            ])
+        ):
+            logger.info("Detection result: At action scene.")
+            return 'action'
+        elif texts.where(regex('CLEARまで|PERFECTまで')):
+            logger.info("Detection result: At practice ongoing.")
+            return 'practice-ongoing'
+        elif is_exam_scene():
+            logger.info("Detection result: At exam scene.")
+            return 'exam-ongoing'
+        else:
+            if fast_acquisitions():
+                # 继续循环检测
+                pass
+            elif commu_event():
+                # 继续循环检测
+                pass
+            else:
+                return 'unknown'
+        # 如果没有返回，说明需要继续检测
+        sleep(0.5)  # 等待一段时间再重新检测
+    return 'unknown'
 
 @action('开始 Hajime 培育')
 def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro', 'master'], week: int):
