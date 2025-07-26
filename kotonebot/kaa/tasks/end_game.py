@@ -5,6 +5,7 @@ import logging
 import _thread
 import threading
 
+from kotonebot.backend.bot import PostTaskContext
 from kotonebot.ui import user
 from ..kaa_context import instance
 from kotonebot.kaa.config import Priority, conf
@@ -35,8 +36,8 @@ def windows_close():
     os.system('taskkill /f /im gakumas.exe')
     logger.info("Game closed successfully")
 
-@task('关闭游戏', priority=Priority.END_GAME)
-def end_game():
+@task('关闭游戏', priority=Priority.END_GAME, run_at='post')
+def end_game(ctx: PostTaskContext):
     """
     游戏结束时执行的任务。
     """
@@ -101,4 +102,4 @@ if __name__ == '__main__':
     conf().end_game.kill_game = True
     conf().end_game.kill_dmm = True
     conf().end_game.kill_emulator = True
-    end_game()
+    end_game(PostTaskContext(False, None))
