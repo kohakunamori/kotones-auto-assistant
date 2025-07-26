@@ -51,7 +51,7 @@ ConfigKey = Literal[
     'mini_live_reassign', 'mini_live_duration',
     'online_live_reassign', 'online_live_duration',
     'contest_enabled',
-    'select_which_contestant',
+    'select_which_contestant', 'when_no_set',
     
     # produce
     'produce_enabled', 'selected_solution_id', 'produce_count',
@@ -1250,6 +1250,20 @@ class KotoneBotUI:
                     interactive=True,
                     info=ContestConfig.model_fields['select_which_contestant'].description
                 )
+
+                when_no_set_choices = [
+                    ("通知我并跳过竞赛", "remind"),
+                    ("提醒我并等待手动编成", "wait"),
+                    ("使用自动编成并提醒我", "auto_set"),
+                    ("使用自动编成", "auto_set_silent")
+                ]
+                when_no_set = gr.Dropdown(
+                    choices=when_no_set_choices,
+                    value=self.current_config.options.contest.when_no_set,
+                    label="竞赛队伍未编成时",
+                    interactive=True,
+                    info=ContestConfig.model_fields['when_no_set'].description
+                )
             contest_enabled.change(
                 fn=lambda x: gr.Group(visible=x),
                 inputs=[contest_enabled],
@@ -1259,10 +1273,12 @@ class KotoneBotUI:
         def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
             config.contest.enabled = data['contest_enabled']
             config.contest.select_which_contestant = data['select_which_contestant']
-        
+            config.contest.when_no_set = data['when_no_set']
+
         return set_config, {
             'contest_enabled': contest_enabled,
-            'select_which_contestant': select_which_contestant
+            'select_which_contestant': select_which_contestant,
+            'when_no_set': when_no_set
         }
 
     def _create_produce_settings(self) -> ConfigBuilderReturnValue:

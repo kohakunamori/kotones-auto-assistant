@@ -64,6 +64,8 @@ class ContestConfig(ConfigBaseModel):
     select_which_contestant: Literal[1, 2, 3] = 1
     """选择第几个挑战者"""
 
+    when_no_set: Literal['remind', 'wait', 'auto_set', 'auto_set_silent'] = 'remind'
+    """竞赛队伍未编成时应该：remind=通知我并跳过竞赛，wait=提醒我并等待手动编成，auto_set=使用自动编成并提醒，auto_set_silent=使用自动编成不提醒"""
 
 
 class ProduceConfig(ConfigBaseModel):
