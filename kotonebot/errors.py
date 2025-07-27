@@ -1,8 +1,40 @@
+from typing import Callable
+
+
 class KotonebotError(Exception):
     pass
 
 class KotonebotWarning(Warning):
     pass
+
+class UserFriendlyError(KotonebotError):
+    def __init__(
+        self,
+        message: str,
+        actions: list[tuple[int, str, Callable[[], None]]] = [],
+        *args, **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.message = message
+        self.actions = actions or []
+
+    @property
+    def action_buttons(self) -> list[tuple[int, str]]:
+        """
+        以 (id: int, btn_text: str) 的形式返回所有按钮定义。
+        """
+        return [(id, text) for id, text, _ in self.actions]
+    
+    def invoke(self, action_id: int):
+        """
+        执行指定 ID 的 action。
+        """
+        for id, _, func in self.actions:
+            if id == action_id:
+                func()
+                break
+        else:
+            raise ValueError(f'Action with id {action_id} not found.')
 
 class UnrecoverableError(KotonebotError):
     pass
@@ -31,7 +63,10 @@ class UnscalableResolutionError(KotonebotError):
         self.screen_size = screen_size
         super().__init__(f'Cannot scale to target resolution {target_resolution}. '
                          f'Screen size: {screen_size}')
-        
+
 class ContextNotInitializedError(KotonebotError):
     def __init__(self, msg: str = 'Context not initialized'):
         super().__init__(msg)
+
+class StopCurrentTask(KotonebotError):
+    pass

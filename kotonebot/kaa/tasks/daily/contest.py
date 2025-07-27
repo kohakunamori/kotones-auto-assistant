@@ -2,12 +2,15 @@
 import logging
 from gettext import gettext as _
 
+from kotonebot.errors import StopCurrentTask
 from kotonebot.kaa.tasks import R
 from kotonebot.kaa.config import conf
-from kotonebot.kaa.game_ui import WhiteFilter
+from kotonebot.kaa.game_ui import WhiteFilter, dialog
 from ..actions.scenes import at_home, goto_home
 from ..actions.loading import wait_loading_end
-from kotonebot import device, image, ocr, color, action, task, user, rect_expand, sleep, contains, Interval
+from kotonebot import device, image, ocr, color, action, task, rect_expand, sleep, contains, Interval
+from kotonebot.backend.context.context import vars
+from kotonebot.ui import user as ui_user
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +73,39 @@ def handle_challenge() -> bool:
 
     # 记忆未编成 [screenshots/contest/no_memo.png]
     if image.find(R.Daily.TextContestNoMemory):
-        logger.debug('Memory not set. Using auto-compilation.')
-        user.warning('竞赛未编成', _('记忆未编成。将使用自动编成。'), once=True)
-        if image.find(R.Daily.ButtonContestChallenge):
-            device.click()
-            return True
+        logger.debug('Memory not set.')
+        when_no_set = conf().contest.when_no_set
+
+        auto_compilation = False
+        match when_no_set:
+            case 'remind':
+                # 关闭编成提示弹窗
+                dialog.expect_no(msg='Closed memory not set dialog.')
+                ui_user.warning('竞赛未编成', '已跳过此次竞赛任务。')
+                logger.info('Contest skipped due to memory not set (remind mode).')
+                raise StopCurrentTask
+            case 'wait':
+                dialog.expect_no(msg='Closed memory not set dialog.')
+                ui_user.warning('竞赛未编成', '已自动暂停，请手动编成后返回至挑战开始页，并点击网页上「恢复」按钮或使用快捷键继续执行。')
+                vars.flow.request_pause(wait_resume=True)
+                logger.info('Contest paused due to memory not set (wait mode).')
+                return True
+            case 'auto_set' | 'auto_set_silent':
+                if when_no_set == 'auto_set':
+                    ui_user.warning('竞赛未编成', '将使用自动编成。', once=True)
+                    logger.debug('Using auto-compilation with notification.')
+                else:  # auto_set_silent
+                    logger.debug('Using auto-compilation silently.')
+                auto_compilation = True
+            case _:
+                logger.warning(f'Unknown value for contest.when_no_set: {when_no_set}, fallback to auto.')
+                logger.debug('Using auto-compilation silently.')
+                auto_compilation = True
+        
+        if auto_compilation:
+            if image.find(R.Daily.ButtonContestChallenge):
+                device.click()
+                return True
 
     # 勾选跳过所有
     # [screenshots/contest/contest2.png]
@@ -85,7 +116,7 @@ def handle_challenge() -> bool:
 
     # 跳过所有
     # [screenshots/contest/contest1.png]
-    if image.find(R.Daily.ButtonIconSkip, preprocessors=[WhiteFilter()]):
+    if image.find(R.Daily.ButtonIconSkip, preprocessors=[WhiteFilter()], threshold=0.7):
         logger.debug('Skipping all.')
         device.click()
         return True

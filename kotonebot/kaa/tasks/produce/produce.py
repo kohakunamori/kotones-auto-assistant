@@ -15,6 +15,7 @@ from kotonebot.kaa.game_ui.idols_overview import locate_idol, match_idol
 from ..produce.in_purodyuusu import hajime_pro, hajime_regular, hajime_master, resume_pro_produce, resume_regular_produce, \
     resume_master_produce
 from kotonebot import device, image, ocr, task, action, sleep, contains, regex
+from kotonebot.kaa.errors import IdolCardNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def select_idol(skin_id: str):
     # 选择偶像
     pos = locate_idol(skin_id)
     if pos is None:
-        raise ValueError(f"Idol {skin_id} not found.")
+        raise IdolCardNotFoundError(skin_id)
     # 确认
     it.reset()
     while btn_confirm := image.find(R.Common.ButtonConfirmNoIcon):

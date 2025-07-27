@@ -14,6 +14,7 @@ from typing import List, Dict, Tuple, Literal, Generator, Callable, Any, get_arg
 import cv2
 import gradio as gr
 
+from kotonebot.kaa.errors import ProduceSolutionNotFoundError
 from kotonebot.kaa.main import Kaa
 from kotonebot.kaa.db import IdolCard
 from kotonebot.backend.context.context import vars
@@ -51,7 +52,7 @@ ConfigKey = Literal[
     'mini_live_reassign', 'mini_live_duration',
     'online_live_reassign', 'online_live_duration',
     'contest_enabled',
-    'select_which_contestant',
+    'select_which_contestant', 'when_no_set',
     
     # produce
     'produce_enabled', 'selected_solution_id', 'produce_count',
@@ -1250,6 +1251,20 @@ class KotoneBotUI:
                     interactive=True,
                     info=ContestConfig.model_fields['select_which_contestant'].description
                 )
+
+                when_no_set_choices = [
+                    ("通知我并跳过竞赛", "remind"),
+                    ("提醒我并等待手动编成", "wait"),
+                    ("使用自动编成并提醒我", "auto_set"),
+                    ("使用自动编成", "auto_set_silent")
+                ]
+                when_no_set = gr.Dropdown(
+                    choices=when_no_set_choices,
+                    value=self.current_config.options.contest.when_no_set,
+                    label="竞赛队伍未编成时",
+                    interactive=True,
+                    info=ContestConfig.model_fields['when_no_set'].description
+                )
             contest_enabled.change(
                 fn=lambda x: gr.Group(visible=x),
                 inputs=[contest_enabled],
@@ -1259,10 +1274,12 @@ class KotoneBotUI:
         def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
             config.contest.enabled = data['contest_enabled']
             config.contest.select_which_contestant = data['select_which_contestant']
-        
+            config.contest.when_no_set = data['when_no_set']
+
         return set_config, {
             'contest_enabled': contest_enabled,
-            'select_which_contestant': select_which_contestant
+            'select_which_contestant': select_which_contestant,
+            'when_no_set': when_no_set
         }
 
     def _create_produce_settings(self) -> ConfigBuilderReturnValue:
@@ -1353,7 +1370,7 @@ class KotoneBotUI:
                 if selected_solution_id:
                     try:
                         current_solution = solution_manager.read(selected_solution_id)
-                    except FileNotFoundError:
+                    except ProduceSolutionNotFoundError:
                         pass
 
                 if current_solution is None:
@@ -1675,7 +1692,7 @@ class KotoneBotUI:
                         gr.Checkbox(value=solution.data.skip_commu, visible=True),
                         gr.Button(visible=True),  # save_solution_btn
                     ]
-                except FileNotFoundError:
+                except ProduceSolutionNotFoundError:
                     gr.Warning(f"培育方案 {solution_id} 不存在")
                     return on_solution_change(None)
                 except Exception as e:

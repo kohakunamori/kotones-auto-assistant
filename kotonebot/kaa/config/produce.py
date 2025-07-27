@@ -4,7 +4,9 @@ import uuid
 import re
 import logging
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, ValidationError, field_serializer, field_validator
+
+from kotonebot.kaa.errors import ProduceSolutionInvalidError, ProduceSolutionNotFoundError
 
 from .const import ProduceAction, RecommendCardDetectionMode
 
@@ -217,17 +219,17 @@ class ProduceSolutionManager:
 
         :param id: 方案ID
         :return: 方案对象
-        :raises FileNotFoundError: 当方案不存在时
+        :raises ProduceSloutionNotFoundError: 当方案不存在时
         """
         file_path = self._find_file_path_by_id(id)
         if not file_path:
-            raise FileNotFoundError(f"Solution with id '{id}' not found")
+            raise ProduceSolutionNotFoundError(id)
 
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return ProduceSolution.model_validate_json(f.read())
-        except Exception as e:
-            raise FileNotFoundError(f"Failed to read solution with id '{id}': {e}")
+        except ValidationError as e:
+            raise ProduceSolutionInvalidError(id, file_path, e)
 
     def duplicate(self, id: str) -> ProduceSolution:
         """
@@ -235,7 +237,7 @@ class ProduceSolutionManager:
 
         :param id: 要复制的方案ID
         :return: 新的方案对象（具有新的ID和名称）
-        :raises FileNotFoundError: 当原方案不存在时
+        :raises ProduceSolutionNotFoundError: 当原方案不存在时
         """
         original = self.read(id)
 
