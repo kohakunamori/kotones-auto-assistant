@@ -9,7 +9,7 @@ from kotonebot.kaa.config import conf
 from kotonebot.kaa.game_ui import dialog
 from ..actions.scenes import at_home, goto_home
 from kotonebot.backend.loop import Loop, StatedLoop
-from kotonebot.util import Countdown, Interval, Throttler
+from kotonebot.util import Countdown, Throttler
 from kotonebot.kaa.game_ui.primary_button import find_button
 from kotonebot.kaa.game_ui.idols_overview import locate_idol, match_idol
 from ..produce.in_purodyuusu import hajime_pro, hajime_regular, hajime_master, resume_pro_produce, resume_regular_produce, \
@@ -50,23 +50,24 @@ def select_idol(skin_id: str):
     logger.info("Find and select idol: %s", skin_id)
     # 进入总览
     device.screenshot()
-    it = Interval()
-    while not image.find(R.Common.ButtonConfirmNoIcon):
-        if image.find(R.Produce.ButtonPIdolOverview):
-            device.click()
-        device.screenshot()
-        it.wait()
+    for _ in Loop():
+        if not image.find(R.Common.ButtonConfirmNoIcon):
+            if image.find(R.Produce.ButtonPIdolOverview):
+                device.click()
+        else:
+            break
     # 选择偶像
     pos = locate_idol(skin_id)
     if pos is None:
         raise IdolCardNotFoundError(skin_id)
     # 确认
-    it.reset()
-    while btn_confirm := image.find(R.Common.ButtonConfirmNoIcon):
-        device.click(pos)
-        sleep(0.3)
-        device.click(btn_confirm)
-        it.wait()
+    for _ in Loop():
+        if btn_confirm := image.find(R.Common.ButtonConfirmNoIcon):
+            device.click(pos)
+            sleep(0.3)
+            device.click(btn_confirm)
+        else:
+            break
 
 @action('培育开始.编成翻页', screenshot_mode='manual-inherit')
 def select_set(index: int):
@@ -248,8 +249,7 @@ def do_produce(
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_2.png]
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_3.png]
             logger.info('AP insufficient. Try to use AP drink.')
-            it = Interval()
-            while True:
+            for _ in Loop():
                 if image.find(R.Produce.ButtonUse):
                     device.click()
                 elif image.find(R.Produce.ButtonRefillAP):
@@ -258,8 +258,6 @@ def do_produce(
                     device.click()
                 elif image.find(R.Produce.ButtonPIdolOverview):
                     break
-                device.screenshot()
-                it.wait()
         else:
             logger.info('AP insufficient. Exiting produce.')
             device.click(image.expect_wait(R.InPurodyuusu.ButtonCancel))
@@ -363,7 +361,9 @@ def do_produce(
     device.click(image.expect_wait(R.Produce.ButtonProduceStart))
     # 5. 相关设置弹窗 [screenshots/produce/skip_commu.png]
     cd = Countdown(5).start()
-    while not cd.expired():
+    for _ in Loop():
+        if cd.expired():
+            break
         device.screenshot()
         if image.find(R.Produce.RadioTextSkipCommu):
             device.click()

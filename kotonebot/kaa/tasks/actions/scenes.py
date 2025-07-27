@@ -1,7 +1,7 @@
 import logging
 
 from kotonebot.kaa.tasks import R
-from kotonebot.util import Interval
+from kotonebot.backend.loop import Loop
 from kotonebot.kaa.game_ui import dialog
 from kotonebot.kaa.game_ui import toolbar_home
 from kotonebot import device, image, action, sleep
@@ -37,9 +37,7 @@ def goto_home():
     结束状态：位于首页
     """
     logger.info("Going home.")
-    it = Interval()
-    while True:
-        device.screenshot()
+    for _ in Loop():
         if at_home():
             logger.info("At home.")
             break
@@ -51,13 +49,12 @@ def goto_home():
             device.click(home)
             logger.debug("Clicked toolbar home button.")
             sleep(1)
-        # 課題CLEAR [screenshots/go_home/quest_clear.png] 
+        # 課題CLEAR [screenshots/go_home/quest_clear.png]
         elif image.find(R.Common.ButtonIconClose):
             device.click()
             logger.debug("Clicked close button.")
             sleep(0.2)
         logger.debug(f"Trying to go home...")
-        it.wait()
 
 @action('前往商店页面', screenshot_mode='manual-inherit')
 def goto_shop():
@@ -70,10 +67,7 @@ def goto_shop():
     logger.info("Going to shop.")
     if not at_home():
         goto_home()
-    it = Interval()
-    while True:
-        it.wait()
-        device.screenshot()
+    for _ in Loop():
         if at_daily_shop():
             break
         elif image.find(R.Daily.ButtonShop):

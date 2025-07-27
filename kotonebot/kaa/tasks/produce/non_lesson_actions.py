@@ -12,7 +12,8 @@ from kotonebot.kaa.tasks import R
 from kotonebot.kaa.config import conf
 from ..produce.common import fast_acquisitions
 from kotonebot.kaa.game_ui.commu_event_buttons import CommuEventButtonUI
-from kotonebot.util import Countdown, Interval
+from kotonebot.util import Countdown
+from kotonebot.backend.loop import Loop
 from kotonebot.errors import UnrecoverableError
 from kotonebot import device, image, action, sleep
 from kotonebot.backend.dispatch import SimpleDispatcher
@@ -56,9 +57,12 @@ def enter_study():
     device.double_click(image.expect_wait(R.InPurodyuusu.ButtonIconStudy))
     # 等待进入页面。中间可能会出现未读交流
     # [screenshots/produce/action_study2.png]
-    while not image.find(R.InPurodyuusu.IconTitleStudy):
-        logger.debug("Waiting for 授業 screen.")
-        fast_acquisitions()
+    for _ in Loop():
+        if not image.find(R.InPurodyuusu.IconTitleStudy):
+            logger.debug("Waiting for 授業 screen.")
+            fast_acquisitions()
+        else:
+            break
     # 首先需要判断是不是自习课
     # [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_study_self_study.png]
     if image.find_multi([
@@ -101,8 +105,11 @@ def enter_study():
             device.click(target_btn)
         else:
             device.double_click(target_btn)
-        while fast_acquisitions() is None:
-            logger.info("Waiting for acquisitions finished.")
+        for _ in Loop():
+            if fast_acquisitions() is None:
+                logger.info("Waiting for acquisitions finished.")
+            else:
+                break
     logger.info("授業 completed.")
 
 
@@ -119,12 +126,14 @@ def enter_allowance():
     logger.info("Double clicking on 活動支給.")
     device.double_click(image.expect(R.InPurodyuusu.ButtonTextAllowance), interval=1)
     # 等待进入页面
-    while not image.find(R.InPurodyuusu.IconTitleAllowance):
-        logger.debug("Waiting for 活動支給 screen.")
-        fast_acquisitions()
+    for _ in Loop():
+        if not image.find(R.InPurodyuusu.IconTitleAllowance):
+            logger.debug("Waiting for 活動支給 screen.")
+            fast_acquisitions()
+        else:
+            break
     # 领取奖励
-    it = Interval()
-    while True:
+    for _ in Loop():
         # TODO: 检测是否在行动页面应当单独一个函数
         if image.find_multi([
             R.InPurodyuusu.TextPDiary, # 普通周
@@ -138,7 +147,6 @@ def enter_allowance():
             continue
         if fast_acquisitions() is not None:
             continue
-        it.wait()
     logger.info("活動支給 completed.")
 
 # TODO: 将逻辑用循环改写
@@ -156,10 +164,13 @@ def enter_consult():
     device.double_click(image.expect(R.InPurodyuusu.ButtonIconConsult), interval=1)
     
     # 等待进入页面
-    while not image.find(R.InPurodyuusu.IconTitleConsult):
-        device.screenshot()
-        logger.debug("Waiting for 相談 screen.")
-        fast_acquisitions()
+    for _ in Loop():
+        if not image.find(R.InPurodyuusu.IconTitleConsult):
+            device.screenshot()
+            logger.debug("Waiting for 相談 screen.")
+            fast_acquisitions()
+        else:
+            break
     # # 尝试固定购买第一个物品
     # device.click(R.InPurodyuusu.PointConsultFirstItem)
     # sleep(0.5)
@@ -179,15 +190,12 @@ def enter_consult():
     #     dialog.yes()
     device.click(R.InPurodyuusu.PointConsultFirstItem)
     sleep(0.3)
-    it = Interval()
     wait_purchase_cd = Countdown(sec=5)
     exit_cd = Countdown(sec=5)
     purchase_clicked = False
     purchase_confirmed = False
     exit_clicked = False
-    while True:
-        device.screenshot()
-        it.wait()
+    for _ in Loop():
         if wait_purchase_cd.expired():
             # 等待购买确认对话框超时后直接认为购买完成
             purchase_confirmed = True
@@ -268,9 +276,12 @@ def enter_outing():
     logger.info("Double clicking on おでかけ.")
     device.double_click(image.expect(R.InPurodyuusu.ButtonIconOuting))
     # 等待进入页面
-    while not image.find(R.InPurodyuusu.TitleIconOuting):
-        logger.debug("Waiting for おでかけ screen.")
-        fast_acquisitions()
+    for _ in Loop():
+        if not image.find(R.InPurodyuusu.TitleIconOuting):
+            logger.debug("Waiting for おでかけ screen.")
+            fast_acquisitions()
+        else:
+            break
     # 固定选中第二个选项
     # TODO: 可能需要二次处理外出事件
     # [kotonebot-resource\sprites\jp\in_purodyuusu\screenshot_outing.png]
@@ -284,9 +295,7 @@ def enter_outing():
         device.click(target_btn)
     else:
         device.double_click(target_btn)
-    it = Interval()
-    while True:
-        device.screenshot()
+    for _ in Loop():
         if at_action_scene():
             break
         elif fast_acquisitions():
@@ -296,7 +305,6 @@ def enter_outing():
             logger.info("AP max out dialog found. Click to continue.")
             device.click()
             sleep(0.1)
-        it.wait()
 
     logger.info("おでかけ completed.")
 

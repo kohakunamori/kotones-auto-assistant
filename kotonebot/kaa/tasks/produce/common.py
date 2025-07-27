@@ -7,6 +7,7 @@ from kotonebot import (
     image,
     action,
     sleep,
+    Loop,
     Interval,
 )
 from kotonebot.kaa.config.schema import produce_solution
@@ -28,15 +29,11 @@ def acquire_skill_card():
     # TODO: 不硬编码坐标
     logger.debug("Locating all skill cards...")
     
-    it = Interval()
     cards = None
     card_clicked = False
     target_card = None
     
-    while True:
-        device.screenshot()
-        it.wait()
-        
+    for _ in Loop():
         # 是否显示技能卡选择指导的对话框
         # [kotonebot-resource/sprites/jp/in_purodyuusu/screenshot_show_skill_card_select_guide_dialog.png]
         if image.find(R.InPurodyuusu.TextSkillCardSelectGuideDialogTitle):
@@ -146,14 +143,11 @@ def handle_skill_card_removal():
         logger.info("No skill cards found")
         return False
     device.click(card)
-    it = Interval()
-    while True:
-        device.screenshot()
+    for _ in Loop():
         if image.find(R.InPurodyuusu.ButtonRemove):
             device.click()
             logger.debug("Remove button clicked.")
             break
-        it.wait()
     logger.debug("Handle skill card removal finished.")
 
 AcquisitionType = Literal[
