@@ -116,7 +116,7 @@ def handle_challenge() -> bool:
 
     # 跳过所有
     # [screenshots/contest/contest1.png]
-    if image.find(R.Daily.ButtonIconSkip, preprocessors=[WhiteFilter()]):
+    if image.find(R.Daily.ButtonIconSkip, preprocessors=[WhiteFilter()], threshold=0.7):
         logger.debug('Skipping all.')
         device.click()
         return True
