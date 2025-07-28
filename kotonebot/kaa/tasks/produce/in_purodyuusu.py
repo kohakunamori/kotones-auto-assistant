@@ -738,8 +738,6 @@ def detect_produce_scene() -> ProduceStage:
             elif commu_event():
                 # 继续循环检测
                 pass
-            else:
-                return 'unknown'
         # 如果没有返回，说明需要继续检测
         sleep(0.5)  # 等待一段时间再重新检测
     return 'unknown'
