@@ -2666,6 +2666,9 @@ def main(kaa: Kaa | None = None) -> None:
     ui = KotoneBotUI(kaa)
     app = ui.create_ui()
 
+    if start_immidiately:
+        ui.start_run()
+
     server_name = "0.0.0.0" if ui.current_config.options.misc.expose_to_lan else "127.0.0.1"
     app.launch(inbrowser=True, show_error=True, server_name=server_name)
 

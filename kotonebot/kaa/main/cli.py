@@ -21,6 +21,7 @@ psr.add_argument('-lp', '--log-path', default=None, help='Path to the log file. 
 psr.add_argument('-ll', '--log-level', default='DEBUG', help='Log level. Default: DEBUG')
 psr.add_argument('--kill-dmm', action='store_true', default=False, help='Kill DMM Game Player when tasks are completed. Overrides config().end_game.kill_dmm')
 psr.add_argument('--kill-game', action='store_true', default=False, help='Kill gakumasu.exe when tasks are completed. Overrides config().end_game.kill_game')
+psr.add_argument('--start-immidiately', action='store_true', default=False, help='Start tasks immediately after launching the UI. Only available when no subcommand is specified.')
 
 # 子命令
 subparsers = psr.add_subparsers(dest='subcommands', title='Subcommands')
@@ -119,7 +120,7 @@ def main():
         kaa().set_log_level(logging.DEBUG)
         kaa().add_file_logger(log_filename)
         from .gr import main as gr_main
-        gr_main(kaa())
+        gr_main(kaa(), psr.parse_args().start_immidiately)
 
 if __name__ == '__main__':
     main()

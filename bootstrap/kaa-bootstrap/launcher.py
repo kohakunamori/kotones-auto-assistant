@@ -635,7 +635,7 @@ def check_admin(config: Config) -> bool:
     
     return True
 
-def run_kaa() -> bool:
+def run_kaa(args: list[str]) -> bool:
     """
     运行琴音小助手。
     
@@ -649,7 +649,7 @@ def run_kaa() -> bool:
     os.environ["no_proxy"] = "localhost, 127.0.0.1, ::1"
     
     # 运行kaa命令
-    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kotonebot.kaa.main.cli', verbatim=True, log_output=False):
+    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kotonebot.kaa.main.cli {" ".join(args)}', verbatim=True, log_output=False):
         return False
     
     print_header("运行结束", color=Color.GREEN)
@@ -668,7 +668,10 @@ def parse_arguments():
     parser.add_argument('--install-version', type=str, help='安装指定版本的 ksaa (例如: --install-version=1.2.3)')
     parser.add_argument('--install-from-zip', type=str, help='从 zip 文件安装 ksaa (例如: --install-from-zip=/path/to/file.zip)')
 
-    return parser.parse_args()
+    args, extra_args = parser.parse_known_args()
+    args.extra_args = extra_args
+
+    return args
 
 def main_launch():
     """
@@ -730,7 +733,7 @@ def main_launch():
                 raise RuntimeError("权限检查失败。")
 
         # 7. 运行琴音小助手
-        if not run_kaa():
+        if not run_kaa(args.extra_args):
             raise RuntimeError("琴音小助手主程序运行失败。")
 
         msg = "琴音小助手已退出。"
