@@ -30,6 +30,7 @@ from kotonebot.kaa.config import (
     RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig, MiscConfig,
 )
 from kotonebot.kaa.config.produce import ProduceSolution, ProduceSolutionManager, ProduceData
+from kotonebot.kaa.application.adapter.misc_adapter import create_desktop_shortcut
 
 logger = logging.getLogger(__name__)
 GradioInput = gr.Textbox | gr.Number | gr.Checkbox | gr.Dropdown | gr.Radio | gr.Slider | gr.Tabs | gr.Tab
@@ -2224,6 +2225,15 @@ class KotoneBotUI:
                 info=MiscConfig.model_fields['expose_to_lan'].description,
                 interactive=True
             )
+            with gr.Row():
+                gr.Button("创建桌面快捷方式").click(
+                    fn=self._create_shortcut_button_click(False),
+                    outputs=[]
+                )
+                gr.Button("创建一键启动快捷方式").click(
+                    fn=self._create_shortcut_button_click(True),
+                    outputs=[]
+                )
 
         def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
             config.misc.check_update = data['check_update']
@@ -2235,6 +2245,12 @@ class KotoneBotUI:
             'auto_install_update': auto_install_update,
             'expose_to_lan': expose_to_lan
         }
+
+    def _create_shortcut_button_click(self, start_immediately: bool) -> Callable[[], None]:
+        def _inner():
+            create_desktop_shortcut(start_immediately)
+            gr.Success("快捷方式创建成功")
+        return _inner
 
     def _create_debug_settings(self) -> ConfigBuilderReturnValue:
         """调试设置：仅在调试时使用"""
@@ -2661,7 +2677,7 @@ class KotoneBotUI:
 
         return app
 
-def main(kaa: Kaa | None = None) -> None:
+def main(kaa: Kaa | None = None, start_immidiately: bool = False) -> None:
     kaa = kaa or Kaa('./config.json')
     ui = KotoneBotUI(kaa)
     app = ui.create_ui()
