@@ -458,6 +458,35 @@ def install_ksaa_from_zip(zip_path: str) -> bool:
             logging.error(msg, exc_info=True)
             return False
 
+
+def install_ksaa_from_package(package_path: str) -> bool:
+    """
+    从 .whl 或 .tar.gz 文件安装ksaa包。
+
+    :param package_path: .whl或.tar.gz文件路径
+    :type package_path: str
+    :return: 安装是否成功
+    :rtype: bool
+    """
+    package_file = Path(package_path)
+    if not package_file.exists():
+        msg = f"包文件不存在: {package_path}"
+        print_status(msg, status='error')
+        logging.error(msg)
+        return False
+
+    suffix = package_file.suffix.lower()
+    if not (suffix == '.whl' or package_path.lower().endswith('.tar.gz')):
+        msg = f"文件不是 .whl 或 .tar.gz 格式: {package_path}"
+        print_status(msg, status='error')
+        logging.error(msg)
+        return False
+
+    print_status(f"从包文件安装琴音小助手: {package_path}", status='info')
+
+    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --no-cache-dir --upgrade --no-deps --force-reinstall --no-index "{package_file.absolute()}"'
+    return run_command(install_command)
+
 def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_update: bool = True) -> bool:
     """
     安装和更新pip以及ksaa包。
@@ -664,9 +693,10 @@ def parse_arguments():
     :rtype: argparse.Namespace
     """
     parser = argparse.ArgumentParser(description='琴音小助手启动器')
-    parser.add_argument('zip_file', nargs='?', help='要安装的 zip 文件路径（与--install-from-zip等价）')
+    parser.add_argument('package_file', nargs='?', help='要安装的包文件路径（.whl, .tar.gz, .zip）')
     parser.add_argument('--install-version', type=str, help='安装指定版本的 ksaa (例如: --install-version=1.2.3)')
     parser.add_argument('--install-from-zip', type=str, help='从 zip 文件安装 ksaa (例如: --install-from-zip=/path/to/file.zip)')
+    parser.add_argument('--install-from-package', type=str, help='从 .whl 或 .tar.gz 文件安装 ksaa')
 
     args, extra_args = parser.parse_known_args()
     args.extra_args = extra_args
@@ -680,9 +710,17 @@ def main_launch():
     # 解析命令行参数
     args = parse_arguments()
 
-    # 处理位置参数：如果提供了zip_file位置参数，将其设置为install_from_zip
-    if args.zip_file and not args.install_from_zip:
-        args.install_from_zip = args.zip_file
+    # 处理位置参数
+    if args.package_file:
+        lower_path = args.package_file.lower()
+        if lower_path.endswith('.zip'):
+            if not args.install_from_zip:
+                args.install_from_zip = args.package_file
+        elif lower_path.endswith('.whl') or lower_path.endswith('.tar.gz'):
+            if not args.install_from_package:
+                args.install_from_package = args.package_file
+        else:
+            raise ValueError(f"不支持的文件类型: {args.package_file}")
 
     setup_logging()
     run_command("title 琴音小助手（运行时请勿关闭此窗口）", verbatim=True, log_output=False)
@@ -700,7 +738,7 @@ def main_launch():
         check_update, auto_install_update = get_update_settings(config if config else {"version": 5, "user_configs": []})
 
         # 3. 如果指定了特殊安装参数，跳过更新检查
-        if args.install_version or args.install_from_zip:
+        if args.install_version or args.install_from_zip or args.install_from_package:
             check_update = False
             auto_install_update = False
 
@@ -717,6 +755,11 @@ def main_launch():
             print_header("安装补丁", color=Color.BLUE)
             if not install_ksaa_from_zip(args.install_from_zip):
                 raise RuntimeError("从zip文件安装失败，请检查上面的错误日志。")
+        elif args.install_from_package:
+            # 从包文件安装
+            print_header("安装补丁", color=Color.BLUE)
+            if not install_ksaa_from_package(args.install_from_package):
+                raise RuntimeError("从包文件安装失败，请检查上面的错误日志。")
         elif args.install_version:
             # 安装指定版本
             print_header("安装指定版本", color=Color.BLUE)
