@@ -167,8 +167,7 @@ def windows_launch():
     logger.info('Starting game...')
     os.startfile('dmmgameplayer://play/GCL/gakumas/cl/win')
     # 等待游戏窗口出现
-    for _ in Loop():
-        vars.flow.check()
+    for _ in Loop(auto_screenshot=False):
         if ahk.find_window(title='gakumas', title_match_mode=3):
             logger.debug('Game window found.')
             break
