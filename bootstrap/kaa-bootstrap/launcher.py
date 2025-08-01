@@ -503,10 +503,11 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
     print_header("安装与更新小助手", color=Color.BLUE)
 
     # 升级pip
-    print_status("更新 pip", status='info')
-    upgrade_pip_command = f'"{PYTHON_EXECUTABLE}" -m pip install -i {pip_server} --trusted-host "{TRUSTED_HOSTS}" --upgrade pip'
-    if not run_command(upgrade_pip_command):
-        return False
+    if check_update:
+        print_status("更新 pip", status='info')
+        upgrade_pip_command = f'"{PYTHON_EXECUTABLE}" -m pip install -i {pip_server} --trusted-host "{TRUSTED_HOSTS}" --upgrade pip'
+        if not run_command(upgrade_pip_command):
+            return False
 
     # 默认安装逻辑
     install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location ksaa'
@@ -528,6 +529,8 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
                     print_update_notice(str(current_version), str(latest_version))
             else:
                 print_status("已是最新版本", status='success')
+        else:
+            print_status("跳过更新检查", status='info')
     return True
 
 def load_config() -> Optional[Config]:
@@ -598,6 +601,10 @@ def restart_as_admin() -> None:
 
     script = os.path.abspath(sys.argv[0])
     params = ' '.join([f'"{item}"' for item in sys.argv[1:]])
+    
+    # 重启后跳过检查更新
+    if '--skip-update' not in sys.argv:
+        params += ' --skip-update'
     
     try:
         # 使用 ShellExecute 以管理员身份启动程序
@@ -697,6 +704,7 @@ def parse_arguments():
     parser.add_argument('--install-version', type=str, help='安装指定版本的 ksaa (例如: --install-version=1.2.3)')
     parser.add_argument('--install-from-zip', type=str, help='从 zip 文件安装 ksaa (例如: --install-from-zip=/path/to/file.zip)')
     parser.add_argument('--install-from-package', type=str, help='从 .whl 或 .tar.gz 文件安装 ksaa')
+    parser.add_argument('--skip-update', action='store_true', help='跳过 pip 和 kaa 的检查更新')
 
     args, extra_args = parser.parse_known_args()
     args.extra_args = extra_args
@@ -737,8 +745,8 @@ def main_launch():
         # 2. 获取更新设置
         check_update, auto_install_update = get_update_settings(config if config else {"version": 5, "user_configs": []})
 
-        # 3. 如果指定了特殊安装参数，跳过更新检查
-        if args.install_version or args.install_from_zip or args.install_from_package:
+        # 3. 如果指定了特殊安装参数或跳过更新，跳过更新检查
+        if args.install_version or args.install_from_zip or args.install_from_package or args.skip_update:
             check_update = False
             auto_install_update = False
 
