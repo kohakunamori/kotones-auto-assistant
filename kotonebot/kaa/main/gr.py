@@ -881,7 +881,7 @@ class KotoneBotUI:
                 new_value = choices[0]
             else:
                 new_value = impl_value
-            return gr.Dropdown(choices=choices, value=new_value)
+            return new_value
 
         with gr.Tabs(selected=self.current_config.backend.type):
             with gr.Tab("MuMu 12", id="mumu12") as tab_mumu12:
