@@ -70,8 +70,7 @@ def dispatch_recommended_items():
     # 前置条件：[screenshots\shop\money1.png]
     logger.info(f'Start purchasing recommended items.')
 
-    while True:
-        device.screenshot()
+    for _ in Loop():
         if rec := image.find(R.Daily.TextShopRecommended):
             logger.info(f'Clicking on recommended item.') # TODO: 计数
             pos = rec.position.offset(dx=0, dy=80)
@@ -120,11 +119,12 @@ def confirm_purchase(target_item_pos: Point | None = None):
         return
     else:
         device.screenshot()
-        while image.find(R.Daily.ButtonShopCountAdd, colored=True):
-            logger.debug('Adjusting quantity(+1)...')
-            device.click()
-            sleep(0.2)
-            device.screenshot()
+        for _ in Loop(interval=0.2):
+            if image.find(R.Daily.ButtonShopCountAdd, colored=True):
+                logger.debug('Adjusting quantity(+1)...')
+                device.click()
+            else:
+                break
         logger.debug('Confirming purchase...')
         device.click(image.expect_wait(R.Common.ButtonConfirm))
     # 等待对话框动画结束
@@ -157,10 +157,12 @@ def ap_items():
                 continue
             comfirm = image.expect_wait(R.Common.ButtonConfirm, timeout=2)
             # 如果数量不是最大,调到最大
-            while image.find(R.Daily.ButtonShopCountAdd, colored=True):
-                logger.debug('Adjusting quantity(+1)...')
-                device.click()
-                sleep(0.3)
+            for _ in Loop(interval=0.3):
+                if image.find(R.Daily.ButtonShopCountAdd, colored=True):
+                    logger.debug('Adjusting quantity(+1)...')
+                    device.click()
+                else:
+                    break
             logger.debug(f'Confirming purchase...')
             device.click(comfirm)
             sleep(1.5)

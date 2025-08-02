@@ -6,7 +6,8 @@ from kotonebot.kaa.config import conf
 from kotonebot.kaa.game_ui.scrollable import Scrollable
 from ..actions.scenes import at_home, goto_home
 from kotonebot.backend.image import TemplateMatchResult
-from kotonebot import task, action, device, image, sleep, Interval
+from kotonebot.backend.loop import Loop
+from kotonebot import task, device, image, action, sleep
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +47,11 @@ def draw_capsule_toys(button: TemplateMatchResult, times: int):
         sleep(0.5)
     
     # 等待动画完成
-    it = Interval()
-    while True:
+    for _ in Loop():
         if image.find(R.Common.ButtonIconClose):
             device.click()
         elif image.find(R.Daily.CapsuleToys.IconTitle):
             break
-        it.wait()
 
 @action('获取抽扭蛋按钮')
 def get_capsule_toys_draw_buttons():

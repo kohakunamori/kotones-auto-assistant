@@ -12,6 +12,7 @@ from kotonebot.kaa.game_ui import dialog
 from kotonebot.kaa.util.trace import trace
 from kotonebot.primitives import RectTuple, Rect
 from kotonebot import action, Interval, Countdown, device, image, sleep, ocr, contains, use_screenshot, color
+from kotonebot.backend.loop import Loop
 
 class SkillCard(NamedTuple):
     available: bool
@@ -121,7 +122,6 @@ def do_cards(
     :param threshold_predicate: 推荐卡检测阈值判断函数
     :param end_predicate: 结束条件判断函数
     """
-    it = Interval(seconds=1/30)
     timeout_cd = Countdown(sec=120).start() # 推荐卡检测超时计时器
     break_cd = Countdown(sec=5) # 满足结束条件计时器
     no_card_cd = Countdown(sec=4) # 无手牌计时器
@@ -129,10 +129,9 @@ def do_cards(
     tries = 1
     card_count = -1
 
-    while True:
+    for _ in Loop(interval=1/30):
         device.click(0, 0)
         img = device.screenshot()
-        it.wait()
 
         # 技能卡自选移动对话框
         if image.find(R.InPurodyuusu.IconTitleSkillCardMove):
@@ -216,10 +215,8 @@ def handle_skill_card_move():
         logger.info("No skill cards found")
         return False
 
-    it = Interval()
     cd = Countdown(sec=3)
-    while True:
-        device.screenshot()
+    for _ in Loop():
         # 判断对话框是否关闭
         # 已关闭，开始计时
         if not image.find(R.InPurodyuusu.IconTitleSkillCardMove):
@@ -241,8 +238,6 @@ def handle_skill_card_move():
             device.double_click(card)
             sleep(1)
             dialog.yes()
-
-        it.wait()
     logger.debug("Handle skill card move finished.")
 
 @action('获取当前卡牌信息', screenshot_mode='manual-inherit')

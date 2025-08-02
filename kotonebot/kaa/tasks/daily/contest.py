@@ -9,6 +9,7 @@ from kotonebot.kaa.game_ui import WhiteFilter, dialog
 from ..actions.scenes import at_home, goto_home
 from ..actions.loading import wait_loading_end
 from kotonebot import device, image, ocr, color, action, task, rect_expand, sleep, contains, Interval
+from kotonebot.backend.loop import Loop
 from kotonebot.backend.context.context import vars
 from kotonebot.ui import user as ui_user
 
@@ -22,12 +23,8 @@ def goto_contest() -> bool:
 
     :return: 是否存在未完成的挑战
     """
-    it = Interval()
     has_ongoing_contest = None
-    while True:
-        device.screenshot()
-        it.wait()
-        
+    for _ in Loop():
         if image.find(R.Common.ButtonContest):
             device.click()
         elif image.find(R.Daily.TextRoadToIdol):
@@ -191,8 +188,7 @@ def contest():
         logger.info('No action needed.')
         return
     has_ongoing_contest = goto_contest()
-    while True:
-        device.screenshot()
+    for _ in Loop():
         handled, should_continue = handle_pick_contestant(has_ongoing_contest)
         if not should_continue:
             break

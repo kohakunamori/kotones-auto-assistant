@@ -30,6 +30,7 @@ from kotonebot.kaa.config import (
     RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig, MiscConfig,
 )
 from kotonebot.kaa.config.produce import ProduceSolution, ProduceSolutionManager, ProduceData
+from kotonebot.kaa.application.adapter.misc_adapter import create_desktop_shortcut
 
 logger = logging.getLogger(__name__)
 GradioInput = gr.Textbox | gr.Number | gr.Checkbox | gr.Dropdown | gr.Radio | gr.Slider | gr.Tabs | gr.Tab
@@ -870,75 +871,102 @@ class KotoneBotUI:
 
     def _create_emulator_settings(self) -> ConfigBuilderReturnValue:
         gr.Markdown("### 模拟器设置")
-        has_mumu12 = Mumu12Host.installed()
-        has_leidian = LeidianHost.installed()
         current_tab = 0
 
         def _update_emulator_tab_options(impl_value: str, selected_index: int):
             nonlocal current_tab
             current_tab = selected_index
-
-            # if selected_index == 3:  # DMM
-            #     choices = ['windows', 'remote_windows']
-            # else:  # Mumu, Leidian, Custom
-            #     choices = ['adb', 'adb_raw', 'uiautomator2']
-            # else:
-            #     raise ValueError(f'Unsupported backend type: {type_in_config}')
             choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
             if impl_value not in choices:
                 new_value = choices[0]
             else:
                 new_value = impl_value
-
             return gr.Dropdown(choices=choices, value=new_value)
 
         with gr.Tabs(selected=self.current_config.backend.type):
-            with gr.Tab("MuMu 12", interactive=has_mumu12, id="mumu12") as tab_mumu12:
+            with gr.Tab("MuMu 12", id="mumu12") as tab_mumu12:
                 gr.Markdown("已选中 MuMu 12 模拟器")
-                if has_mumu12:
+                mumu_refresh_message = gr.Markdown("<div style='color: red;'>点击下方「刷新」按钮载入信息</div>", visible=True)
+                mumu_instance = gr.Dropdown(
+                    label="选择多开实例",
+                    choices=[],
+                    interactive=True
+                )
+                mumu_refresh_btn = gr.Button("刷新")
+
+                def refresh_mumu_instances():
                     try:
                         instances = Mumu12Host.list()
                         is_mumu12 = self.current_config.backend.type == 'mumu12'
-                        mumu_instance = gr.Dropdown(
-                            label="选择多开实例",
-                            value=self.current_config.backend.instance_id if is_mumu12 else None,
-                            choices=[(i.name, i.id) for i in instances],
-                            interactive=True
-                        )
-                        mumu_background_mode = gr.Checkbox(
-                            label="MuMu12 模拟器后台保活模式",
-                            value=self.current_config.backend.mumu_background_mode,
-                            info=BackendConfig.model_fields['mumu_background_mode'].description,
-                            interactive=True
-                        )
-                    except:  # noqa: E722
+                        current_id = self.current_config.backend.instance_id if is_mumu12 else None
+                        choices = [(i.name, i.id) for i in instances]
+                        return gr.Dropdown(choices=choices, value=current_id, interactive=True), gr.Markdown(visible=False)
+                    except Exception as e:
                         logger.exception('Failed to list installed MuMu12')
-                        gr.Markdown('获取 MuMu12 模拟器列表失败，请升级模拟器到最新版本。若问题依旧，前往 QQ 群、QQ 频道或 Github 反馈 bug。')
-                        mumu_instance = gr.Dropdown(visible=False)
-                        mumu_background_mode = gr.Checkbox(visible=False)
-                else:
-                    # 为了让 return 收集组件时不报错
-                    mumu_instance = gr.Dropdown(visible=False)
-                    mumu_background_mode = gr.Checkbox(visible=False)
+                        gr.Error("获取 MuMu12 模拟器列表失败，请升级模拟器到最新版本。若问题依旧，前往 QQ 群、QQ 频道或 Github 反馈 bug。")
+                        return gr.Dropdown(choices=[], interactive=True), gr.Markdown(visible=True)
 
-            with gr.Tab("雷电", interactive=has_leidian, id="leidian") as tab_leidian:
+                mumu_refresh_btn.click(
+                    fn=refresh_mumu_instances,
+                    outputs=[mumu_instance, mumu_refresh_message]
+                )
+
+                # 如果当前是 MuMu 模拟器且有配置的 instance_id，立即加载实例列表
+                if self.current_config.backend.type == 'mumu12' and self.current_config.backend.instance_id:
+                    try:
+                        instances = Mumu12Host.list()
+                        choices = [(i.name, i.id) for i in instances]
+                        mumu_instance.choices = choices
+                        mumu_instance.value = self.current_config.backend.instance_id
+                        mumu_refresh_message.visible = False
+                    except Exception as e:
+                        logger.exception('Failed to auto-load MuMu12 instances')
+
+                mumu_background_mode = gr.Checkbox(
+                    label="MuMu12 模拟器后台保活模式",
+                    value=self.current_config.backend.mumu_background_mode,
+                    info=BackendConfig.model_fields['mumu_background_mode'].description,
+                    interactive=True
+                )
+
+            with gr.Tab("雷电", id="leidian") as tab_leidian:
                 gr.Markdown("已选中雷电模拟器")
-                if has_leidian:
+                leidian_refresh_message = gr.Markdown("<div style='color: red;'>点击下方「刷新」按钮载入信息</div>", visible=True)
+                leidian_instance = gr.Dropdown(
+                    label="选择多开实例",
+                    choices=[],
+                    interactive=True
+                )
+                leidian_refresh_btn = gr.Button("刷新")
+
+                def refresh_leidian_instances():
                     try:
                         instances = LeidianHost.list()
                         is_leidian = self.current_config.backend.type == 'leidian'
-                        leidian_instance = gr.Dropdown(
-                            label="选择多开实例",
-                            value=self.current_config.backend.instance_id if is_leidian else None,
-                            choices=[(i.name, i.id) for i in instances],
-                            interactive=True
-                        )
-                    except:  # noqa: E722
+                        current_id = self.current_config.backend.instance_id if is_leidian else None
+                        choices = [(i.name, i.id) for i in instances]
+                        return gr.Dropdown(choices=choices, value=current_id, interactive=True), gr.Markdown(visible=False)
+                    except Exception as e:
                         logger.exception('Failed to list installed Leidian')
-                        gr.Markdown('获取雷电模拟器列表失败，请前往 QQ 群、QQ 频道或 Github 反馈 bug。')
-                        leidian_instance = gr.Dropdown(visible=False)
-                else:
-                    leidian_instance = gr.Dropdown(visible=False)
+                        gr.Error("获取雷电模拟器列表失败，请前往 QQ 群、QQ 频道或 Github 反馈 bug。")
+                        return gr.Dropdown(choices=[], interactive=True), gr.Markdown(visible=True)
+
+                leidian_refresh_btn.click(
+                    fn=refresh_leidian_instances,
+                    outputs=[leidian_instance, leidian_refresh_message]
+                )
+
+                # 如果当前是雷电模拟器且有配置的 instance_id，立即加载实例列表
+                if self.current_config.backend.type == 'leidian' and self.current_config.backend.instance_id:
+                    try:
+                        instances = LeidianHost.list()
+                        choices = [(i.name, i.id) for i in instances]
+                        leidian_instance.choices = choices
+                        leidian_instance.value = self.current_config.backend.instance_id
+                        leidian_refresh_message.visible = False
+                    except Exception as e:
+                        logger.exception('Failed to auto-load Leidian instances')
+                        # 保持显示刷新提示
 
             with gr.Tab("自定义", id="custom") as tab_custom:
                 gr.Markdown("已选中自定义模拟器")
@@ -991,13 +1019,6 @@ class KotoneBotUI:
             with gr.Tab("DMM", id="dmm") as tab_dmm:
                 gr.Markdown("已选中 DMM")
 
-        # type_in_config = self.current_config.backend.type
-        # if type_in_config in ['dmm']:
-        #     choices = ['windows', 'remote_windows']
-        # elif type_in_config in ['mumu12', 'leidian', 'custom']:
-        #     choices = ['adb', 'adb_raw', 'uiautomator2']
-        # else:
-        #     raise ValueError(f'Unsupported backend type: {type_in_config}')
         choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
         screenshot_impl = gr.Dropdown(
             choices=choices,
@@ -2224,6 +2245,15 @@ class KotoneBotUI:
                 info=MiscConfig.model_fields['expose_to_lan'].description,
                 interactive=True
             )
+            with gr.Row():
+                gr.Button("创建桌面快捷方式").click(
+                    fn=self._create_shortcut_button_click(False),
+                    outputs=[]
+                )
+                gr.Button("创建一键启动快捷方式").click(
+                    fn=self._create_shortcut_button_click(True),
+                    outputs=[]
+                )
 
         def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
             config.misc.check_update = data['check_update']
@@ -2235,6 +2265,12 @@ class KotoneBotUI:
             'auto_install_update': auto_install_update,
             'expose_to_lan': expose_to_lan
         }
+
+    def _create_shortcut_button_click(self, start_immediately: bool) -> Callable[[], None]:
+        def _inner():
+            create_desktop_shortcut(start_immediately)
+            gr.Success("快捷方式创建成功")
+        return _inner
 
     def _create_debug_settings(self) -> ConfigBuilderReturnValue:
         """调试设置：仅在调试时使用"""
@@ -2661,10 +2697,13 @@ class KotoneBotUI:
 
         return app
 
-def main(kaa: Kaa | None = None) -> None:
+def main(kaa: Kaa | None = None, start_immidiately: bool = False) -> None:
     kaa = kaa or Kaa('./config.json')
     ui = KotoneBotUI(kaa)
     app = ui.create_ui()
+
+    if start_immidiately:
+        ui.start_run()
 
     server_name = "0.0.0.0" if ui.current_config.options.misc.expose_to_lan else "127.0.0.1"
     app.launch(inbrowser=True, show_error=True, server_name=server_name)

@@ -11,7 +11,7 @@ from ..actions.scenes import at_home
 from .cards import do_cards, CardDetectResult
 from ..actions.commu import handle_unread_commu
 from kotonebot.errors import UnrecoverableError
-from kotonebot.util import Countdown, Interval, cropped
+from kotonebot.util import Countdown, cropped
 from kotonebot.backend.loop import Loop
 from kotonebot.kaa.config import ProduceAction, RecommendCardDetectionMode
 from ..produce.common import until_acquisition_clear, commu_event, fast_acquisitions
@@ -74,10 +74,11 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
     device.screenshot()
     if not image.find(R.InPurodyuusu.IconAsariSenseiAvatar):
         return None
-    it = Interval()
     cd = Countdown(sec=5).start()
     result = None
-    while not cd.expired():
+    for _ in Loop():
+        if cd.expired():
+            break
         logger.debug('Retrieving recommended lesson...')
         with cropped(device, y1=0.00, y2=0.30):
             if result := image.find_multi([
@@ -88,8 +89,6 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
                 R.InPurodyuusu.TextSenseiTipConsult,
             ]):
                 break
-        it.wait()
-        device.screenshot()
 
     logger.debug("image.find_multi: %s", result)
     if result is None:
@@ -145,32 +144,34 @@ def handle_recommended_action(final_week: bool = False) -> ProduceAction | None:
 @action('等待进入行动场景')
 def until_action_scene(week_first: bool = False):
     """等待进入行动场景"""
-    # 检测是否到行动页面
-    while not image.find_multi([
-        R.InPurodyuusu.TextPDiary, # 普通周
-        R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
-    ]):
-        logger.info("Action scene not detected. Retry...")
-        # commu_event 和 acquisitions 顺序不能颠倒。
-        # 在 PRO 培育初始饮料、技能卡二选一事件时，右下方的
-        # 快进按钮会被视为交流。如果先执行 acquisitions()，
-        # 会因为命中交流而 continue，commut_event() 永远
-        # 不会执行。
-        # [screenshots/produce/in_produce/initial_commu_event.png]
-        if week_first and commu_event():
-            continue
-        if fast_acquisitions():
-            continue
-        sleep(0.2)
-    else:
-        logger.info("Now at action scene.")
-        return 
+    for _ in Loop(interval=0.2):
+        if not image.find_multi([
+            R.InPurodyuusu.TextPDiary, # 普通周
+            R.InPurodyuusu.ButtonFinalPracticeDance # 离考试剩余一周
+        ]):
+            logger.info("Action scene not detected. Retry...")
+            # commu_event 和 acquisitions 顺序不能颠倒。
+            # 在 PRO 培育初始饮料、技能卡二选一事件时，右下方的
+            # 快进按钮会被视为交流。如果先执行 acquisitions()，
+            # 会因为命中交流而 continue，commut_event() 永远
+            # 不会执行。
+            # [screenshots/produce/in_produce/initial_commu_event.png]
+            if week_first and commu_event():
+                continue
+            if fast_acquisitions():
+                continue
+        else:
+            logger.info("Now at action scene.")
+            return 
 
 @action('等待进入练习场景')
 def until_practice_scene():
     """等待进入练习场景"""
-    while image.find(R.InPurodyuusu.TextClearUntil) is None:
-        until_acquisition_clear()
+    for _ in Loop():
+        if image.find(R.InPurodyuusu.TextClearUntil) is None:
+            until_acquisition_clear()
+        else:
+            break
 
 @action('等待进入考试场景')
 def until_exam_scene():
@@ -178,8 +179,11 @@ def until_exam_scene():
     # NOTE: is_exam_scene() 通过 OCR 剩余回合数判断是否处于考试场景。
     # 本来有可能会与练习场景混淆，
     # 但是在确定后续只是考试场景的情况下应该不会
-    while ocr.find(regex("合格条件|三位以上")) is None and not is_exam_scene():
-        until_acquisition_clear()
+    for _ in Loop():
+        if ocr.find(regex("合格条件|三位以上")) is None and not is_exam_scene():
+            until_acquisition_clear()
+        else:
+            break
 
 @action('执行练习', screenshot_mode='manual')
 def practice():
@@ -284,8 +288,11 @@ def exam(type: Literal['mid', 'final']):
     do_cards(threshold_predicate, end_predicate)
     device.click(image.expect_wait(R.Common.ButtonNext))
     if type == 'final':
-        while ocr.wait_for(contains("メモリー"), timeout=7):
-            device.click_center()
+        for _ in Loop():
+            if ocr.wait_for(contains("メモリー"), timeout=7):
+                device.click_center()
+            else:
+                break
 
 # TODO: 将这个函数改为手动截图模式
 @action('考试结束流程')
@@ -301,23 +308,24 @@ def produce_end():
     # 等待选择封面画面 [screenshots/produce_end/select_cover.jpg]
     # 次へ
     logger.info("Waiting for select cover screen...")
-    it = Interval()
-    while not image.find(R.InPurodyuusu.ButtonNextNoIcon):
-        # device.screenshot()
-        # 未读交流
-        if handle_unread_commu():
-            logger.info("Skipping unread commu")
-        # 跳过演出
-        # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end.png]
-        elif image.find(R.Produce.ButtonSkipLive, preprocessors=[WhiteFilter()]):
-            logger.info("Skipping live.")
-            device.click()
-        # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end_skip.png]
-        elif image.find(R.Produce.TextSkipLiveDialogTitle):
-            logger.info("Confirming skip live.")
-            device.click(image.expect_wait(R.Common.IconButtonCheck))
-        it.wait()
-        device.click(0, 0)
+    for _ in Loop():
+        if not image.find(R.InPurodyuusu.ButtonNextNoIcon):
+            # device.screenshot()
+            # 未读交流
+            if handle_unread_commu():
+                logger.info("Skipping unread commu")
+            # 跳过演出
+            # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end.png]
+            elif image.find(R.Produce.ButtonSkipLive, preprocessors=[WhiteFilter()]):
+                logger.info("Skipping live.")
+                device.click()
+            # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end_skip.png]
+            elif image.find(R.Produce.TextSkipLiveDialogTitle):
+                logger.info("Confirming skip live.")
+                device.click(image.expect_wait(R.Common.IconButtonCheck))
+            device.click(0, 0)
+        else:
+            break
     # 选择封面
     logger.info("Use default cover.")
     sleep(3)
@@ -360,9 +368,11 @@ def produce_end():
         sleep(2)
     # 后续动画
     logger.info("Waiting for memory generation animation completed...")
-    while not image.find(R.InPurodyuusu.ButtonNextNoIcon):
-        device.click_center()
-        sleep(1)
+    for _ in Loop(interval=1):
+        if not image.find(R.InPurodyuusu.ButtonNextNoIcon):
+            device.click_center()
+        else:
+            break
     
     # 结算完毕
     # logger.info("Finalize")
@@ -385,7 +395,7 @@ def produce_end():
 
     # 四个完成画面
     logger.info("Finalize")
-    while True:
+    for _ in Loop():
         # [screenshots/produce_end/end_next_1.jpg]
         # [screenshots/produce_end/end_next_2.png]
         # [screenshots/produce_end/end_next_3.png]
@@ -406,37 +416,39 @@ def produce_end():
 
     # 点击结束后可能还会弹出来：
     # 活动进度、关注提示
-    while not at_home():
-        # 活动积分进度 奖励领取
-        # [screenshots/produce_end/end_activity1.png]
-        # 制作人 升级
-        # [screenshots/produce_end/end_level_up.png]
-        if image.find(R.Common.ButtonIconClose):
-            logger.info("Activity award claim dialog found. Click to close.")
-            device.click()
-        # 活动积分进度
-        # [screenshots/produce_end/end_activity.png]
-        elif image.find(R.Common.ButtonNextNoIcon, colored=True):
-            logger.debug("Click next")
-            device.click()
-        # 关注制作人
-        # [screenshots/produce_end/end_follow.png]
-        elif image.find(R.InPurodyuusu.ButtonCancel):
-            logger.info("Follow producer dialog found. Click to close.")
-            if produce_solution().data.follow_producer:
-                logger.info("Follow producer")
-                device.click(image.expect_wait(R.InPurodyuusu.ButtonFollowNoIcon))
-            else:
-                logger.info("Skip follow producer")
+    for _ in Loop(interval=1):
+        if not at_home():
+            # 活动积分进度 奖励领取
+            # [screenshots/produce_end/end_activity1.png]
+            # 制作人 升级
+            # [screenshots/produce_end/end_level_up.png]
+            if image.find(R.Common.ButtonIconClose):
+                logger.info("Activity award claim dialog found. Click to close.")
                 device.click()
-        # 偶像强化月 新纪录达成
-        # [kotonebot-resource/sprites/jp/in_purodyuusu/screenshot_new_record.png]
-        elif image.find(R.Common.ButtonOK):
-            logger.info("OK button found. Click to close.")
-            device.click()
+            # 活动积分进度
+            # [screenshots/produce_end/end_activity.png]
+            elif image.find(R.Common.ButtonNextNoIcon, colored=True):
+                logger.debug("Click next")
+                device.click()
+            # 关注制作人
+            # [screenshots/produce_end/end_follow.png]
+            elif image.find(R.InPurodyuusu.ButtonCancel):
+                logger.info("Follow producer dialog found. Click to close.")
+                if produce_solution().data.follow_producer:
+                    logger.info("Follow producer")
+                    device.click(image.expect_wait(R.InPurodyuusu.ButtonFollowNoIcon))
+                else:
+                    logger.info("Skip follow producer")
+                    device.click()
+            # 偶像强化月 新纪录达成
+            # [kotonebot-resource/sprites/jp/in_purodyuusu/screenshot_new_record.png]
+            elif image.find(R.Common.ButtonOK):
+                logger.info("OK button found. Click to close.")
+                device.click()
+            else:
+                device.click_center()
         else:
-            device.click_center()
-        sleep(1)
+            break
     logger.info("Produce completed.")
 
 @action('执行行动', screenshot_mode='manual-inherit')

@@ -8,6 +8,7 @@ from kotonebot.kaa.config import conf, Priority
 from ..actions.loading import wait_loading_end
 from ..actions.scenes import at_home, goto_home
 from kotonebot import device, image, color, task, action, rect_expand, sleep
+from kotonebot.backend.loop import Loop
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +44,14 @@ def claim_mission_reward(name: str):
         logger.info(f'Claiming {name} mission reward.')
         device.click()
         sleep(0.5)
-        while not image.find(R.Common.ButtonIconArrowShortDisabled, colored=True):
-            if image.find(R.Common.ButtonIconClose):
-                logger.debug('Closing popup dialog.')
-                device.click()
-                sleep(1)
-            sleep(0.5)
+        for _ in Loop(interval=0.5):
+            if not image.find(R.Common.ButtonIconArrowShortDisabled, colored=True):
+                if image.find(R.Common.ButtonIconClose):
+                    logger.debug('Closing popup dialog.')
+                    device.click()
+                    sleep(1)
+            else:
+                break
     else:
         logger.info(f'No {name} mission reward to claim.')
 
@@ -81,13 +84,14 @@ def claim_pass_reward():
     device.click()
     # [screenshots/mission/pass.png]
     # 对话框 [screenshots/mission/pass_dialog.png]
-    while not image.find(R.Daily.IconTitlePass):
+    for _ in Loop(interval=0.2):
         if image.find(R.Common.ButtonIconClose):
             logger.debug('Closing popup dialog.')
             device.click()
-        sleep(0.2)
+        elif image.find(R.Daily.IconTitlePass):
+            break
     logger.debug('Pass screen loaded.')
-    while True:
+    for _ in Loop():
         if image.find(R.Common.ButtonIconClose):
             logger.debug('Closing popup dialog.')
             device.click()
@@ -96,7 +100,6 @@ def claim_pass_reward():
             device.click()
         elif not image.find(R.Daily.ButtonPassClaim, colored=True) and image.find(R.Daily.IconTitlePass):
             break
-        sleep(0.2)
     logger.info('All pass rewards claimed.')
 
 @action('活动奖励')

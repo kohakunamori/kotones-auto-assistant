@@ -7,7 +7,8 @@ import logging
 from kotonebot.kaa.tasks import R
 from kotonebot.kaa.config import Priority, conf
 from .actions.loading import loading
-from kotonebot.util import Countdown, Interval
+from kotonebot.util import Countdown
+from kotonebot.backend.loop import Loop
 from .actions.scenes import at_home, goto_home
 from .actions.commu import handle_unread_commu
 from kotonebot.errors import GameUpdateNeededError
@@ -54,11 +55,9 @@ def wait_for_home():
     结束状态：游戏首页
     """
     logger.info('Entering home...')
-    it = Interval()
     click_cd = Countdown(1).start()
     should_click = False
-    while True:
-        device.screenshot()
+    for _ in Loop():
         # 首页
         if image.find(R.Daily.ButtonHomeCurrent):
             break
@@ -88,7 +87,6 @@ def wait_for_home():
         if should_click and click_cd.expired():
             device.click(0, 0)
             click_cd.reset()
-        it.wait()
 
 @action('启动游戏.Android', screenshot_mode='manual-inherit')
 def android_launch():
@@ -169,14 +167,11 @@ def windows_launch():
     logger.info('Starting game...')
     os.startfile('dmmgameplayer://play/GCL/gakumas/cl/win')
     # 等待游戏窗口出现
-    it = Interval()
-    while True:
-        vars.flow.check()
+    for _ in Loop(auto_screenshot=False):
         if ahk.find_window(title='gakumas', title_match_mode=3):
             logger.debug('Game window found.')
             break
         logger.debug('Waiting for game window...')
-        it.wait()
 
 @task('启动游戏', priority=Priority.START_GAME)
 def start_game():

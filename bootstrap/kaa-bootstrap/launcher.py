@@ -458,6 +458,35 @@ def install_ksaa_from_zip(zip_path: str) -> bool:
             logging.error(msg, exc_info=True)
             return False
 
+
+def install_ksaa_from_package(package_path: str) -> bool:
+    """
+    从 .whl 或 .tar.gz 文件安装ksaa包。
+
+    :param package_path: .whl或.tar.gz文件路径
+    :type package_path: str
+    :return: 安装是否成功
+    :rtype: bool
+    """
+    package_file = Path(package_path)
+    if not package_file.exists():
+        msg = f"包文件不存在: {package_path}"
+        print_status(msg, status='error')
+        logging.error(msg)
+        return False
+
+    suffix = package_file.suffix.lower()
+    if not (suffix == '.whl' or package_path.lower().endswith('.tar.gz')):
+        msg = f"文件不是 .whl 或 .tar.gz 格式: {package_path}"
+        print_status(msg, status='error')
+        logging.error(msg)
+        return False
+
+    print_status(f"从包文件安装琴音小助手: {package_path}", status='info')
+
+    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --no-cache-dir --upgrade --no-deps --force-reinstall --no-index "{package_file.absolute()}"'
+    return run_command(install_command)
+
 def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_update: bool = True) -> bool:
     """
     安装和更新pip以及ksaa包。
@@ -474,10 +503,11 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
     print_header("安装与更新小助手", color=Color.BLUE)
 
     # 升级pip
-    print_status("更新 pip", status='info')
-    upgrade_pip_command = f'"{PYTHON_EXECUTABLE}" -m pip install -i {pip_server} --trusted-host "{TRUSTED_HOSTS}" --upgrade pip'
-    if not run_command(upgrade_pip_command):
-        return False
+    if check_update:
+        print_status("更新 pip", status='info')
+        upgrade_pip_command = f'"{PYTHON_EXECUTABLE}" -m pip install -i {pip_server} --trusted-host "{TRUSTED_HOSTS}" --upgrade pip'
+        if not run_command(upgrade_pip_command):
+            return False
 
     # 默认安装逻辑
     install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location ksaa'
@@ -499,6 +529,8 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
                     print_update_notice(str(current_version), str(latest_version))
             else:
                 print_status("已是最新版本", status='success')
+        else:
+            print_status("跳过更新检查", status='info')
     return True
 
 def load_config() -> Optional[Config]:
@@ -570,6 +602,10 @@ def restart_as_admin() -> None:
     script = os.path.abspath(sys.argv[0])
     params = ' '.join([f'"{item}"' for item in sys.argv[1:]])
     
+    # 重启后跳过检查更新
+    if '--skip-update' not in sys.argv:
+        params += ' --skip-update'
+    
     try:
         # 使用 ShellExecute 以管理员身份启动程序
         ret = ctypes.windll.shell32.ShellExecuteW(
@@ -635,7 +671,7 @@ def check_admin(config: Config) -> bool:
     
     return True
 
-def run_kaa() -> bool:
+def run_kaa(args: list[str]) -> bool:
     """
     运行琴音小助手。
     
@@ -649,7 +685,7 @@ def run_kaa() -> bool:
     os.environ["no_proxy"] = "localhost, 127.0.0.1, ::1"
     
     # 运行kaa命令
-    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kotonebot.kaa.main.cli', verbatim=True, log_output=False):
+    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kotonebot.kaa.main.cli {" ".join(args)}', verbatim=True, log_output=False):
         return False
     
     print_header("运行结束", color=Color.GREEN)
@@ -664,11 +700,16 @@ def parse_arguments():
     :rtype: argparse.Namespace
     """
     parser = argparse.ArgumentParser(description='琴音小助手启动器')
-    parser.add_argument('zip_file', nargs='?', help='要安装的 zip 文件路径（与--install-from-zip等价）')
+    parser.add_argument('package_file', nargs='?', help='要安装的包文件路径（.whl, .tar.gz, .zip）')
     parser.add_argument('--install-version', type=str, help='安装指定版本的 ksaa (例如: --install-version=1.2.3)')
     parser.add_argument('--install-from-zip', type=str, help='从 zip 文件安装 ksaa (例如: --install-from-zip=/path/to/file.zip)')
+    parser.add_argument('--install-from-package', type=str, help='从 .whl 或 .tar.gz 文件安装 ksaa')
+    parser.add_argument('--skip-update', action='store_true', help='跳过 pip 和 kaa 的检查更新')
 
-    return parser.parse_args()
+    args, extra_args = parser.parse_known_args()
+    args.extra_args = extra_args
+
+    return args
 
 def main_launch():
     """
@@ -677,9 +718,17 @@ def main_launch():
     # 解析命令行参数
     args = parse_arguments()
 
-    # 处理位置参数：如果提供了zip_file位置参数，将其设置为install_from_zip
-    if args.zip_file and not args.install_from_zip:
-        args.install_from_zip = args.zip_file
+    # 处理位置参数
+    if args.package_file:
+        lower_path = args.package_file.lower()
+        if lower_path.endswith('.zip'):
+            if not args.install_from_zip:
+                args.install_from_zip = args.package_file
+        elif lower_path.endswith('.whl') or lower_path.endswith('.tar.gz'):
+            if not args.install_from_package:
+                args.install_from_package = args.package_file
+        else:
+            raise ValueError(f"不支持的文件类型: {args.package_file}")
 
     setup_logging()
     run_command("title 琴音小助手（运行时请勿关闭此窗口）", verbatim=True, log_output=False)
@@ -696,8 +745,8 @@ def main_launch():
         # 2. 获取更新设置
         check_update, auto_install_update = get_update_settings(config if config else {"version": 5, "user_configs": []})
 
-        # 3. 如果指定了特殊安装参数，跳过更新检查
-        if args.install_version or args.install_from_zip:
+        # 3. 如果指定了特殊安装参数或跳过更新，跳过更新检查
+        if args.install_version or args.install_from_zip or args.install_from_package or args.skip_update:
             check_update = False
             auto_install_update = False
 
@@ -714,6 +763,11 @@ def main_launch():
             print_header("安装补丁", color=Color.BLUE)
             if not install_ksaa_from_zip(args.install_from_zip):
                 raise RuntimeError("从zip文件安装失败，请检查上面的错误日志。")
+        elif args.install_from_package:
+            # 从包文件安装
+            print_header("安装补丁", color=Color.BLUE)
+            if not install_ksaa_from_package(args.install_from_package):
+                raise RuntimeError("从包文件安装失败，请检查上面的错误日志。")
         elif args.install_version:
             # 安装指定版本
             print_header("安装指定版本", color=Color.BLUE)
@@ -730,7 +784,7 @@ def main_launch():
                 raise RuntimeError("权限检查失败。")
 
         # 7. 运行琴音小助手
-        if not run_kaa():
+        if not run_kaa(args.extra_args):
             raise RuntimeError("琴音小助手主程序运行失败。")
 
         msg = "琴音小助手已退出。"
