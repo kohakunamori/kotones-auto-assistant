@@ -1405,12 +1405,6 @@ class KotoneBotUI:
                         info="进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h（具体视设备性能而定）。",
                         visible=False
                     )
-                    produce_count = gr.Number(
-                        minimum=1,
-                        label="培育次数",
-                        info="培育的次数。",
-                        visible=False
-                    )
 
                     # 添加偶像选择
                     idol_choices = []
@@ -1525,13 +1519,6 @@ class KotoneBotUI:
                         value=current_solution.data.mode,
                         label="培育模式",
                         info="进行一次 REGULAR 培育需要 ~30min，进行一次 PRO 培育需要 ~1h（具体视设备性能而定）。"
-                    )
-                    produce_count = gr.Number(
-                        minimum=1,
-                        value=self.current_config.options.produce.produce_count,
-                        label="培育次数",
-                        interactive=True,
-                        info="培育的次数。"
                     )
 
                     # 添加偶像选择
@@ -1663,7 +1650,6 @@ class KotoneBotUI:
                         gr.Textbox(value="", visible=False),  # solution_name
                         gr.Textbox(value="", visible=False),  # solution_description
                         gr.Dropdown(visible=False),  # produce_mode
-                        gr.Number(visible=False),  # produce_count
                         gr.Dropdown(visible=False),  # produce_idols
                         gr.Markdown(visible=False),  # kotone_warning
                         gr.Checkbox(visible=False),  # auto_set_memory
@@ -1693,7 +1679,6 @@ class KotoneBotUI:
                         gr.Textbox(value=solution.name, visible=True),
                         gr.Textbox(value=solution.description or "", visible=True),
                         gr.Dropdown(value=solution.data.mode, visible=True),
-                        gr.Number(value=self.current_config.options.produce.produce_count, visible=True),
                         gr.Dropdown(value=solution.data.idol, visible=True),
                         gr.Markdown(visible=has_kotone and not is_strict_mode),
                         gr.Checkbox(value=solution.data.auto_set_memory, visible=True),
@@ -1789,7 +1774,7 @@ class KotoneBotUI:
                     else:
                         return gr.Dropdown()
 
-            def on_save_solution(solution_id, name, description, mode, count, idols, auto_memory, memory_sets,
+            def on_save_solution(solution_id, name, description, mode, idols, auto_memory, memory_sets,
                                auto_support, support_card_sets, pt_boost, note_boost, follow_producer, study_lesson, prefer_ap,
                                actions, detection_mode, ap_drink, skip_commu_val):
                 """保存培育方案"""
@@ -1830,9 +1815,6 @@ class KotoneBotUI:
 
                     # 保存方案
                     solution_manager.save(solution_id, solution)
-
-                    # 同时更新配置中的 produce_count
-                    self.current_config.options.produce.produce_count = int(count)
 
                     # 重新列出所有方案（确保没有重复项）
                     solutions = solution_manager.list()
@@ -1884,7 +1866,7 @@ class KotoneBotUI:
                 inputs=[solution_dropdown],
                 outputs=[
                     solution_name, solution_description,
-                    produce_mode, produce_count, produce_idols, kotone_warning,
+                    produce_mode, produce_idols, kotone_warning,
                     auto_set_memory, memory_sets_group, memory_sets,
                     auto_set_support, support_card_sets_group, support_card_sets,
                     use_pt_boost, use_note_boost, follow_producer,
@@ -1920,7 +1902,7 @@ class KotoneBotUI:
                 fn=on_save_solution,
                 inputs=[
                     solution_dropdown, solution_name, solution_description,
-                    produce_mode, produce_count, produce_idols,
+                    produce_mode, produce_idols,
                     auto_set_memory, memory_sets, auto_set_support, support_card_sets,
                     use_pt_boost, use_note_boost, follow_producer,
                     self_study_lesson, prefer_lesson_ap, actions_order,
