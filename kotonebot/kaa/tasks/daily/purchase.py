@@ -81,7 +81,7 @@ def dispatch_recommended_items():
             logger.info(f'No recommended item found. Finished.')
             break
 
-@action('确认购买', screenshot_mode='manual-inherit')
+@action('确认购买', screenshot_mode='manual')
 def confirm_purchase(target_item_pos: Point | None = None):
     """
     确认购买
@@ -119,6 +119,7 @@ def confirm_purchase(target_item_pos: Point | None = None):
         return
     else:
         device.screenshot()
+        # TODO: 这下面这段代码是干什么的？为什么上面和下面都点击了 Confirm？
         for _ in Loop(interval=0.2):
             if image.find(R.Daily.ButtonShopCountAdd, colored=True):
                 logger.debug('Adjusting quantity(+1)...')
