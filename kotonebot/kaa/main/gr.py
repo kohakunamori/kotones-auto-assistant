@@ -2287,7 +2287,7 @@ class KotoneBotUI:
 
     def _create_settings_tab(self) -> None:
         with gr.Tab("设置"):
-            gr.Markdown("## 设置")
+            gr.Markdown("## 设置 <span style='color: red; font-size: 0.8rem; font-weight: normal;'>设置修改后需要保存（网页底部）才会生效！</span>")
 
             # 模拟器设置
             emulator_settings = self._create_emulator_settings()
