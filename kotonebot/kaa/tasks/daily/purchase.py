@@ -195,6 +195,7 @@ def purchase():
             logger.info('Refreshing money shop.')
             device.click()
             sleep(0.5)
+            device.screenshot()
             money_items2()
             sleep(0.5)
     else:
