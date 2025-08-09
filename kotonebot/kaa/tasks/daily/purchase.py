@@ -195,6 +195,11 @@ def purchase():
             logger.info('Refreshing money shop.')
             device.click()
             sleep(0.5)
+            # 等待刷新完成
+            for _ in Loop():
+                if not image.find(R.Daily.ButtonRefreshMoneyShop):
+                    break
+                logger.debug('Waiting for money shop refresh...')
             device.screenshot()
             money_items2()
             sleep(0.5)
