@@ -81,7 +81,7 @@ def dispatch_recommended_items():
             logger.info(f'No recommended item found. Finished.')
             break
 
-@action('确认购买', screenshot_mode='manual-inherit')
+@action('确认购买', screenshot_mode='manual')
 def confirm_purchase(target_item_pos: Point | None = None):
     """
     确认购买
@@ -119,6 +119,7 @@ def confirm_purchase(target_item_pos: Point | None = None):
         return
     else:
         device.screenshot()
+        # TODO: 这下面这段代码是干什么的？为什么上面和下面都点击了 Confirm？
         for _ in Loop(interval=0.2):
             if image.find(R.Daily.ButtonShopCountAdd, colored=True):
                 logger.debug('Adjusting quantity(+1)...')
@@ -181,7 +182,7 @@ def purchase():
 
     goto_shop()
     # 进入每日商店 [screenshots\shop\shop.png]
-    device.click(image.expect(R.Daily.ButtonDailyShop)) # TODO: memoable
+    device.click(image.expect_wait(R.Daily.ButtonDailyShop)) # TODO: memoable
     # 等待载入
     ap_tab = image.expect_wait(R.Daily.TextTabShopAp)
 
@@ -194,6 +195,12 @@ def purchase():
             logger.info('Refreshing money shop.')
             device.click()
             sleep(0.5)
+            # 等待刷新完成
+            for _ in Loop():
+                if not image.find(R.Daily.ButtonRefreshMoneyShop):
+                    break
+                logger.debug('Waiting for money shop refresh...')
+            device.screenshot()
             money_items2()
             sleep(0.5)
     else:
