@@ -182,7 +182,7 @@ def purchase():
 
     goto_shop()
     # 进入每日商店 [screenshots\shop\shop.png]
-    device.click(image.expect(R.Daily.ButtonDailyShop)) # TODO: memoable
+    device.click(image.expect_wait(R.Daily.ButtonDailyShop)) # TODO: memoable
     # 等待载入
     ap_tab = image.expect_wait(R.Daily.TextTabShopAp)
 
