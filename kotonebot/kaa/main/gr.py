@@ -1553,7 +1553,7 @@ class KotoneBotUI:
 
                     with gr.Group(visible=not current_solution.data.auto_set_memory) as memory_sets_group:
                         memory_sets = gr.Dropdown(
-                            choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
+                            choices=[str(i) for i in range(1, 21)],  # 最多20个编成位
                             value=str(current_solution.data.memory_set) if current_solution.data.memory_set else None,
                             label="回忆编成编号",
                             multiselect=False,
@@ -1569,7 +1569,7 @@ class KotoneBotUI:
 
                     with gr.Group(visible=not current_solution.data.auto_set_support_card) as support_card_sets_group:
                         support_card_sets = gr.Dropdown(
-                            choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
+                            choices=[str(i) for i in range(1, 21)],  # 最多20个编成位
                             value=str(current_solution.data.support_card_set) if current_solution.data.support_card_set else None,
                             label="支援卡编成编号",
                             multiselect=False,

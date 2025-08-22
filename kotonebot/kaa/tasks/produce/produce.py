@@ -198,10 +198,10 @@ def do_produce(
     :param idol_skin_id: 要培育的偶像。如果为 None，则使用配置文件中的偶像。
     :param mode: 培育模式。
     :return: 是否因为 AP 不足而跳过本次培育。
-    :raises ValueError: 如果 `memory_set_index` 不在 [1, 10] 的范围内。
+    :raises ValueError: 如果 `memory_set_index` 不在 [1, 20] 的范围内。
     """
-    if memory_set_index is not None and not 1 <= memory_set_index <= 10:
-        raise ValueError('`memory_set_index` must be in range [1, 10].')
+    if memory_set_index is not None and not 1 <= memory_set_index <= 20:
+        raise ValueError('`memory_set_index` must be in range [1, 20].')
 
     if not at_home():
         goto_home()
