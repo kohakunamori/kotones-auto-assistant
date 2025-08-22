@@ -760,7 +760,7 @@ def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro', 'mast
     开始 Regular 培育。
     """
     if stage == 'action':
-        texts = ocr.ocr(rect=R.InPurodyuusu.BoxWeeksUntilExam)
+        texts = ocr.ocr(rect=R.InPurodyuusu.BoxWeeksUntilExam, lang='en')
         # 提取周数
         remaining_week = texts.squash().replace('ó', '6').numbers()
         if not remaining_week:
@@ -781,10 +781,10 @@ def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro', 'mast
                 function = hajime_master
             case _:
                 assert_never(type)
-        if texts.where(contains('中間')):
+        if image.find(R.InPurodyuusu.TextMidExamRemaining):
             week = MID_WEEK - remaining_week[0]
             function(start_from=week)
-        elif texts.where(contains('最終')):
+        elif image.find(R.InPurodyuusu.TextFinalExamRemaining):
             week = FINAL_WEEK - remaining_week[0]
             function(start_from=week)
         else:
