@@ -28,9 +28,11 @@ from kotonebot.kaa.config import (
     PresentsConfig, AssignmentConfig, ContestConfig, ProduceConfig,
     MissionRewardConfig, DailyMoneyShopItems, ProduceAction,
     RecommendCardDetectionMode, TraceConfig, StartGameConfig, EndGameConfig, UpgradeSupportCardConfig, MiscConfig,
+    IdleModeConfig,
 )
 from kotonebot.kaa.config.produce import ProduceSolution, ProduceSolutionManager, ProduceData
 from kotonebot.kaa.application.adapter.misc_adapter import create_desktop_shortcut
+from kotonebot.kaa.application.core.idle_mode import IdleModeManager
 
 logger = logging.getLogger(__name__)
 GradioInput = gr.Textbox | gr.Number | gr.Checkbox | gr.Dropdown | gr.Radio | gr.Slider | gr.Tabs | gr.Tab
@@ -90,6 +92,9 @@ ConfigKey = Literal[
     
     # misc
     'check_update', 'auto_install_update', 'expose_to_lan',
+
+    # idle
+    'idle_enabled', 'idle_seconds', 'idle_minimize_on_pause',
 
     '_selected_backend_index'
     
@@ -228,6 +233,12 @@ class KotoneBotUI:
         self.is_single_task_stopping: bool = False  # 新增：标记单个任务是否正在停止
         self._kaa = kaa
         self._load_config()
+        # 新增 IdleModeManager
+        self.idle_mgr = IdleModeManager(
+            get_is_running=lambda: (self.is_running or self.single_task_running) and not self.is_stopping and not self.is_single_task_stopping and not vars.flow.is_paused,
+            get_is_paused=lambda: vars.flow.is_paused,
+            get_config=lambda: self.current_config.options.idle,
+        )
         self._setup_kaa()
 
     def _setup_kaa(self) -> None:
@@ -322,6 +333,8 @@ class KotoneBotUI:
     def start_run(self) -> Tuple[str, List[List[str]]]:
         self.is_running = True
         self.run_status = self._kaa.start_all()
+        # 通知 Idle 管理器进入运行态
+        self.idle_mgr.notify_on_start()
         return "停止", self.update_task_status()
 
     def stop_run(self) -> Tuple[str, List[List[str]]]:
@@ -336,6 +349,8 @@ class KotoneBotUI:
         if self._kaa:
             self.run_status.interrupt()
             gr.Info("正在停止任务...")
+        # 通知 Idle 管理器停止态
+        self.idle_mgr.notify_on_stop()
 
         return "停止中...", self.update_task_status()
 
@@ -369,6 +384,8 @@ class KotoneBotUI:
         if hasattr(self, 'run_status') and self._kaa:
             self.run_status.interrupt()
             gr.Info("正在停止任务...")
+        # 通知 Idle 管理器停止态
+        self.idle_mgr.notify_on_stop()
         return "停止中...", "正在停止任务..."
 
     def toggle_pause(self) -> str:
@@ -1553,7 +1570,7 @@ class KotoneBotUI:
 
                     with gr.Group(visible=not current_solution.data.auto_set_memory) as memory_sets_group:
                         memory_sets = gr.Dropdown(
-                            choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
+                            choices=[str(i) for i in range(1, 21)],  # 最多20个编成位
                             value=str(current_solution.data.memory_set) if current_solution.data.memory_set else None,
                             label="回忆编成编号",
                             multiselect=False,
@@ -1569,7 +1586,7 @@ class KotoneBotUI:
 
                     with gr.Group(visible=not current_solution.data.auto_set_support_card) as support_card_sets_group:
                         support_card_sets = gr.Dropdown(
-                            choices=[str(i) for i in range(1, 11)],  # 假设最多10个编成位
+                            choices=[str(i) for i in range(1, 21)],  # 最多20个编成位
                             value=str(current_solution.data.support_card_set) if current_solution.data.support_card_set else None,
                             label="支援卡编成编号",
                             multiselect=False,
@@ -2253,6 +2270,42 @@ class KotoneBotUI:
             create_desktop_shortcut(start_immediately)
             gr.Success("快捷方式创建成功")
         return _inner
+    
+    def _create_idle_settings(self) -> ConfigBuilderReturnValue:
+        with gr.Column():
+            gr.Markdown("### 闲置挂机")
+            idle_enabled = gr.Checkbox(
+                label="启用闲置挂机（任意键暂停、闲置自动恢复）",
+                value=self.current_config.options.idle.enabled,
+                info=IdleModeConfig.model_fields['enabled'].description,
+                interactive=True
+            )
+            idle_seconds = gr.Slider(
+                label="自动恢复触发时间（秒）",
+                minimum=30,
+                maximum=3600,
+                step=10,
+                value=self.current_config.options.idle.idle_seconds,
+                info=IdleModeConfig.model_fields['idle_seconds'].description,
+                interactive=True
+            )
+            idle_minimize_on_pause = gr.Checkbox(
+                label="暂停时最小化游戏窗口",
+                value=self.current_config.options.idle.minimize_on_pause,
+                info=IdleModeConfig.model_fields['minimize_on_pause'].description,
+                interactive=True
+            )
+        
+        def set_config(config: BaseConfig, data: dict[ConfigKey, Any]) -> None:
+            config.idle.enabled = data['idle_enabled']
+            config.idle.idle_seconds = int(data['idle_seconds'])
+            config.idle.minimize_on_pause = data['idle_minimize_on_pause']
+        
+        return set_config, {
+            'idle_enabled': idle_enabled,
+            'idle_seconds': idle_seconds,
+            'idle_minimize_on_pause': idle_minimize_on_pause,
+        }
 
     def _create_debug_settings(self) -> ConfigBuilderReturnValue:
         """调试设置：仅在调试时使用"""
@@ -2328,6 +2381,9 @@ class KotoneBotUI:
             # 杂项设置
             misc_settings = self._create_misc_settings()
 
+            # 闲置挂机设置
+            idle_settings = self._create_idle_settings()
+
             # 调试设置（放在最后）
             debug_settings = self._create_debug_settings()
 
@@ -2349,6 +2405,7 @@ class KotoneBotUI:
                 start_game_settings,
                 end_game_settings,
                 misc_settings,
+                idle_settings,
                 debug_settings
             ] # list of (set_func, { 'key': component, ... })
             all_components = [list(ret[1].values()) for ret in all_return_values] # [[c1, c2], [c3], ...]
@@ -2650,6 +2707,7 @@ class KotoneBotUI:
             self.config.user_configs.append(default_config)
         self.current_config = self.config.user_configs[0]
 
+
     def create_ui(self) -> gr.Blocks:
         custom_css = """
         #container { max-width: 800px; margin: auto; padding: 20px; }
@@ -2676,6 +2734,9 @@ class KotoneBotUI:
                     self._create_log_tab()
                     self._create_whats_new_tab()
                     self._create_screen_tab()
+
+        # 启动 IdleModeManager 后台线程
+        self.idle_mgr.start()
 
         return app
 
