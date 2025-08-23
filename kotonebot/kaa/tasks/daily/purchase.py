@@ -12,7 +12,7 @@ from ..actions.scenes import goto_home, goto_shop, at_daily_shop
 
 logger = logging.getLogger(__name__)
 
-@action('购买 Money 物品', screenshot_mode='manual-inherit')
+@action('购买 Money 物品', screenshot_mode='manual')
 def money_items2(items: Optional[list[DailyMoneyShopItems]] = None):
     """
     购买 Money 物品
@@ -59,7 +59,7 @@ def money_items2(items: Optional[list[DailyMoneyShopItems]] = None):
     if items:
         logger.info(f'{len(items)} item(s) not purchased/already purchased: {", ".join([item.to_ui_text(item) for item in items])}')
 
-@action('购买推荐商品', screenshot_mode='manual-inherit')
+@action('购买推荐商品', screenshot_mode='manual')
 def dispatch_recommended_items():
     """
     购买推荐商品
@@ -194,13 +194,11 @@ def purchase():
         if image.find(R.Daily.ButtonRefreshMoneyShop):
             logger.info('Refreshing money shop.')
             device.click()
-            sleep(0.5)
             # 等待刷新完成
             for _ in Loop():
                 if not image.find(R.Daily.ButtonRefreshMoneyShop):
                     break
                 logger.debug('Waiting for money shop refresh...')
-            device.screenshot()
             money_items2()
             sleep(0.5)
     else:
