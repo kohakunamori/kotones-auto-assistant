@@ -180,6 +180,14 @@ class MiscConfig(ConfigBaseModel):
     启用后，局域网内的其他设备可以通过本机 IP 地址访问 Web 界面。
     """
 
+class IdleModeConfig(ConfigBaseModel):
+    enabled: bool = False
+    """是否启用闲置挂机（任意键暂停、闲置自动恢复）"""
+    idle_seconds: int = 30
+    """暂停状态下，超过该闲置秒数将自动恢复"""
+    minimize_on_pause: bool = True
+    """按键触发暂停时最小化游戏窗口"""
+
 class BaseConfig(ConfigBaseModel):
     purchase: PurchaseConfig = PurchaseConfig()
     """商店购买配置"""
@@ -222,6 +230,9 @@ class BaseConfig(ConfigBaseModel):
 
     misc: MiscConfig = MiscConfig()
     """杂项配置"""
+
+    idle: IdleModeConfig = IdleModeConfig()
+    """闲置挂机配置"""
 
 
 def conf() -> BaseConfig:

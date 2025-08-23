@@ -42,6 +42,7 @@ dependencies = [
     "pywin32==310",
     "ahk==1.8.3",
     "win11toast==0.35",  # For Windows Toast Notification
+    "keyboard==0.13.5"
 ]
 
 

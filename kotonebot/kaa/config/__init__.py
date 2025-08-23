@@ -14,6 +14,7 @@ from .schema import (
     StartGameConfig,
     EndGameConfig,
     MiscConfig,
+    IdleModeConfig,
     conf,
 )
 from .const import (
@@ -46,6 +47,7 @@ __all__ = [
     "StartGameConfig",
     "EndGameConfig",
     "MiscConfig",
+    "IdleModeConfig",
     "conf",
     # const 导出
     "ConfigEnum",
