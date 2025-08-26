@@ -72,6 +72,7 @@ def goto_shop():
             break
         elif image.find(R.Daily.ButtonShop):
             device.click()
+            sleep(0.5)
         # 可以设置默认购买数量为 MAX 的提示框
         elif image.find(R.Daily.TextDefaultExchangeCountChangeDialog):
             dialog.yes()
