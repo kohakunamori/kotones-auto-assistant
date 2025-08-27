@@ -2369,8 +2369,11 @@ class KotoneBotUI:
             # 社团奖励设置
             club_reward_settings = self._create_club_reward_settings()
 
-            # 升级支援卡设置
+            # 扭蛋设置
             capsule_toys_settings = self._create_capsule_toys_settings()
+
+            # 升级支援卡设置
+            upgrade_support_card_settings = self._create_upgrade_support_card_settings()
 
             # 启动游戏设置
             start_game_settings = self._create_start_game_settings()
@@ -2402,6 +2405,7 @@ class KotoneBotUI:
                 mission_reward_settings,
                 club_reward_settings,
                 capsule_toys_settings,
+                upgrade_support_card_settings,
                 start_game_settings,
                 end_game_settings,
                 misc_settings,
