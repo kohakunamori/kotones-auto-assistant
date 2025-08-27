@@ -250,7 +250,7 @@ def do_produce(
             # [kotonebot-resource\sprites\jp\produce\screenshot_no_enough_ap_3.png]
             logger.info('AP insufficient. Try to use AP drink.')
             for _ in Loop():
-                if image.find(R.Produce.ButtonUse):
+                if image.find(R.Produce.ButtonUse, colored=True):
                     device.click()
                 elif image.find(R.Produce.ButtonRefillAP):
                     device.click()
