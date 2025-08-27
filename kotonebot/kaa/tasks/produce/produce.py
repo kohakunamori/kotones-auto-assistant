@@ -209,9 +209,13 @@ def do_produce(
     device.screenshot()
     # 点击培育按钮，然后判断是新开还是再开培育
     for _ in Loop(interval=0.6):
-        if image.find(R.Produce.TitleIconProudce):
+        if image.find(R.Produce.LogoHajime): # Hajime培育界面
             # 新开
             break
+        elif image.find(R.Produce.LogoNia): # NIA培育界面
+            device.click(R.Produce.PointNiaToHajime)
+            sleep(0.5)
+            continue
         elif image.find(R.Produce.ButtonResume):
             # 再开
             resume_produce()
