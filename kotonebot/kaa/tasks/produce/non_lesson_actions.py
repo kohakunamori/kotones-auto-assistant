@@ -242,12 +242,18 @@ def is_rest_available():
 def rest():
     """执行休息"""
     logger.info("Rest for this week.")
-    (SimpleDispatcher('in_produce.rest')
-        # 点击休息
-        .click(R.InPurodyuusu.Rest)
-        # 确定
-        .click(R.InPurodyuusu.RestConfirmBtn, finish=True)
-    ).run()
+
+    # 部分设备上，第二次click（确定）点击速度过快，导致卡死，所以这里需要添加一个sleep
+    device.click(image.expect(R.InPurodyuusu.Rest))
+    sleep(0.5)
+    device.click(image.expect(R.InPurodyuusu.RestConfirmBtn))
+    # 原方案
+    # (SimpleDispatcher('in_produce.rest')
+    #     # 点击休息
+    #     .click(R.InPurodyuusu.Rest)
+    #     # 确定
+    #     .click(R.InPurodyuusu.RestConfirmBtn, finish=True)
+    # ).run()
 
 @action('判断是否处于行动页面')
 def at_action_scene():
