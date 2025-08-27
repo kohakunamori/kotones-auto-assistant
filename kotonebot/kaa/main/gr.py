@@ -518,6 +518,13 @@ class KotoneBotUI:
 
             # 快速设置控制区域
             gr.Markdown("### 快速设置")
+
+            with gr.Row():
+                select_all_btn = gr.Button("全选", scale=1)
+                unselect_all_btn = gr.Button("清空", scale=1)
+                select_produce_only_btn = gr.Button("只选培育", scale=1)
+                unselect_produce_only_btn = gr.Button("只不选培育", scale=1)
+
             with gr.Row(elem_classes=["quick-controls-row"]):
                 purchase_quick = gr.Checkbox(
                     label="商店",
@@ -612,6 +619,8 @@ class KotoneBotUI:
                 label="任务状态"
             )
 
+            # MARK: 状态 - 监听函数
+
             def on_run_click(evt: gr.EventData) -> Tuple[gr.Button, List[List[str]]]:
                 result = self.toggle_run()
                 # 如果正在停止，禁用按钮
@@ -623,43 +632,66 @@ class KotoneBotUI:
                 return self.toggle_pause()
 
             # 快速设置控制的事件处理函数
-            def save_quick_setting(field_name: str, value: bool, display_name: str):
+            def save_quick_setting(success_msg: str, failed_msg: str):
                 """保存快速设置并立即应用"""
                 try:
-                    # 更新配置
-                    if field_name == 'purchase':
-                        self.current_config.options.purchase.enabled = value
-                    elif field_name == 'assignment':
-                        self.current_config.options.assignment.enabled = value
-                    elif field_name == 'contest':
-                        self.current_config.options.contest.enabled = value
-                    elif field_name == 'produce':
-                        self.current_config.options.produce.enabled = value
-                    elif field_name == 'mission_reward':
-                        self.current_config.options.mission_reward.enabled = value
-                    elif field_name == 'club_reward':
-                        self.current_config.options.club_reward.enabled = value
-                    elif field_name == 'activity_funds':
-                        self.current_config.options.activity_funds.enabled = value
-                    elif field_name == 'presents':
-                        self.current_config.options.presents.enabled = value
-                    elif field_name == 'capsule_toys':
-                        self.current_config.options.capsule_toys.enabled = value
-                    elif field_name == 'upgrade_support_card':
-                        self.current_config.options.upgrade_support_card.enabled = value
-                    elif field_name == 'start_game':
-                        self.current_config.options.start_game.enabled = value
-
                     # 保存配置
                     save_config(self.config, "config.json")
 
                     # 尝试热重载配置
                     if self.reload_config():
-                        gr.Success(f"✓ {display_name} 已{'启用' if value else '禁用'}")
+                        gr.Success(success_msg)
                     else:
-                        gr.Warning(f"⚠ {display_name} 已保存，但重新加载失败")
+                        gr.Warning(failed_msg)
                 except Exception as e:
                     gr.Error(f"✗ 保存失败：{str(e)}")
+            
+            def update_and_save_quick_setting(field_name: str, value: bool, display_name: str):
+                """更新字段，并保存快速设置并立即应用"""
+
+                # 更新配置
+                if field_name == 'purchase':
+                    self.current_config.options.purchase.enabled = value
+                elif field_name == 'assignment':
+                    self.current_config.options.assignment.enabled = value
+                elif field_name == 'contest':
+                    self.current_config.options.contest.enabled = value
+                elif field_name == 'produce':
+                    self.current_config.options.produce.enabled = value
+                elif field_name == 'mission_reward':
+                    self.current_config.options.mission_reward.enabled = value
+                elif field_name == 'club_reward':
+                    self.current_config.options.club_reward.enabled = value
+                elif field_name == 'activity_funds':
+                    self.current_config.options.activity_funds.enabled = value
+                elif field_name == 'presents':
+                    self.current_config.options.presents.enabled = value
+                elif field_name == 'capsule_toys':
+                    self.current_config.options.capsule_toys.enabled = value
+                elif field_name == 'upgrade_support_card':
+                    self.current_config.options.upgrade_support_card.enabled = value
+                
+                # 保存并重载配置
+                save_quick_setting(
+                    f"✓ {display_name} 已{'启用' if value else '禁用'}",
+                    f"⚠ {display_name} 已保存，但重新加载失败"
+                )
+
+            def batch_select(default: bool, produce_only: bool, success_msg: str) -> None:
+                self.current_config.options.purchase.enabled             = default
+                self.current_config.options.assignment.enabled           = default
+                self.current_config.options.contest.enabled              = default
+                self.current_config.options.produce.enabled              = produce_only
+                self.current_config.options.mission_reward.enabled       = default
+                self.current_config.options.club_reward.enabled          = default
+                self.current_config.options.activity_funds.enabled       = default
+                self.current_config.options.presents.enabled             = default
+                self.current_config.options.capsule_toys.enabled         = default
+                self.current_config.options.upgrade_support_card.enabled = default
+
+                save_quick_setting(success_msg, f"⚠ 数据已保存，但重新加载失败")
+
+            # MARK: 状态 - UI回调函数
 
             run_btn.click(
                 fn=on_run_click,
@@ -671,45 +703,67 @@ class KotoneBotUI:
                 outputs=[pause_btn]
             )
 
+            select_all_btn.click(
+                fn=lambda: batch_select(True, True, f"✓ 全选成功"),
+                outputs=[]
+            )
+
+            unselect_all_btn.click(
+                fn=lambda: batch_select(False, False, f"✓ 清空成功"),
+                outputs=[]
+            )
+
+            select_produce_only_btn.click(
+                fn=lambda: batch_select(False, True, f"✓ 只选培育成功"),
+                outputs=[]
+            )
+
+            unselect_produce_only_btn.click(
+                fn=lambda: batch_select(True, False, f"✓ 只不选培育成功"),
+                outputs=[]
+            )
+
             # 绑定快速设置控制的事件
-            purchase_quick.change(
-                fn=lambda x: save_quick_setting('purchase', x, '商店'),
+
+            # 以下回调函数均由.change修改为.input，这样回调函数就只会在用户操作时触发，避免全选功能导致反复触发
+            purchase_quick.input(
+                fn=lambda x: update_and_save_quick_setting('purchase', x, '商店'),
                 inputs=[purchase_quick]
             )
-            assignment_quick.change(
-                fn=lambda x: save_quick_setting('assignment', x, '工作'),
+            assignment_quick.input(
+                fn=lambda x: update_and_save_quick_setting('assignment', x, '工作'),
                 inputs=[assignment_quick]
             )
-            contest_quick.change(
-                fn=lambda x: save_quick_setting('contest', x, '竞赛'),
+            contest_quick.input(
+                fn=lambda x: update_and_save_quick_setting('contest', x, '竞赛'),
                 inputs=[contest_quick]
             )
-            produce_quick.change(
-                fn=lambda x: save_quick_setting('produce', x, '培育'),
+            produce_quick.input(
+                fn=lambda x: update_and_save_quick_setting('produce', x, '培育'),
                 inputs=[produce_quick]
             )
-            mission_reward_quick.change(
-                fn=lambda x: save_quick_setting('mission_reward', x, '任务奖励'),
+            mission_reward_quick.input(
+                fn=lambda x: update_and_save_quick_setting('mission_reward', x, '任务奖励'),
                 inputs=[mission_reward_quick]
             )
-            club_reward_quick.change(
-                fn=lambda x: save_quick_setting('club_reward', x, '社团奖励'),
+            club_reward_quick.input(
+                fn=lambda x: update_and_save_quick_setting('club_reward', x, '社团奖励'),
                 inputs=[club_reward_quick]
             )
-            activity_funds_quick.change(
-                fn=lambda x: save_quick_setting('activity_funds', x, '活动费'),
+            activity_funds_quick.input(
+                fn=lambda x: update_and_save_quick_setting('activity_funds', x, '活动费'),
                 inputs=[activity_funds_quick]
             )
-            presents_quick.change(
-                fn=lambda x: save_quick_setting('presents', x, '礼物'),
+            presents_quick.input(
+                fn=lambda x: update_and_save_quick_setting('presents', x, '礼物'),
                 inputs=[presents_quick]
             )
-            capsule_toys_quick.change(
-                fn=lambda x: save_quick_setting('capsule_toys', x, '扭蛋'),
+            capsule_toys_quick.input(
+                fn=lambda x: update_and_save_quick_setting('capsule_toys', x, '扭蛋'),
                 inputs=[capsule_toys_quick]
             )
-            upgrade_support_card_quick.change(
-                fn=lambda x: save_quick_setting('upgrade_support_card', x, '支援卡升级'),
+            upgrade_support_card_quick.input(
+                fn=lambda x: update_and_save_quick_setting('upgrade_support_card', x, '支援卡升级'),
                 inputs=[upgrade_support_card_quick]
             )
 
