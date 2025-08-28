@@ -118,14 +118,15 @@ def select_set(index: int):
             logger.warning(f'Failed to navigate to set #{index}. Current set is #{final_current}. Retrying... ({retry_count}/{max_retries})')
     
     logger.error(f'Failed to navigate to set #{index} after {max_retries} retries.')
-    
-@action('继续当前培育', screenshot_mode='manual-inherit')
-def resume_produce():
+
+@action('继续当前培育.进入培育', screenshot_mode='manual-inherit')
+def resume_produce_pre() -> tuple[Literal['regular', 'pro', 'master'], int]:
     """
-    继续当前培育
+    继续当前培育.进入培育\n
+    该函数用于处理‘日期变更’等情况；单独执行此函数时，要确保代码已经处于培育状态。
 
     前置条件：游戏首页，且当前有进行中培育\n
-    结束状态：游戏首页
+    结束状态：培育中的任意一个页面
     """
     device.screenshot()
     # 点击 プロデュース中
@@ -172,6 +173,25 @@ def resume_produce():
     # [kotonebot-resource/sprites/jp/produce/produce_resume.png]
     logger.info('Click resume button.')
     device.click(btn_resume)
+
+    return mode, current_week
+
+@action('继续当前培育.继续培育', screenshot_mode='manual-inherit')
+def resume_produce_lst(
+    mode: Literal['regular', 'pro', 'master'],
+    current_week: int
+):
+    """
+    继续当前培育.继续培育\n
+    该函数正常情况不应该被单独调用。
+
+    前置条件：培育中的任意一个页面\n
+    结束状态：游戏首页
+
+    :param mode: 培育模式
+    :param current_week: 培育的周数
+    """
+
     match mode:
         case 'regular':
             resume_regular_produce(current_week)
@@ -181,6 +201,19 @@ def resume_produce():
             resume_master_produce(current_week)
         case _:
             assert_never(mode)
+    
+@action('继续当前培育', screenshot_mode='manual-inherit')
+def resume_produce():
+    """
+    继续当前培育
+
+    前置条件：游戏首页，且当前有进行中培育\n
+    结束状态：游戏首页
+    """
+
+    mode, current_week = resume_produce_pre()
+
+    resume_produce_lst(mode, current_week)
 
 @action('执行培育', screenshot_mode='manual-inherit')
 def do_produce(

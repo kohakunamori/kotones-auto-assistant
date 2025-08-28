@@ -11,6 +11,8 @@ from kotonebot import (
     Interval,
 )
 from kotonebot.kaa.config.schema import produce_solution
+from kotonebot.kaa.tasks.produce.produce import resume_produce_pre
+from kotonebot.kaa.tasks.start_game import wait_for_home
 from kotonebot.primitives import Rect
 from kotonebot.kaa.tasks import R
 from .p_drink import acquire_p_drink
@@ -167,6 +169,7 @@ AcquisitionType = Literal[
     "NetworkError", # 网络中断弹窗
     "SkipCommu", # 跳过交流
     "Loading", # 加载画面
+    "DateChange", # 日期变更
 ]
 @measure_time()
 @action('处理培育事件', screenshot_mode='manual')
@@ -262,6 +265,20 @@ def fast_acquisitions() -> AcquisitionType | None:
             logger.info("Acquire PItem found")
             select_p_item()
             return "PItemSelect"
+    device.click(10, 10)
+
+    # 日期变更（可以考虑加入版本更新，但因为我目前没有版本更新的720x1080素材，所以没法加）
+    logger.debug("Check date change dialog...")
+    if image.find(R.Daily.TextDateChangeDialog):
+        logger.info("Date change dialog found.")
+        # 点击确认
+        device.click(image.expect(R.Daily.TextDateChangeDialogConfirmButton))
+        # 进入游戏
+        # 注：wait_for_home()里的Loop类第一次进入循环体时，会自动执行device.screenshot()
+        wait_for_home()
+        # 重进培育
+        resume_produce_pre()
+        return "DateChange"
     device.click(10, 10)
 
     return None
