@@ -69,10 +69,11 @@ def goto_shop():
         goto_home()
     for _ in Loop():
         if at_daily_shop():
+            logger.info("At daily shop.")
             break
         elif image.find(R.Daily.ButtonShop):
             device.click()
-            sleep(0.5)
+            sleep(1.0) # 0.5s仍然会触发，故设置为1.0s
         # 可以设置默认购买数量为 MAX 的提示框
         elif image.find(R.Daily.TextDefaultExchangeCountChangeDialog):
             dialog.yes()
