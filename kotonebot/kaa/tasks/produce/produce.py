@@ -3,6 +3,7 @@ from typing import Optional, Literal
 from typing_extensions import assert_never
 
 from kotonebot.kaa.config.schema import produce_solution
+from kotonebot.kaa.tasks.produce.common import resume_produce_pre
 from kotonebot.ui import user
 from kotonebot.kaa.tasks import R
 from kotonebot.kaa.config import conf
@@ -118,63 +119,6 @@ def select_set(index: int):
             logger.warning(f'Failed to navigate to set #{index}. Current set is #{final_current}. Retrying... ({retry_count}/{max_retries})')
     
     logger.error(f'Failed to navigate to set #{index} after {max_retries} retries.')
-
-@action('继续当前培育.进入培育', screenshot_mode='manual-inherit')
-def resume_produce_pre() -> tuple[Literal['regular', 'pro', 'master'], int]:
-    """
-    继续当前培育.进入培育\n
-    该函数用于处理‘日期变更’等情况；单独执行此函数时，要确保代码已经处于培育状态。
-
-    前置条件：游戏首页，且当前有进行中培育\n
-    结束状态：培育中的任意一个页面
-    """
-    device.screenshot()
-    # 点击 プロデュース中
-    # [res/sprites/jp/daily/home_1.png]
-    logger.info('Click ongoing produce button.')
-    device.click(R.Produce.BoxProduceOngoing)
-    btn_resume = image.expect_wait(R.Produce.ButtonResume)
-    # 判断信息
-    mode_result = image.find_multi([
-        R.Produce.ResumeDialogRegular,
-        R.Produce.ResumeDialogPro,
-        R.Produce.ResumeDialogMaster
-    ])
-    if not mode_result:
-        raise ValueError('Failed to detect produce mode.')
-    if mode_result.index == 0:
-        mode = 'regular'
-    elif mode_result.index == 1:
-        mode = 'pro'
-    else:
-        mode = 'master'
-    logger.info(f'Produce mode: {mode}')
-    retry_count = 0
-    max_retries = 5
-    current_week = None
-    while retry_count < max_retries:
-        week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks, lang='en').squash().regex(r'\d+/\d+')
-        if week_text:
-            weeks = week_text[0].split('/')
-            logger.info(f'Current week: {weeks[0]}/{weeks[1]}')
-            if len(weeks) >= 2:
-                current_week = int(weeks[0])
-                break
-        retry_count += 1
-        logger.warning(f'Failed to detect weeks. week_text="{week_text}". Retrying... ({retry_count}/{max_retries})')
-        sleep(0.5)
-        device.screenshot()
-    
-    if retry_count >= max_retries:
-        raise ValueError('Failed to detect weeks after multiple retries.')
-    if current_week is None:
-        raise ValueError('Failed to detect current_week.')
-    # 点击 再開する
-    # [kotonebot-resource/sprites/jp/produce/produce_resume.png]
-    logger.info('Click resume button.')
-    device.click(btn_resume)
-
-    return mode, current_week
 
 @action('继续当前培育.继续培育', screenshot_mode='manual-inherit')
 def resume_produce_lst(
