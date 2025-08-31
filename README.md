@@ -78,7 +78,9 @@ kaa
 因此你最好每次都在同一个地方运行 kaa，否则可能会出现找不到配置文件的情况。
 
 ## 开发
-见 [DEVELOPMENT.md](./docs/DEVELOPMENT.md)
+环境配置见 [DEVELOPMENT.md](./docs/DEVELOPMENT.md)。
+
+开发指南见 [QUICK_START.md](./docs/GUIDE.md)。
 
 ## 贡献
 欢迎 PR。
