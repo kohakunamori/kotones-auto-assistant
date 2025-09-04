@@ -227,6 +227,29 @@ AcquisitionType = Literal[
     "Loading", # 加载画面
     "DateChange", # 日期变更
 ]
+
+def acquisition_date_change_dialog() -> AcquisitionType | None:
+    """
+    检测是否执行了日期变更。\n
+    如果出现了日期变更，则对日期变更直接进行处理（返回标题、进入游戏、重进培育）\n
+    注：不更新屏幕截图。
+    """
+
+    # 日期变更（可以考虑加入版本更新，但因为我目前没有版本更新的720x1080素材，所以没法加）
+    logger.debug("Check date change dialog...")
+    if image.find(R.Daily.TextDateChangeDialog):
+        logger.info("Date change dialog found.")
+        # 点击确认
+        device.click(image.expect(R.Daily.TextDateChangeDialogConfirmButton))
+        # 进入游戏
+        # 注：wait_for_home()里的Loop类第一次进入循环体时，会自动执行device.screenshot()
+        wait_for_home()
+        # 重进培育
+        resume_produce_pre()
+        return "DateChange"
+
+    return None
+
 @measure_time()
 @action('处理培育事件', screenshot_mode='manual')
 def fast_acquisitions() -> AcquisitionType | None:
@@ -323,18 +346,10 @@ def fast_acquisitions() -> AcquisitionType | None:
             return "PItemSelect"
     device.click(10, 10)
 
-    # 日期变更（可以考虑加入版本更新，但因为我目前没有版本更新的720x1080素材，所以没法加）
-    logger.debug("Check date change dialog...")
-    if image.find(R.Daily.TextDateChangeDialog):
-        logger.info("Date change dialog found.")
-        # 点击确认
-        device.click(image.expect(R.Daily.TextDateChangeDialogConfirmButton))
-        # 进入游戏
-        # 注：wait_for_home()里的Loop类第一次进入循环体时，会自动执行device.screenshot()
-        wait_for_home()
-        # 重进培育
-        resume_produce_pre()
-        return "DateChange"
+    # 日期变更
+    result = acquisition_date_change_dialog()
+    if result is not None:
+        return result
     device.click(10, 10)
 
     return None

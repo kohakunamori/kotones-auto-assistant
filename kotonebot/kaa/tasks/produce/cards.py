@@ -9,6 +9,7 @@ from cv2.typing import MatLike
 from kotonebot.kaa.tasks import R
 from kotonebot.kaa.config import conf
 from kotonebot.kaa.game_ui import dialog
+from kotonebot.kaa.tasks.produce.common import acquisition_date_change_dialog
 from kotonebot.kaa.util.trace import trace
 from kotonebot.primitives import RectTuple, Rect
 from kotonebot import action, Interval, Countdown, device, image, sleep, ocr, contains, use_screenshot, color
@@ -188,6 +189,8 @@ def do_cards(
             device.double_click(Rect(xywh=card_rect[:4]))
             sleep(2)
             timeout_cd.reset()
+        # 日期变更检测
+        acquisition_date_change_dialog()
         # 结束条件
         if card_count == 0 and end_predicate():
             if not break_cd.started:
