@@ -233,10 +233,22 @@ class KotoneBotUI:
         self.is_single_task_stopping: bool = False  # 新增：标记单个任务是否正在停止
         self._kaa = kaa
         self._load_config()
-        # 新增 IdleModeManager
+        # IdleModeManager 空闲检测
+        def safe_get_is_running():
+            try:
+                return (self.is_running or self.single_task_running) and not self.is_stopping and not self.is_single_task_stopping and not vars.flow.is_paused
+            except ContextNotInitializedError:
+                return False
+
+        def safe_get_is_paused():
+            try:
+                return vars.flow.is_paused
+            except ContextNotInitializedError:
+                return False
+
         self.idle_mgr = IdleModeManager(
-            get_is_running=lambda: (self.is_running or self.single_task_running) and not self.is_stopping and not self.is_single_task_stopping and not vars.flow.is_paused,
-            get_is_paused=lambda: vars.flow.is_paused,
+            get_is_running=safe_get_is_running,
+            get_is_paused=safe_get_is_paused,
             get_config=lambda: self.current_config.options.idle,
         )
         self._setup_kaa()
