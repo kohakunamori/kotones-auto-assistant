@@ -2483,7 +2483,7 @@ class KotoneBotUI:
                 try:
                     # 构建命令，使用清华镜像源
                     cmd = [
-                        sys.executable, "-m", "pip", "index", "versions", "ksaa", "--json",
+                        sys.executable, "-m", "pip", "index", "versions", "ksaa", "--json", "--pre",
                         "--index-url", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
                         "--trusted-host", "mirrors.tuna.tsinghua.edu.cn"
                     ]
