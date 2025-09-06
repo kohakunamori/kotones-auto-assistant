@@ -11,6 +11,7 @@ from kotonebot import (
     Interval,
 )
 from kotonebot.kaa.config.schema import produce_solution
+from kotonebot.kaa.tasks.start_game import wait_for_home
 from kotonebot.primitives import Rect
 from kotonebot.kaa.tasks import R
 from .p_drink import acquire_p_drink
@@ -150,6 +151,63 @@ def handle_skill_card_removal():
             break
     logger.debug("Handle skill card removal finished.")
 
+@action('继续当前培育.进入培育', screenshot_mode='manual-inherit')
+def resume_produce_pre() -> tuple[Literal['regular', 'pro', 'master'], int]:
+    """
+    继续当前培育.进入培育\n
+    该函数用于处理‘日期变更’等情况；单独执行此函数时，要确保代码已经处于培育状态。
+
+    前置条件：游戏首页，且当前有进行中培育\n
+    结束状态：培育中的任意一个页面
+    """
+    device.screenshot()
+    # 点击 プロデュース中
+    # [res/sprites/jp/daily/home_1.png]
+    logger.info('Click ongoing produce button.')
+    device.click(R.Produce.BoxProduceOngoing)
+    btn_resume = image.expect_wait(R.Produce.ButtonResume)
+    # 判断信息
+    mode_result = image.find_multi([
+        R.Produce.ResumeDialogRegular,
+        R.Produce.ResumeDialogPro,
+        R.Produce.ResumeDialogMaster
+    ])
+    if not mode_result:
+        raise ValueError('Failed to detect produce mode.')
+    if mode_result.index == 0:
+        mode = 'regular'
+    elif mode_result.index == 1:
+        mode = 'pro'
+    else:
+        mode = 'master'
+    logger.info(f'Produce mode: {mode}')
+    retry_count = 0
+    max_retries = 5
+    current_week = None
+    while retry_count < max_retries:
+        week_text = ocr.ocr(R.Produce.BoxResumeDialogWeeks, lang='en').squash().regex(r'\d+/\d+')
+        if week_text:
+            weeks = week_text[0].split('/')
+            logger.info(f'Current week: {weeks[0]}/{weeks[1]}')
+            if len(weeks) >= 2:
+                current_week = int(weeks[0])
+                break
+        retry_count += 1
+        logger.warning(f'Failed to detect weeks. week_text="{week_text}". Retrying... ({retry_count}/{max_retries})')
+        sleep(0.5)
+        device.screenshot()
+    
+    if retry_count >= max_retries:
+        raise ValueError('Failed to detect weeks after multiple retries.')
+    if current_week is None:
+        raise ValueError('Failed to detect current_week.')
+    # 点击 再開する
+    # [kotonebot-resource/sprites/jp/produce/produce_resume.png]
+    logger.info('Click resume button.')
+    device.click(btn_resume)
+
+    return mode, current_week
+
 AcquisitionType = Literal[
     "PDrinkAcquire", # P饮料被动领取
     "PDrinkSelect", # P饮料主动领取
@@ -167,7 +225,31 @@ AcquisitionType = Literal[
     "NetworkError", # 网络中断弹窗
     "SkipCommu", # 跳过交流
     "Loading", # 加载画面
+    "DateChange", # 日期变更
 ]
+
+def acquisition_date_change_dialog() -> AcquisitionType | None:
+    """
+    检测是否执行了日期变更。\n
+    如果出现了日期变更，则对日期变更直接进行处理（返回标题、进入游戏、重进培育）\n
+    注：不更新屏幕截图。
+    """
+
+    # 日期变更（可以考虑加入版本更新，但因为我目前没有版本更新的720x1080素材，所以没法加）
+    logger.debug("Check date change dialog...")
+    if image.find(R.Daily.TextDateChangeDialog):
+        logger.info("Date change dialog found.")
+        # 点击确认
+        device.click(image.expect(R.Daily.TextDateChangeDialogConfirmButton))
+        # 进入游戏
+        # 注：wait_for_home()里的Loop类第一次进入循环体时，会自动执行device.screenshot()
+        wait_for_home()
+        # 重进培育
+        resume_produce_pre()
+        return "DateChange"
+
+    return None
+
 @measure_time()
 @action('处理培育事件', screenshot_mode='manual')
 def fast_acquisitions() -> AcquisitionType | None:
@@ -262,6 +344,12 @@ def fast_acquisitions() -> AcquisitionType | None:
             logger.info("Acquire PItem found")
             select_p_item()
             return "PItemSelect"
+    device.click(10, 10)
+
+    # 日期变更
+    result = acquisition_date_change_dialog()
+    if result is not None:
+        return result
     device.click(10, 10)
 
     return None
