@@ -189,9 +189,10 @@ class Scrollable:
         if self.scrollbar_rect is None:
             logger.warning('Unable to find scrollbar. (1)')
             return False
-        logger.debug('Scrollbar rect found.')
 
         x, y, w, h = self.scrollbar_rect.xywh
+        logger.debug(f'Scrollbar rect found. x/y/w/h: {x}/{y}/{w}/{h}')
+
         scroll_img = img[y:y+h, x:x+w]
         # 灰度、二值化
         gray = cv2.cvtColor(scroll_img, cv2.COLOR_BGR2GRAY)
@@ -201,10 +202,10 @@ class Scrollable:
         # 计算滚动位置
         positions = np.where(binary == 0)[0]
         if len(positions) > 0:
-            self.track_position = (int(x), int(y))
+            self.track_position = (int(x + w / 2), int(y))
             self.track_height = int(h)
             self.thumb_height = int(positions[-1] - positions[0])
-            self.thumb_position = (int(x), int(y + positions[0]))
+            self.thumb_position = (int(x + w / 2), int(y + positions[0]))
             self.position = float(positions[-1] / h)
             self.page_count = int(h / self.thumb_height)
             logger.debug(f'Scrollbar height: {self.thumb_height}, position: {self.position}')
