@@ -301,7 +301,12 @@ class Device:
         :param y2: 结束点 y 坐标百分比。范围 [0, 1]
         :param duration: 滑动持续时间，单位秒。None 表示使用默认值。
         """
-        w, h = self.screen_size
+        # 根据比例缩放，得到逻辑坐标
+        # swipe()接受的坐标是逻辑坐标，而不是真实坐标。所以这里不能直接传入screen_size（真实坐标）
+        if self.target_resolution:
+            w, h = self.target_resolution
+        else:
+            w, h = self.screen_size
         self.swipe(int(w * x1), int(h * y1), int(w * x2), int(h * y2), duration)
     
     def screenshot(self) -> MatLike:
