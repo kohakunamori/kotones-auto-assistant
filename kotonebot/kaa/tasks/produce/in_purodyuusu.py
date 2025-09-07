@@ -219,12 +219,15 @@ def practice():
     logger.info("CLEAR/PERFECT not found. Practice finished.")
 
 @action('执行考试')
-def exam(type: Literal['mid', 'final']):
+def exam(type: Literal['mid', 'final']) -> bool:
     """
     执行考试
     
     前置条件：考试进行中场景（手牌可见）\n
     结束状态：考试结束交流/对话（TODO：截图）
+
+    :return: 如果考试合格则返回True，否则返回False
+    :rtype: bool
     """
     logger.info("Exam started")
 
@@ -287,59 +290,76 @@ def exam(type: Literal['mid', 'final']):
 
     do_cards(threshold_predicate, end_predicate)
     device.click(image.expect_wait(R.Common.ButtonNext))
+
+    is_exam_passed = True
+
+    # 如果考试失败
+    sleep(1) # 避免在动画未播放完毕时点击
+    if image.wait_for(R.InPurodyuusu.TextRechallengeEndProduce, timeout=3):
+        logger.info('Exam failed, end produce.')
+        device.click()
+        is_exam_passed = False
+
     if type == 'final':
         for _ in Loop():
             if ocr.wait_for(contains("メモリー"), timeout=7):
                 device.click_center()
             else:
                 break
+    
+    return is_exam_passed
 
 # TODO: 将这个函数改为手动截图模式
 @action('考试结束流程')
-def produce_end():
-    """执行考试结束流程"""
+def produce_end(has_live: bool = True):
+    """
+    执行考试结束流程
+    
+    :param has_live: 培育结束后是否存在live；当培育在期中考时失败的话，就没有live
+    """
     # 1. 考试结束交流 [screenshots/produce/in_produce/final_exam_end_commu.png]
     # 2. 然后是，考试结束对话 [screenshots\produce_end\step2.jpg]
     # 3. MV
     # 4. 培育结束交流
     # 上面这些全部一直点就可以
 
-
     # 等待选择封面画面 [screenshots/produce_end/select_cover.jpg]
     # 次へ
     logger.info("Waiting for select cover screen...")
-    for _ in Loop():
-        if not image.find(R.InPurodyuusu.ButtonNextNoIcon):
-            # device.screenshot()
-            # 未读交流
-            if handle_unread_commu():
-                logger.info("Skipping unread commu")
-            # 跳过演出
-            # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end.png]
-            elif image.find(R.Produce.ButtonSkipLive, preprocessors=[WhiteFilter()]):
-                logger.info("Skipping live.")
-                device.click()
-            # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end_skip.png]
-            elif image.find(R.Produce.TextSkipLiveDialogTitle):
-                logger.info("Confirming skip live.")
-                device.click(image.expect_wait(R.Common.IconButtonCheck))
-            device.click(0, 0)
-        else:
-            break
-    # 选择封面
-    logger.info("Use default cover.")
-    sleep(3)
-    logger.debug("Click next")
-    device.click(image.expect_wait(R.InPurodyuusu.ButtonNextNoIcon))
-    sleep(1)
-    # 确认对话框 [screenshots/produce_end/select_cover_confirm.jpg]
-    # 決定
-    logger.debug("Click Confirm")
-    device.click(image.expect_wait(R.Common.ButtonConfirm, threshold=0.8))
-    sleep(1)
-    # 上传图片，等待“生成”按钮
-    # 注意网络可能会很慢，可能出现上传失败对话框
-    logger.info("Waiting for cover uploading...")
+    if has_live: # 只有在合格时，才会进行演出
+        for _ in Loop():
+            if not image.find(R.InPurodyuusu.ButtonNextNoIcon):
+                # device.screenshot()
+                # 未读交流
+                if handle_unread_commu():
+                    logger.info("Skipping unread commu")
+                # 跳过演出
+                # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end.png]
+                elif image.find(R.Produce.ButtonSkipLive, preprocessors=[WhiteFilter()]):
+                    logger.info("Skipping live.")
+                    device.click()
+                # [kotonebot-resource\sprites\jp\produce\screenshot_produce_end_skip.png]
+                elif image.find(R.Produce.TextSkipLiveDialogTitle):
+                    logger.info("Confirming skip live.")
+                    device.click(image.expect_wait(R.Common.IconButtonCheck))
+                device.click(0, 0)
+            else:
+                break
+        # 选择封面
+        logger.info("Use default cover.")
+        sleep(3)
+        logger.debug("Click next")
+        device.click(image.expect_wait(R.InPurodyuusu.ButtonNextNoIcon))
+        sleep(1)
+        # 确认对话框 [screenshots/produce_end/select_cover_confirm.jpg]
+        # 決定
+        logger.debug("Click Confirm")
+        device.click(image.expect_wait(R.Common.ButtonConfirm, threshold=0.8))
+        sleep(1)
+        # 上传图片，等待“生成”按钮
+        # 注意网络可能会很慢，可能出现上传失败对话框
+        logger.info("Waiting for cover uploading...")
+    
     retry_count = 0
     MAX_RETRY_COUNT = 5
     while True:
@@ -365,6 +385,7 @@ def produce_end():
             break
         else:
             device.click_center()
+            device.click(0, 0) # 为了兼容has_live==False的情况
         sleep(2)
     # 后续动画
     logger.info("Waiting for memory generation animation completed...")
@@ -577,19 +598,7 @@ def week_final_lesson():
         case _:
             assert_never(action)
 
-def week_mid_exam():
-    logger.info("Week mid exam started.")
-    logger.info("Wait for exam scene...")
-    until_exam_scene()
-    logger.info("Exam scene detected.")
-    sleep(5)
-    device.click_center()
-    sleep(5)
-    exam('mid')
-    until_action_scene()
-
-def week_final_exam():
-    logger.info("Week final exam started.")
+def week_mid_and_final_exam_common():
     logger.info("Wait for exam scene...")
     until_exam_scene()
     logger.info("Exam scene detected.")
@@ -597,6 +606,22 @@ def week_final_exam():
     device.click_center()
     sleep(0.5)
     loading.wait_loading_end()
+
+def week_mid_exam():
+    logger.info("Week mid exam started.")
+
+    week_mid_and_final_exam_common()
+    
+    if exam('mid'):
+        until_action_scene() # 考试通过
+    else:
+        produce_end(has_live=False) # 考试不合格
+
+def week_final_exam():
+    logger.info("Week final exam started.")
+
+    week_mid_and_final_exam_common()
+
     exam('final')
     produce_end()
 
@@ -792,30 +817,28 @@ def hajime_from_stage(stage: ProduceStage, type: Literal['regular', 'pro', 'mast
     elif stage == 'exam-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Exam ongoing. Start exam.")
+        
+        mid_exam_week = 6
         match type:
             case 'regular':
-                if week > 6: # 第六周为期中考试
-                    exam('final')
-                    return produce_end()
-                else:
-                    exam('mid')
-                    return hajime_from_stage(detect_produce_scene(), type, week)
+                mid_exam_week = 6 # 第六周为期中考试
             case 'pro':
-                if week > 7:
-                    exam('final')
-                    return produce_end()
-                else:
-                    exam('mid')
-                    return hajime_from_stage(detect_produce_scene(), type, week)
+                mid_exam_week = 7
             case 'master':
-                if week > 8:
-                    exam('final')
-                    return produce_end()
-                else:
-                    exam('mid')
-                    return hajime_from_stage(detect_produce_scene(), type, week)
+                mid_exam_week = 8
             case _:
                 assert_never(type)
+
+        # 在考试进行一半时，继续培育
+        if week > mid_exam_week: # 判断在期中考，还是期末考
+            exam('final')
+            return produce_end()
+        else:
+            if exam('mid'): # 如果考试合格，则继续进行培育
+                return hajime_from_stage(detect_produce_scene(), type, week)
+            else: # 如果考试不合格，则直接结束培育，并且没有live
+                return produce_end(has_live=False)
+
     elif stage == 'practice-ongoing':
         # TODO: 应该直接调用 week_final_exam 而不是再写一次
         logger.info("Practice ongoing. Start practice.")
