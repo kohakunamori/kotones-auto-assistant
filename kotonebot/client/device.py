@@ -211,7 +211,7 @@ class Device:
             real_x, real_y = self._scale_pos_target_to_real(x, y)
         else:
             real_x, real_y = x, y
-        logger.debug(f"Click: {x}, {y}%s", f"(Physical: {real_x}, {real_y})" if self.target_resolution is not None else "")
+        logger.debug(f"Click: {x}, {y}%s", f" [Physical: {real_x}, {real_y}]" if self.target_resolution is not None else "")
         from ..backend.context import ContextStackVars
         if ContextStackVars.current() is not None:
             image = ContextStackVars.ensure_current()._screenshot
@@ -286,9 +286,10 @@ class Device:
         """
         if self.target_resolution is not None:
             # 输入坐标为逻辑坐标，需要转换为真实坐标
-            x1, y1 = self._scale_pos_target_to_real(x1, y1)
-            x2, y2 = self._scale_pos_target_to_real(x2, y2)
-        self._touch.swipe(x1, y1, x2, y2, duration)
+            real_x1, real_y1 = self._scale_pos_target_to_real(x1, y1)
+            real_x2, real_y2 = self._scale_pos_target_to_real(x2, y2)
+        logger.debug(f"Swipe: ({x1}, {y1}) -> ({x2}, {y2}) [Physical: ({real_x1}, {real_y1}) -> ({real_x2}, {real_y2})]")
+        self._touch.swipe(real_x1, real_y1, real_x2, real_y2, duration)
 
     def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None) -> None:
         """
