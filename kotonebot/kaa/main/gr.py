@@ -1580,7 +1580,7 @@ class KotoneBotUI:
                             (RecommendCardDetectionMode.STRICT.display_name, RecommendCardDetectionMode.STRICT.value)
                         ],
                         label="推荐卡检测模式",
-                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。",
+                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。推荐Kotone使用严格模式，其他角色使用正常模式。",
                         visible=False
                     )
                     use_ap_drink = gr.Checkbox(
@@ -1709,7 +1709,7 @@ class KotoneBotUI:
                         ],
                         value=current_solution.data.recommend_card_detection_mode.value,
                         label="推荐卡检测模式",
-                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。"
+                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。推荐Kotone使用严格模式，其他角色使用正常模式。"
                     )
                     use_ap_drink = gr.Checkbox(
                         label="AP 不足时自动使用 AP 饮料",
