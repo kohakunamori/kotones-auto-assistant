@@ -129,6 +129,8 @@ def do_cards(
     detect_card_count_cd = Countdown(sec=4).start() # 刷新检测手牌数量间隔
     tries = 1
     card_count = -1
+    timeout_card_id = 1 # timeout时，选择的卡的编号
+                        # 每次选择后会自增；若成功打出，则重置为1；如果全不无法选中，那么预测系统应该会选择空过本回合，不用考虑
 
     for _ in Loop(interval=1/30):
         device.click(0, 0)
@@ -179,13 +181,18 @@ def do_cards(
                 tries += 1
         # 检测超时（防止一直卡在检测）
         if timeout_cd.expired():
-            logger.info("Recommend card detection timed out. Click first card.")
             if card_count == 0:
                 logger.warning("Recommend card detection timeout but no card found.")
                 timeout_cd.reset()
                 continue
             card_rects = calc_card_position(card_count)
-            card_rect = card_rects[0]
+            assert len(card_rects) == card_count, "len(card_rects) != card_count, internal code error!"
+
+            # 让timeout_card_id自增，避免“因为第一张卡无法打出，导致卡在第一张卡上”的情况
+            timeout_card_id = timeout_card_id % card_count + 1
+            logger.info(f"Recommend card detection timed out. Click {timeout_card_id}-th card.")
+
+            card_rect = card_rects[timeout_card_id - 1]
             device.double_click(Rect(xywh=card_rect[:4]))
             sleep(2)
             timeout_cd.reset()
