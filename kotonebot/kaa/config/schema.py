@@ -75,6 +75,8 @@ class ProduceConfig(ConfigBaseModel):
     """选中的培育方案ID"""
     produce_count: int = 1
     """培育的次数。"""
+    produce_timeout_cd: int = 60
+    """推荐卡检测用时上限；若超时，则随机选择卡片打出。单位为秒，最少为20sec，DMM用户可以设置为30sec"""
 
 class MissionRewardConfig(ConfigBaseModel):
     enabled: bool = False

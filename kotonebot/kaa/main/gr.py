@@ -58,7 +58,7 @@ ConfigKey = Literal[
     'select_which_contestant', 'when_no_set',
     
     # produce
-    'produce_enabled', 'selected_solution_id', 'produce_count',
+    'produce_enabled', 'selected_solution_id', 'produce_count', 'produce_timeout_cd',
     'mission_reward_enabled',
     
     # club reward
@@ -1417,6 +1417,14 @@ class KotoneBotUI:
                     info=ProduceConfig.model_fields['produce_count'].description
                 )
 
+                produce_timeout_cd = gr.Number(
+                    minimum=20,
+                    value=self.current_config.options.produce.produce_timeout_cd,
+                    label="推荐卡检测用时上限",
+                    interactive=True,
+                    info=ProduceConfig.model_fields['produce_timeout_cd'].description
+                )
+
             # 绑定启用状态变化事件
             def on_produce_enabled_change(enabled):
                 return gr.Group(visible=enabled)
@@ -1434,11 +1442,13 @@ class KotoneBotUI:
             config.produce.enabled = data['produce_enabled']
             config.produce.selected_solution_id = data.get('selected_solution_id')
             config.produce.produce_count = data.get('produce_count', 1)
+            config.produce.produce_timeout_cd = data.get('produce_timeout_cd', 60)
 
         return set_config, {
             'produce_enabled': produce_enabled,
             'selected_solution_id': solution_dropdown,
-            'produce_count': produce_count
+            'produce_count': produce_count,
+            'produce_timeout_cd': produce_timeout_cd
         }
 
 
@@ -1570,7 +1580,7 @@ class KotoneBotUI:
                             (RecommendCardDetectionMode.STRICT.display_name, RecommendCardDetectionMode.STRICT.value)
                         ],
                         label="推荐卡检测模式",
-                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。",
+                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。推荐Kotone使用严格模式，其他角色使用正常模式。",
                         visible=False
                     )
                     use_ap_drink = gr.Checkbox(
@@ -1699,7 +1709,7 @@ class KotoneBotUI:
                         ],
                         value=current_solution.data.recommend_card_detection_mode.value,
                         label="推荐卡检测模式",
-                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。"
+                        info="推荐卡检测模式。严格模式下，识别速度会降低，但识别准确率会提高。推荐Kotone使用严格模式，其他角色使用正常模式。"
                     )
                     use_ap_drink = gr.Checkbox(
                         label="AP 不足时自动使用 AP 饮料",

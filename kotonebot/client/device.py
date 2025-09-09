@@ -211,7 +211,7 @@ class Device:
             real_x, real_y = self._scale_pos_target_to_real(x, y)
         else:
             real_x, real_y = x, y
-        logger.debug(f"Click: {x}, {y}%s", f"(Physical: {real_x}, {real_y})" if self.target_resolution is not None else "")
+        logger.debug(f"Click: {x}, {y}%s", f" [Physical: {real_x}, {real_y}]" if self.target_resolution is not None else "")
         from ..backend.context import ContextStackVars
         if ContextStackVars.current() is not None:
             image = ContextStackVars.ensure_current()._screenshot
@@ -286,9 +286,10 @@ class Device:
         """
         if self.target_resolution is not None:
             # 输入坐标为逻辑坐标，需要转换为真实坐标
-            x1, y1 = self._scale_pos_target_to_real(x1, y1)
-            x2, y2 = self._scale_pos_target_to_real(x2, y2)
-        self._touch.swipe(x1, y1, x2, y2, duration)
+            real_x1, real_y1 = self._scale_pos_target_to_real(x1, y1)
+            real_x2, real_y2 = self._scale_pos_target_to_real(x2, y2)
+        logger.debug(f"Swipe: ({x1}, {y1}) -> ({x2}, {y2}) [Physical: ({real_x1}, {real_y1}) -> ({real_x2}, {real_y2})]")
+        self._touch.swipe(real_x1, real_y1, real_x2, real_y2, duration)
 
     def swipe_scaled(self, x1: float, y1: float, x2: float, y2: float, duration: float|None = None) -> None:
         """
@@ -300,7 +301,12 @@ class Device:
         :param y2: 结束点 y 坐标百分比。范围 [0, 1]
         :param duration: 滑动持续时间，单位秒。None 表示使用默认值。
         """
-        w, h = self.screen_size
+        # 根据比例缩放，得到逻辑坐标
+        # swipe()接受的坐标是逻辑坐标，而不是真实坐标。所以这里不能直接传入screen_size（真实坐标）
+        if self.target_resolution:
+            w, h = self.target_resolution
+        else:
+            w, h = self.screen_size
         self.swipe(int(w * x1), int(h * y1), int(w * x2), int(h * y2), duration)
     
     def screenshot(self) -> MatLike:

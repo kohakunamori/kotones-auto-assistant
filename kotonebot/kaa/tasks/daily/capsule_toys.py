@@ -91,6 +91,7 @@ def capsule_toys():
     # 进入扭蛋机页面
     logger.info('Entering Capsule Toys page')
     device.click(image.expect_wait(R.Daily.ButtonShop, timeout=5))
+    sleep(0.5) # 动画未加载完毕时，提前点击按钮
     device.click(image.expect_wait(R.Daily.ButtonShopCapsuleToys, timeout=5))
     # 等待加载
     image.expect_wait(R.Daily.CapsuleToys.IconTitle)
