@@ -685,7 +685,7 @@ def run_kaa(args: list[str]) -> bool:
     os.environ["no_proxy"] = "localhost, 127.0.0.1, ::1"
     
     # 运行kaa命令
-    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kotonebot.kaa.main.cli {" ".join(args)}', verbatim=True, log_output=False):
+    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kaa.main.cli {" ".join(args)}', verbatim=True, log_output=False):
         return False
     
     print_header("运行结束", color=Color.GREEN)
