@@ -4,16 +4,18 @@ import os
 import ctypes
 import logging
 
-from kaa.tasks import R
-from kaa.config import Priority, conf
-from .actions.loading import loading
 from kotonebot.util import Countdown
 from kotonebot.backend.loop import Loop
-from .actions.scenes import at_home, goto_home
-from .actions.commu import handle_unread_commu
 from kotonebot.errors import GameUpdateNeededError
 from kotonebot import task, action, sleep, device, image, ocr, config
 from kotonebot.backend.context.context import vars
+
+from kaa.tasks import R
+from .actions.loading import loading
+from kaa.config import Priority, conf
+from kaa.errors import ElevationRequiredError
+from .actions.scenes import at_home, goto_home
+from .actions.commu import handle_unread_commu
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +139,7 @@ def windows_launch():
     except AttributeError:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
     if not is_admin:
-        raise PermissionError("Please run as administrator.")
+        raise ElevationRequiredError()
     
     # 处理汉化插件
     if conf().start_game.disable_gakumas_localify:

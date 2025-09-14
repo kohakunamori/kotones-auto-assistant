@@ -50,3 +50,10 @@ class LauncherNotFoundError(KaaUserFriendlyError):
             '未找到启动器「kaa.exe」，请确认是否正确放置在根目录。',
             'https://kdocs.cn/l/cetCY8mGKHLj?linkname=jpzb09rLTS'
         )
+
+class ElevationRequiredError(KaaUserFriendlyError):
+    def __init__(self):
+        super().__init__(
+            '请以管理员身份运行 kaa。',
+            'https://www.kdocs.cn/l/cetCY8mGKHLj?linkname=qOqulS4KeX'
+        )
