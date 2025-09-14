@@ -33,6 +33,7 @@ class BackendConfig(TypedDict, total=False):
 class MiscConfig(TypedDict, total=False):
     check_update: Literal['never', 'startup']
     auto_install_update: bool
+    update_channel: Literal['release', 'beta']
 
 class UserConfig(TypedDict, total=False):
     name: str
@@ -325,7 +326,7 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
         
     return success
 
-def check_ksaa_update_available(pip_server: str, current_version: Version) -> tuple[bool, Version | None, Version | None]:
+def check_ksaa_update_available(pip_server: str, current_version: Version, *, include_pre_release: bool = False) -> tuple[bool, Version | None, Version | None]:
     """
     检查ksaa包是否有新版本可用。
     
@@ -333,6 +334,8 @@ def check_ksaa_update_available(pip_server: str, current_version: Version) -> tu
     :type pip_server: str
     :param current_version: 当前版本
     :type current_version: Version
+    :param include_pre_release: 是否包含预发布版本（alpha/beta/rc/dev/pre）
+    :type include_pre_release: bool
     :return: (是否有更新, 当前版本, 最新版本)
     :rtype: tuple[bool, Optional[Version], Optional[Version]]
     """
@@ -341,7 +344,7 @@ def check_ksaa_update_available(pip_server: str, current_version: Version) -> tu
         from repo import list_versions, Version
 
         try:
-            versions = list_versions("ksaa", server_url=pip_server)
+            versions = list_versions("ksaa", server_url=pip_server, include_pre_release=include_pre_release)
             if versions and len(versions) > 0:
                 latest_version = versions[0].version
                 
@@ -353,7 +356,7 @@ def check_ksaa_update_available(pip_server: str, current_version: Version) -> tu
             print_status(f"从服务器 {pip_server} 获取版本信息失败: {e}", status='error')
             # 如果指定服务器失败，尝试使用默认PyPI服务器
             try:
-                versions = list_versions("ksaa")
+                versions = list_versions("ksaa", include_pre_release=include_pre_release)
                 if versions and len(versions) > 0:
                     latest_version = versions[0].version
                     
@@ -487,7 +490,7 @@ def install_ksaa_from_package(package_path: str) -> bool:
     install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --no-cache-dir --upgrade --no-deps --force-reinstall --no-index "{package_file.absolute()}"'
     return run_command(install_command)
 
-def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_update: bool = True) -> bool:
+def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_update: bool = True, update_channel: Literal['release', 'beta'] = 'release') -> bool:
     """
     安装和更新pip以及ksaa包。
 
@@ -497,6 +500,8 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
     :type check_update: bool
     :param install_update: 是否安装更新
     :type install_update: bool
+    :param update_channel: 更新通道（release 或 beta）。beta 将包含预发布版本。
+    :type update_channel: Literal['release', 'beta']
     :return: 安装是否成功
     :rtype: bool
     """
@@ -509,8 +514,11 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
         if not run_command(upgrade_pip_command):
             return False
 
+    # 根据更新通道决定是否包含预发布版本
+    pre_flag = " --pre" if update_channel == 'beta' else ""
+
     # 默认安装逻辑
-    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location ksaa'
+    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location{pre_flag} ksaa'
     ksaa_version_str = package_version("ksaa")
     # 未安装
     if not ksaa_version_str:
@@ -520,7 +528,7 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
     else:
         ksaa_version = Version(ksaa_version_str)
         if check_update:
-            has_update, current_version, latest_version = check_ksaa_update_available(pip_server, ksaa_version)
+            has_update, current_version, latest_version = check_ksaa_update_available(pip_server, ksaa_version, include_pre_release=(update_channel == 'beta'))
             if has_update:
                 if install_update:
                     print_status("更新琴音小助手", status='info')
@@ -560,18 +568,19 @@ def load_config() -> Optional[Config]:
         logging.error(msg, exc_info=True)
         return None
 
-def get_update_settings(config: Config) -> tuple[bool, bool]:
+def get_update_settings(config: Config) -> tuple[bool, bool, Literal['release', 'beta']]:
     """
     从配置中获取更新设置。
     
     :param config: 配置字典
     :type config: Config
-    :return: (是否检查更新, 是否自动安装更新)
-    :rtype: tuple[bool, bool]
+    :return: (是否检查更新, 是否自动安装更新, 更新通道)
+    :rtype: tuple[bool, bool, Literal['release', 'beta']]
     """
     # 默认值
     check_update = True
     auto_install_update = True
+    update_channel: Literal['release', 'beta'] = 'release'
     
     # 检查是否有用户配置
     user_configs = config.get("user_configs", [])
@@ -586,11 +595,14 @@ def get_update_settings(config: Config) -> tuple[bool, bool]:
         
         # 获取自动安装更新设置
         auto_install_update = misc.get("auto_install_update", True)
+
+        # 获取更新通道
+        update_channel = misc.get("update_channel", 'release')  # type: ignore[assignment]
         
-        msg = f"更新设置: 检查更新={check_update}, 自动安装={auto_install_update}"
+        msg = f"更新设置: 检查更新={check_update}, 自动安装={auto_install_update}, 更新通道={update_channel}"
         logging.info(msg)
     
-    return check_update, auto_install_update
+    return check_update, auto_install_update, update_channel
 
 def restart_as_admin() -> None:
     """
@@ -685,7 +697,7 @@ def run_kaa(args: list[str]) -> bool:
     os.environ["no_proxy"] = "localhost, 127.0.0.1, ::1"
     
     # 运行kaa命令
-    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kotonebot.kaa.main.cli {" ".join(args)}', verbatim=True, log_output=False):
+    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kaa.main.cli {" ".join(args)}', verbatim=True, log_output=False):
         return False
     
     print_header("运行结束", color=Color.GREEN)
@@ -743,13 +755,13 @@ def main_launch():
         config = load_config()
 
         # 2. 获取更新设置
-        check_update, auto_install_update = get_update_settings(config if config else {"version": 5, "user_configs": []})
+        check_update, auto_install_update, update_channel = get_update_settings(config if config else {"version": 5, "user_configs": []})
 
         # 3. 如果指定了特殊安装参数或跳过更新，跳过更新检查
         if args.install_version or args.install_from_zip or args.install_from_package or args.skip_update:
             check_update = False
             auto_install_update = False
-
+        
         # 4. 根据配置决定是否检查更新
         print_status("正在寻找最快的 PyPI 镜像源...", status='info')
         logging.info("正在寻找最快的 PyPI 镜像源...")
@@ -775,7 +787,7 @@ def main_launch():
                 raise RuntimeError("安装指定版本失败，请检查上面的错误日志。")
         else:
             # 默认安装和更新逻辑
-            if not install_pip_and_ksaa(pip_server, check_update, auto_install_update):
+            if not install_pip_and_ksaa(pip_server, check_update, auto_install_update, update_channel):
                 raise RuntimeError("依赖安装失败，请检查上面的错误日志。")
 
         # 6. 检查Windows截图权限
