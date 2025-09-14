@@ -5,6 +5,48 @@ from typing import List
 from dataclasses import dataclass
 from request import get, HTTPError, NetworkError
 
+# PEP 440 version regex (simplified from the official pattern)
+VERSION_PATTERN = r"""
+    v?
+    (?:(?P<epoch>[0-9]+)!)?                           # epoch
+    (?P<release>[0-9]+(?:\.[0-9]+)*)                  # release segment
+    (?P<pre>                                          # pre-release
+        [-_\.]?
+        (?P<pre_l>(a|b|c|rc|alpha|beta|pre|preview))
+        [-_\.]?
+        (?P<pre_n>[0-9]+)?
+    )?
+    (?P<post>                                         # post release
+        (?:-(?P<post_n1>[0-9]+))
+        |
+        (?:
+            [-_\.]?
+            (?P<post_l>post|rev|r)
+            [-_\.]?
+            (?P<post_n2>[0-9]+)?
+        )
+    )?
+    (?P<dev>                                          # dev release
+        [-_\.]?
+        (?P<dev_l>dev)
+        [-_\.]?
+        (?P<dev_n>[0-9]+)?
+    )?
+    (?:\+[a-z0-9]+(?:[-_\.][a-z0-9]+)*)?            # local version
+"""
+_VERSION_REGEX = re.compile(r"^\s*(?:" + VERSION_PATTERN + r")\s*$", re.VERBOSE | re.IGNORECASE)
+
+
+def _normalize_pre_label(label: str) -> str:
+    label = label.lower()
+    if label in {"alpha", "a"}:
+        return "a"
+    if label in {"beta", "b"}:
+        return "b"
+    if label in {"rc", "c", "pre", "preview"}:
+        return "rc"
+    return label
+
 
 @dataclass
 class Version:
@@ -21,20 +63,50 @@ class Version:
         self._parse_version()
     
     def _parse_version(self):
-        """解析版本号字符串"""
-        version_str = self.version_str.lower()
-        
-        # 基本版本号匹配 (如 1.2.3, 1.2, 1)
+        """解析版本号字符串（尽量遵循 PEP 440）"""
+        raw = self.version_str.strip()
+        version_str = raw.lower().lstrip('v')
+
+        # 使用 PEP 440 兼容的正则解析
+        m = _VERSION_REGEX.match(version_str)
+        if m:
+            # 解析 release 段
+            release = m.group('release')
+            if release:
+                parts = [int(p) for p in release.split('.')]
+                self.major = parts[0] if len(parts) > 0 else 0
+                self.minor = parts[1] if len(parts) > 1 else 0
+                self.patch = parts[2] if len(parts) > 2 else 0
+
+            # 处理 dev / pre / post（只保留一种标记用于比较与过滤）
+            if m.group('dev') is not None:
+                # 开发版视为预发布
+                self.prerelease = 'dev'
+                self.prerelease_num = int(m.group('dev_n') or 0)
+            elif m.group('pre') is not None:
+                self.prerelease = _normalize_pre_label(m.group('pre_l') or '')
+                self.prerelease_num = int(m.group('pre_n') or 0)
+            elif m.group('post') is not None:
+                # post 版本：比正式版更高
+                self.prerelease = 'post'
+                # 两种 post 表达方式择其一
+                post_n = m.group('post_n1') or m.group('post_n2') or 0
+                self.prerelease_num = int(post_n)
+            else:
+                self.prerelease = ''
+                self.prerelease_num = 0
+            return
+
+        # 回退：简单解析
         version_match = re.match(r'^(\d+)(?:\.(\d+))?(?:\.(\d+))?', version_str)
         if version_match:
             self.major = int(version_match.group(1))
             self.minor = int(version_match.group(2)) if version_match.group(2) else 0
             self.patch = int(version_match.group(3)) if version_match.group(3) else 0
         
-        # 预发布版本匹配 (如 alpha1, beta2, rc3)
-        prerelease_match = re.search(r'(alpha|beta|rc|dev|pre|post)(\d*)', version_str)
+        prerelease_match = re.search(r'(a|b|c|rc|alpha|beta|pre|preview|dev|post)\s*([0-9]*)', version_str)
         if prerelease_match:
-            self.prerelease = prerelease_match.group(1)
+            self.prerelease = _normalize_pre_label(prerelease_match.group(1))
             self.prerelease_num = int(prerelease_match.group(2)) if prerelease_match.group(2) else 0
     
     def __lt__(self, other):
@@ -50,15 +122,15 @@ class Version:
         if self.patch != other.patch:
             return self.patch < other.patch
         
-        # 比较预发布版本
-        prerelease_order = {'': 4, 'rc': 3, 'beta': 2, 'alpha': 1, 'dev': 0, 'pre': 0, 'post': 5}
-        self_order = prerelease_order.get(self.prerelease, 0)
-        other_order = prerelease_order.get(other.prerelease, 0)
+        # 比较预发布/后发布顺序（dev < a < b < rc < final < post）
+        prerelease_order = {'dev': 0, 'a': 1, 'b': 2, 'rc': 3, '': 4, 'post': 5}
+        self_order = prerelease_order.get(self.prerelease, 4)
+        other_order = prerelease_order.get(other.prerelease, 4)
         
         if self_order != other_order:
             return self_order < other_order
         
-        # 同类型预发布版本比较数字
+        # 同类型比较数字
         if self.prerelease == other.prerelease:
             return self.prerelease_num < other.prerelease_num
         
@@ -143,7 +215,7 @@ def extract_version_from_filename(filename: str) -> str:
     return "unknown"
 
 
-def list_versions(package_name: str, *, server_url: str | None = None) -> List[PackageVersion]:
+def list_versions(package_name: str, *, server_url: str | None = None, include_pre_release: bool = False) -> List[PackageVersion]:
     """
     获取指定包的所有可用版本，按版本号降序排列
     
@@ -151,6 +223,8 @@ def list_versions(package_name: str, *, server_url: str | None = None) -> List[P
     :type package_name: str
     :param server_url: 可选的服务器URL，默认为None时使用PyPI官方服务器（https://pypi.org/simple）。
     :type server_url: str | None
+    :param include_pre_release: 是否包含预发布版本（alpha/beta/rc/dev/pre）。默认不包含。
+    :type include_pre_release: bool
     :return: 包含版本信息的列表，按版本号降序排列
     :rtype: List[PackageVersion]
     :raises HTTPError: 当包不存在或网络错误时
@@ -181,13 +255,18 @@ def list_versions(package_name: str, *, server_url: str | None = None) -> List[P
         parser.feed(html_content)
         
         # 处理链接并提取版本信息
-        versions = []
+        versions: list[PackageVersion] = []
         for filename, href in parser.links:
             # 提取版本号
             version_str = extract_version_from_filename(filename)
             
             # 创建Version对象
             version = Version(version_str)
+            
+            # 过滤预发布版本（当不包含预发布时）
+            if not include_pre_release:
+                if version.prerelease in {'a', 'b', 'rc', 'dev'}:
+                    continue
             
             # 创建PackageVersion对象
             package_version = PackageVersion(
@@ -213,7 +292,7 @@ def main():
     try:
         # 测试获取beautifulsoup4的版本
         print("获取 beautifulsoup4 的版本信息...")
-        versions = list_versions("beautifulsoup4")
+        versions = list_versions("beautifulsoup4", include_pre_release=True)
         
         print(f"找到 {len(versions)} 个版本:")
         for i, pkg_version in enumerate(versions[:10], 1):  # 只显示前10个

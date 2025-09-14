@@ -181,6 +181,13 @@ class MiscConfig(ConfigBaseModel):
 
     启用后，局域网内的其他设备可以通过本机 IP 地址访问 Web 界面。
     """
+    update_channel: Literal['release', 'beta'] = 'release'
+    """
+    更新通道。
+
+    * release: 只使用稳定版。
+    * beta: 包含预发布版本（如 alpha/beta/rc）。
+    """
 
 class IdleModeConfig(ConfigBaseModel):
     enabled: bool = False
