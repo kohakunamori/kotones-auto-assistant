@@ -161,6 +161,41 @@ def package_version(package_name: str) -> Optional[str]:
     except importlib.metadata.PackageNotFoundError:
         return None
 
+def get_ksaa_version_from_filesystem() -> Optional[str]:
+    """
+    通过文件系统检测 ksaa 版本信息。
+    
+    :return: ksaa 版本字符串，如果检测失败则返回 None
+    :rtype: Optional[str]
+    """
+    try:
+        # 查找 ksaa 包的安装路径
+        import site
+        import glob
+        
+        # 在 site-packages 中查找 ksaa-*.dist-info 目录
+        for site_path in site.getsitepackages():
+            site_path_obj = Path(site_path)
+            
+            # 使用 glob 查找匹配的 dist-info 目录
+            dist_info_pattern = str(site_path_obj / "ksaa-*.dist-info")
+            dist_info_dirs = glob.glob(dist_info_pattern)
+            
+            for dist_info_dir in dist_info_dirs:
+                # 从目录名提取版本号
+                # 例如: ksaa-2025.7.13.0.dist-info -> 2025.7.13.0
+                dir_name = Path(dist_info_dir).name
+                if dir_name.startswith("ksaa-") and dir_name.endswith(".dist-info"):
+                    version = dir_name[5:-10]  # 去掉 "ksaa-" 前缀和 ".dist-info" 后缀
+                    if version:
+                        return version
+        
+        return None
+        
+    except Exception as e:
+        logging.warning(f"通过文件系统检测 ksaa 版本失败: {e}")
+        return None
+
 def run_command(command: str, check: bool = True, verbatim: bool = False, scroll_region_size: int = -1, log_output: bool = True) -> bool:
     """
     运行命令并实时输出，返回是否成功。
@@ -394,6 +429,20 @@ def print_update_notice(current_version: str, latest_version: str):
     print()
     sleep(5)
 
+def uninstall_packages(packages: list[str]) -> bool:
+    """
+    卸载指定的包。
+
+    :param packages: 要卸载的包列表
+    :type packages: list[str]
+    :return: 卸载是否成功
+    :rtype: bool
+    """
+    packages_str = " ".join(packages)
+    print_status(f"卸载包: {packages_str}", status='info')
+    uninstall_command = f'"{PYTHON_EXECUTABLE}" -m pip uninstall {packages_str} -y'
+    return run_command(uninstall_command)
+
 def install_ksaa_version(pip_server: str, trusted_hosts: str, version: str) -> bool:
     """
     安装指定版本的ksaa包。
@@ -407,6 +456,12 @@ def install_ksaa_version(pip_server: str, trusted_hosts: str, version: str) -> b
     :return: 安装是否成功
     :rtype: bool
     """
+    # 如果安装的是 2025.9b2 版本，先卸载 ksaa 和 kotonebot
+    if version == "2025.9b2":
+        print_status("检测到安装版本为 2025.9b2，先执行卸载操作", status='info')
+        if not uninstall_packages(["ksaa", "kotonebot"]):
+            print_status("卸载操作失败，但继续尝试安装", status='warning')
+    
     print_status(f"安装琴音小助手 v{version}", status='info')
     install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --index-url {pip_server} --trusted-host "{trusted_hosts}" --no-warn-script-location ksaa=={version}'
     return run_command(install_command)
@@ -696,8 +751,30 @@ def run_kaa(args: list[str]) -> bool:
     # 设置环境变量
     os.environ["no_proxy"] = "localhost, 127.0.0.1, ::1"
     
+    # 根据版本选择程序入口
+    entry_point = "kaa.main.cli"
+    
+    # 检测 ksaa 版本（优先使用文件系统检测，失败时使用 pip 检测）
+    detected_version = get_ksaa_version_from_filesystem() or package_version("ksaa")
+    
+    if detected_version:
+        try:
+            current_version = Version(detected_version)
+            target_version = Version("2025.9b2")
+            
+            if current_version < target_version:
+                entry_point = "kotonebot.kaa.main.cli"
+            
+            print_status(f"kaa 版本 {detected_version} {'<' if current_version < target_version else '>='} 25.9，使用入口点: {entry_point}", status='info')
+            
+        except Exception as e:
+            print_status(f"版本比较失败: {e}，使用默认入口点: {entry_point}", status='warning')
+            logging.warning(f"版本比较失败: {e}")
+    else:
+        print_status(f"无法检测到 ksaa 版本，使用默认入口点: {entry_point}", status='warning')
+    
     # 运行kaa命令
-    if not run_command(f'"{PYTHON_EXECUTABLE}" -m kaa.main.cli {" ".join(args)}', verbatim=True, log_output=False):
+    if not run_command(f'"{PYTHON_EXECUTABLE}" -m {entry_point} {" ".join(args)}', verbatim=True, log_output=False):
         return False
     
     print_header("运行结束", color=Color.GREEN)
