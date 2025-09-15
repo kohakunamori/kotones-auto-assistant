@@ -2705,9 +2705,6 @@ class KotoneBotUI:
                             creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
                         )
 
-                        # 等待一小段时间确保启动器启动
-                        time.sleep(2)
-
                         # 退出当前程序
                         logger.info("安装即将开始，正在退出当前程序...")
                         os._exit(0)
