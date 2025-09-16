@@ -17,7 +17,7 @@
 1. 所有代码都建议要有 typing hint（可以自动推导出来的可不写），特别是函数与类定义。
 2. 即便自动推导正确，函数返回值也必须显式指定类型，除非返回值不使用/无意义。
 3. 新编写的代码必须能够通过 Pylance/Pyright 在 basic 等级下的类型检查。对于难以解决的类型问题，可以用 `# type: ignore` 忽略。
-4. Git commit message 采用 Angular 风格。消息主题用一句话描述修改内容。scope 可选择：task、core、ui、launcher。
+4. Git commit message 采用 Angular 风格。消息主题用一句话描述修改内容。scope 可选择：task、core、ui、launcher（旧写法为 bootstrap）。
 5. 对枚举或 Literal 进行判断时，尽量使用 match + assert_never 的写法，而不是 if-elif-else。
 ```python
 match value:
