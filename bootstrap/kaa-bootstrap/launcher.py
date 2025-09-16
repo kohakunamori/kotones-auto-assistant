@@ -417,10 +417,12 @@ def install_ksaa_from_zip(zip_path: str) -> bool:
             print_status("解压zip文件...", status='info', indent=1)
             with zipfile.ZipFile(zip_file, 'r') as zip_ref:
                 zip_ref.extractall(temp_path)
-
+            # 先卸载 ksaa 和 kotonebot
+            if not uninstall_packages(["ksaa", "kotonebot"]):
+                raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
             # 使用pip install --find-links安装
             print_status("安装ksaa包...", status='info', indent=1)
-            install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --no-cache-dir --upgrade --no-deps --force-reinstall --no-index --find-links "{temp_path.absolute()}" ksaa'
+            install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --upgrade --find-links "{temp_path.absolute()}" ksaa'
             return run_command(install_command)
 
         except zipfile.BadZipFile:
@@ -457,10 +459,13 @@ def install_ksaa_from_package(package_path: str) -> bool:
         print_status(msg, status='error')
         logging.error(msg)
         return False
+    # 先卸载 ksaa 和 kotonebot
+    if not uninstall_packages(["ksaa", "kotonebot"]):
+        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
 
     print_status(f"从包文件安装琴音小助手: {package_path}", status='info')
 
-    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --no-cache-dir --upgrade --no-deps --force-reinstall --no-index "{package_file.absolute()}"'
+    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --upgrade "{package_file.absolute()}"'
     return run_command(install_command)
 
 def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_update: bool = True, update_channel: Literal['release', 'beta'] = 'release') -> bool:
