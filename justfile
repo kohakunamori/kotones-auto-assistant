@@ -54,7 +54,12 @@ generate-metadata: env
     
     # 版本号
     from subprocess import check_output
-    version = check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
+    all_kaa_tags = check_output(['git', 'tag', '--list', 'kaa*', '--sort=-committerdate']).decode().strip()
+    if not all_kaa_tags:
+        raise ValueError("No vaild kaa version tags found. Expect format like 'kaa-v2025.09b2'")
+    
+    version = all_kaa_tags.split('\n')[0]
+    
     if version.startswith('kaa-v'):
         version = version[5:]
     with open("version", "w", encoding="utf-8") as f:
