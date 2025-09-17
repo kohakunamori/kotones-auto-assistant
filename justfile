@@ -54,7 +54,8 @@ generate-metadata: env
     
     # 版本号
     from subprocess import check_output
-    version = check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
+    # 获取当前分支上 kaa 开头的 tag，多重排序：commit 日期倒序 -> tag 日期倒序 -> tag 名称倒序
+    version = check_output(['git', 'for-each-ref', '--sort=-committerdate', '--sort=-creatordate', '--sort=-refname', '--format=%(refname:short)', 'refs/tags/kaa-*', '--merged', 'HEAD']).decode().strip().split('\n')[0]
     if version.startswith('kaa-v'):
         version = version[5:]
     with open("version", "w", encoding="utf-8") as f:
