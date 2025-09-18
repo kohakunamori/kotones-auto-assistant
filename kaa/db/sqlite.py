@@ -5,17 +5,11 @@ from typing import Any, cast, Dict, List, Optional
 
 from kaa import resources as res
 
-_db: sqlite3.Connection | None = None
 _db_path = cast(str, res.__path__)[0] + '/game.db'
 
 _db_dict = {}
 
 logger = getLogger(__name__)
-
-def _dict_factory(cursor, row):
-    """将查询结果转换为字典格式"""
-    return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-
 
 def _ensure_db() -> sqlite3.Connection:
     """
@@ -27,7 +21,7 @@ def _ensure_db() -> sqlite3.Connection:
     thread_id = threading.current_thread().ident
     if thread_id not in _db_dict:
         _db_dict[thread_id] = sqlite3.connect(_db_path)
-        _db_dict[thread_id].row_factory = _dict_factory
+        _db_dict[thread_id].row_factory = sqlite3.Row
         logger.info("Database connection established for thread: %s", thread_id)
     return _db_dict[thread_id]
 
