@@ -95,7 +95,19 @@ class ImageDatabase:
         # 载入数据源
         logger.debug('Loading data source...')
         for key, value in self.source:
-            self.insert(key, value)
+            try:
+                self.insert(key, value)
+            except Exception as e:
+                logger.error(
+                    "\n"
+                    "Error inserting key: %s\n"
+                    "Error message: %s\n"
+                    "资源可能损坏，请检查并删除 `kaa/resources/idol_cards` 下的损坏文件，"
+                    "然后重新执行 `tools/db/extract_resources.py`",
+                    key,
+                    str(e).strip()
+                )
+                raise # 继续抛异常，让程序崩溃
         self.save()
         
     @property
