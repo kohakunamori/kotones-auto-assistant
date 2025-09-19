@@ -5,6 +5,7 @@ import os
 import sys
 import tqdm
 import sqlite3
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, List, Tuple
 
@@ -28,16 +29,21 @@ download_tasks: List[DownloadTask] = []
 MAX_RETRY_COUNT = 5
 MAX_WORKERS = 32  # 最大并发下载数
 
-def download_to(asset_id: str, path: str, overwrite: bool = False):
-    """单个文件下载函数"""
+def download_to(asset_id: str, path: str, overwrite: bool = False) -> bool:
+    """
+    单个文件下载函数
+    
+    :return: 是否下载了文件。如果文件已存在且未指定 overwrite，则返回 False。
+    :raises: 如果下载失败，则抛出异常。
+    """
     retry_count = 1
     while True:
         try:
             if not overwrite and os.path.exists(path):
                 print(f'Skipped {asset_id}.')
-                return
+                return False
             manifest.download(asset_id, path=path, categorize=False)
-            break
+            return True
         except requests.exceptions.ReadTimeout | requests.exceptions.SSLError | requests.exceptions.ConnectionError | urllib3.exceptions.MaxRetryError as e:
             retry_count += 1
             if retry_count >= MAX_RETRY_COUNT:
@@ -50,11 +56,12 @@ def run(tasks: List[DownloadTask], description: str = "下载中") -> None:
     def _download(task: DownloadTask) -> None:
         asset_id, path, post_process_func = task
         try:
-            download_to(asset_id, path)
-            if post_process_func is not None:
+            result = download_to(asset_id, path)
+            if result and post_process_func is not None:
                 post_process_func(path)
         except Exception as e:
-            print(f'Failed to download {asset_id}: {e}')
+            print(f'Failed to download {asset_id}')
+            traceback.print_exc()
             raise
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         future_to_task = {executor.submit(_download, task): task for task in tasks}

@@ -1,22 +1,16 @@
-from collections import deque
-import os
 import logging
+from collections import deque
 
 import cv2
-from h11 import Data
 import numpy as np
+from kotonebot import action
 from cv2.typing import MatLike
-from sympy import PrecisionExhausted
+from kotonebot.primitives import RectTuple
 
-from kaa.db.drink import Drink
 from kaa.tasks import R
 from kaa.util import paths
-from kotonebot.primitives import RectTuple, Rect
-from kaa.game_ui import Scrollable
-from kotonebot import device, image, action
-from kotonebot.util import cv2_imread
-from kaa.image_db import ImageDatabase, HistDescriptor, FileDataSource, DatabaseQueryResult
-from kotonebot.backend.preprocessor import HsvColorsRemover
+from kaa.db.drink import Drink
+from kaa.image_db import ImageDatabase, HistDescriptor, FileDataSource
 
 logger = logging.getLogger(__name__)
 _db: ImageDatabase | None = None
