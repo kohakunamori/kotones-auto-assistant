@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
+from kaa.db.drink import Drink
+from kaa.game_ui.drinks_overview import locate_all_drinks_in_3_drink_slots
 from kaa.tasks import R
 from kaa.config import conf
 from kaa.game_ui import dialog
@@ -111,6 +113,7 @@ def calc_card_position(card_count: int):
 
 @action('打牌', screenshot_mode='manual')
 def do_cards(
+        is_exam: bool,
         threshold_predicate: Callable[[int, CardDetectResult], bool],
         end_predicate: Callable[[], bool]
     ):
@@ -120,6 +123,7 @@ def do_cards(
     前置条件：考试/练习页面\n
     结束状态：考试/练习结束的一瞬间
 
+    :param is_exam: 是否是考试
     :param threshold_predicate: 推荐卡检测阈值判断函数
     :param end_predicate: 结束条件判断函数
     """
@@ -132,6 +136,12 @@ def do_cards(
     timeout_card_id = 1 # timeout时，选择的卡的编号
                         # 每次选择后会自增；若成功打出，则重置为1；如果全不无法选中，那么预测系统应该会选择空过本回合，不用考虑
 
+    enable_drink: bool = is_exam # 避免耦合
+    drinks_list: list[tuple[Drink, RectTuple]] | None = None
+    drink_selected_idx: int = -1 # 此索引指向drinks_list
+    drink_retries = 0
+    DRINK_MAX_RETRIES = 5
+
     for _ in Loop(interval=1/30):
         device.click(0, 0)
         img = device.screenshot()
@@ -141,11 +151,59 @@ def do_cards(
             if handle_skill_card_move():
                 sleep(4)  # 等待卡片刷新
                 continue
+        # 饮品详细对话框（需要在 ButtonIconCheckMark 之前，因为ButtonUse也是√）
+        if image.find(R.InPurodyuusu.ButtonUse):
+            # 任何情况下都点击（避免卡死）
+            device.click()
+            if enable_drink and drinks_list is not None:
+                if drink_selected_idx < 0 or drink_selected_idx >= len(drinks_list):
+                    logger.warning('`drink_selected_idx` dismatches, internal error!')
+                else:
+                    drinks_list.pop(drink_selected_idx)
+                    drink_selected_idx = -1 # Reset
+                    drink_retries = 0 # 逻辑正常运作，重置drink_retries
+                    logger.info('Used selected drink.')
+                    sleep(3) # 饮品动画
+                    img = device.screenshot()
+                    drinks_list = locate_all_drinks_in_3_drink_slots(img)
+                    logger.info("Rematched %d drinks. Detailed: %s", len(drinks_list), str(drinks_list))
+            else:
+                logger.warning('Unexpected use drink dialog.')
+            continue
         # 技能卡效果无法发动对话框
         if image.find(R.Common.ButtonIconCheckMark):
             logger.info("Confirmation dialog detected")
             device.click()
             sleep(4)  # 等待卡片刷新
+            continue
+
+        # 匹配饮品
+        # - 顺序应该在对话框检测之后、卡片更新之前
+        # 考试时，初始化饮料
+        if enable_drink and drinks_list is None:
+            drinks_list = locate_all_drinks_in_3_drink_slots(img)
+            logger.info("Matched %d drinks. Detailed: %s", len(drinks_list), str(drinks_list))
+        # 考试时，处理具体的饮料
+        if enable_drink and drinks_list is not None and len(drinks_list) > 0:
+            if drinks_list[0][0].name in Drink.ordinary_drinks_name():
+                # 可以处理第0个饮品
+                drink_selected_idx = 0
+                # 点击
+                device.click(Rect(xywh=drinks_list[drink_selected_idx][1]))
+                # Log
+                logger.info('Click drink %s', drinks_list[0][0].name)
+            else:
+                # 不可以处理第0个饮品
+                drinks_list.pop(0)
+                drink_retries = 0 # 逻辑正常运作，重置drink_retries
+                # Log
+                logger.info('Drink %s cannot be process, skip', drinks_list[0][0].name)
+
+            drink_retries += 1
+            if drink_retries > DRINK_MAX_RETRIES: # 卡死
+                drink_retries = 0
+                drinks_list.pop(drink_selected_idx)
+                logger.warning('Drink processing stuck. Force to pop drink.')
             continue
 
         # 更新卡片数量

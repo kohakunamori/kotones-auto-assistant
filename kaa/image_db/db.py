@@ -95,7 +95,19 @@ class ImageDatabase:
         # 载入数据源
         logger.debug('Loading data source...')
         for key, value in self.source:
-            self.insert(key, value)
+            try:
+                self.insert(key, value)
+            except Exception as e:
+                logger.error(
+                    "\n"
+                    "Error inserting key: %s\n"
+                    "Error message: %s\n"
+                    "资源可能损坏，请检查并删除 `kaa/resources/idol_cards` 下的损坏文件，"
+                    "然后重新执行 `tools/db/extract_resources.py`",
+                    key,
+                    str(e).strip()
+                )
+                raise # 继续抛异常，让程序崩溃
         self.save()
         
     @property
@@ -134,7 +146,7 @@ class ImageDatabase:
         for name, image in images.items():
             self.insert(name, image, overwrite=overwrite)
 
-    def search(self, query: MatLike, threshold: float = 10) -> list[DatabaseQueryResult]:
+    def match_all(self, query: MatLike, threshold: float = 10) -> list[DatabaseQueryResult]:
         """
         搜索图片，返回所有符合阈值要求的图片，并按相似度降序排序。
 
@@ -149,6 +161,14 @@ class ImageDatabase:
             if dist < threshold:
                 results.append(DatabaseQueryResult(key, feature, float(dist)))
         results.sort(key=lambda x: x.distance)
+
+        # 可视化
+        # print("MinDist = ", results[0].distance, results[1].distance, results[2].distance)
+        # cv2.imshow("query", query)
+        # # cv2.imshow("query_feature", query_feature)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         return results
 
     def match(self, query: MatLike, threshold: float = 10) -> DatabaseQueryResult | None:
@@ -159,7 +179,7 @@ class ImageDatabase:
         :param threshold: 距离阈值。阈值越大，对相似度的要求越低。
         :return: 匹配结果。
         """
-        results = self.search(query, threshold)
+        results = self.match_all(query, threshold)
         if len(results) > 0:
             return results[0]
         else:

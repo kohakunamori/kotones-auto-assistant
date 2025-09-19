@@ -215,7 +215,7 @@ def practice():
             R.InPurodyuusu.TextPerfectUntil
         ])
 
-    do_cards(threshold_predicate, end_predicate)
+    do_cards(False, threshold_predicate, end_predicate)
     logger.info("CLEAR/PERFECT not found. Practice finished.")
 
 @action('执行考试')
@@ -288,7 +288,7 @@ def exam(type: Literal['mid', 'final']) -> bool:
             and image.find(R.Common.ButtonNext)
         )
 
-    do_cards(threshold_predicate, end_predicate)
+    do_cards(True, threshold_predicate, end_predicate)
     device.click(image.expect_wait(R.Common.ButtonNext))
 
     is_exam_passed = True
