@@ -146,7 +146,7 @@ class ImageDatabase:
         for name, image in images.items():
             self.insert(name, image, overwrite=overwrite)
 
-    def search(self, query: MatLike, threshold: float = 10) -> list[DatabaseQueryResult]:
+    def match_all(self, query: MatLike, threshold: float = 10) -> list[DatabaseQueryResult]:
         """
         搜索图片，返回所有符合阈值要求的图片，并按相似度降序排序。
 
@@ -161,6 +161,14 @@ class ImageDatabase:
             if dist < threshold:
                 results.append(DatabaseQueryResult(key, feature, float(dist)))
         results.sort(key=lambda x: x.distance)
+
+        # 可视化
+        # print("MinDist = ", results[0].distance, results[1].distance, results[2].distance)
+        # cv2.imshow("query", query)
+        # # cv2.imshow("query_feature", query_feature)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         return results
 
     def match(self, query: MatLike, threshold: float = 10) -> DatabaseQueryResult | None:
@@ -171,7 +179,7 @@ class ImageDatabase:
         :param threshold: 距离阈值。阈值越大，对相似度的要求越低。
         :return: 匹配结果。
         """
-        results = self.search(query, threshold)
+        results = self.match_all(query, threshold)
         if len(results) > 0:
             return results[0]
         else:
