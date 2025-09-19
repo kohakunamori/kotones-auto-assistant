@@ -26,7 +26,7 @@ DownloadTask = Tuple[str, str, Callable[[str], None] | None]
 download_tasks: List[DownloadTask] = []
 
 MAX_RETRY_COUNT = 5
-MAX_WORKERS = 4  # 最大并发下载数
+MAX_WORKERS = 32  # 最大并发下载数
 
 def download_to(asset_id: str, path: str, overwrite: bool = False):
     """单个文件下载函数"""
@@ -68,8 +68,10 @@ def run(tasks: List[DownloadTask], description: str = "下载中") -> None:
 print("创建资源目录...")
 IDOL_CARD_PATH = './kaa/resources/idol_cards'
 SKILL_CARD_PATH = './kaa/resources/skill_cards'
+DRINK_PATH = './kaa/resources/drinks'
 os.makedirs(IDOL_CARD_PATH, exist_ok=True)
 os.makedirs(SKILL_CARD_PATH, exist_ok=True)
+os.makedirs(DRINK_PATH, exist_ok=True)
 
 db = sqlite3.connect("./kaa/resources/game.db")
 
@@ -80,6 +82,26 @@ def resize_idol_card_image(path: str) -> None:
         if img is not None:
             img = cv2.resize(img, (140, 188), interpolation=cv2.INTER_AREA)
             cv2.imwrite(path, img)
+
+def resize_drink_image(path: str) -> None:
+    """偶像卡图片后处理：调整分辨率为 68x68"""
+    if os.path.exists(path):
+        img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        if img is not None:
+            img = cv2.resize(img, (68, 68), interpolation=cv2.INTER_AREA)
+
+            # 学偶饮料素材，alpha==0的区域，rgb不一定为0；此处进行一个清空
+            assert img.shape[2] == 4 # 确定是4通道RGBA
+            b, g, r, a = cv2.split(img)
+
+            mask = (a == 0)
+            b[mask] = 255
+            g[mask] = 255
+            r[mask] = 255
+
+            img_clean = cv2.merge([b, g, r]) # 去掉alpha通道
+
+            cv2.imwrite(path, img_clean)
 
 ################################################
 
@@ -135,6 +157,20 @@ for row in tqdm.tqdm(cursor.fetchall(), desc="构建技能卡任务"):
             actual_asset_id = f'{asset_id}-{ii.value}'
             path = SKILL_CARD_PATH + f'/{actual_asset_id}.png'
             download_tasks.append((actual_asset_id, path, None))
+
+# 3. 构建饮品下载任务
+print("添加饮品任务...")
+cursor = db.execute("""
+SELECT
+    DISTINCT assetId
+FROM ProduceDrink;
+""")
+
+for row in tqdm.tqdm(cursor.fetchall(), desc="构建饮品任务"):
+    asset_id = row[0]
+    assert asset_id is not None
+    path = DRINK_PATH + f'/{asset_id}.png'
+    download_tasks.append((asset_id, path, resize_drink_image))
 
 print(f'开始下载 {len(download_tasks)} 个资源，并发数 {MAX_WORKERS}...')
 run(download_tasks)
