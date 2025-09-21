@@ -374,11 +374,8 @@ def install_ksaa_version(pip_server: str, trusted_hosts: str, version: str) -> b
     :return: 安装是否成功
     :rtype: bool
     """
-    # 如果安装的是 2025.9b2 版本，先卸载 ksaa 和 kotonebot
-    if version == "2025.9b2":
-        print_status("检测到安装版本为 2025.9b2，先执行卸载操作", status='info')
-        if not uninstall_packages(["ksaa", "kotonebot"]):
-            print_status("卸载操作失败，但继续尝试安装", status='warning')
+    if not uninstall_packages(["ksaa", "kotonebot"]):
+        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
     
     print_status(f"安装琴音小助手 v{version}", status='info')
     install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --index-url {pip_server} --trusted-host "{trusted_hosts}" --no-warn-script-location ksaa=={version}'
