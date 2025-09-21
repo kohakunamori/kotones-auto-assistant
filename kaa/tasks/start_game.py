@@ -49,7 +49,7 @@ def locate_game_path() -> str | None:
         config.save()
     return game_path
 
-
+# TODO: 这个函数功能和 kaa\tasks\actions\scenes.py 中的 goto_home 重复了，后续需要合并
 @action('启动游戏.进入首页', screenshot_mode='manual-inherit')
 def wait_for_home():
     """
