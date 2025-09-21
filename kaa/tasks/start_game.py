@@ -6,16 +6,15 @@ import logging
 
 from kotonebot.util import Countdown
 from kotonebot.backend.loop import Loop
-from kotonebot.errors import GameUpdateNeededError
 from kotonebot import task, action, sleep, device, image, ocr, config
 from kotonebot.backend.context.context import vars
 
 from kaa.tasks import R
 from .actions.loading import loading
 from kaa.config import Priority, conf
-from kaa.errors import ElevationRequiredError
 from .actions.scenes import at_home, goto_home
 from .actions.commu import handle_unread_commu
+from kaa.errors import ElevationRequiredError, GameUpdateNeededError
 
 logger = logging.getLogger(__name__)
 
