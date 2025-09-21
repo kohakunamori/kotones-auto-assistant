@@ -43,7 +43,7 @@ dependencies = [
     "ahk==1.8.3",
     "win11toast==0.35",  # For Windows Toast Notification
     "keyboard==0.13.5",
-    "kotonebot[windows,android]==0.2.0"
+    "kotonebot[windows,android]==0.3.1"
 ]
 
 

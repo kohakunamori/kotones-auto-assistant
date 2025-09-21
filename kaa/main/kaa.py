@@ -25,6 +25,7 @@ from kotonebot.client.host import (
     Mumu12Host, LeidianHost, Mumu12Instance,
     LeidianInstance, CustomInstance
 )
+from kotonebot.client.host.mumu12_host import Mumu12V5Host, Mumu12V5Instance
 from kotonebot.client.host.protocol import (
     Instance, AdbHostConfig, WindowsHostConfig,
     RemoteWindowsHostConfig
@@ -186,6 +187,14 @@ class Kaa(KotoneBot):
             instance = Mumu12Host.query(id=config.backend.instance_id)
             if instance is None:
                 raise ValueError(f'MuMu12 instance not found: {config.backend.instance_id}')
+            return instance
+
+        elif config.backend.type == 'mumu12v5':
+            if config.backend.instance_id is None:
+                raise ValueError('MuMu12v5 instance ID is not set.')
+            instance = Mumu12V5Host.query(id=config.backend.instance_id)
+            if instance is None:
+                raise ValueError(f'MuMu12v5 instance not found: {config.backend.instance_id}')
             return instance
 
         elif config.backend.type == 'leidian':

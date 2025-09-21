@@ -20,6 +20,7 @@ from kaa.db import IdolCard
 from kotonebot.backend.context.context import vars
 from kotonebot.errors import ContextNotInitializedError
 from kotonebot.client.host import Mumu12Host, LeidianHost
+from kotonebot.client.host.mumu12_host import Mumu12V5Host
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.context import task_registry, ContextStackVars
@@ -42,7 +43,7 @@ ConfigKey = Literal[
     'screenshot_method', 'keep_screenshots',
     'check_emulator', 'emulator_path',
     'adb_emulator_name', 'emulator_args',
-    '_mumu_index', '_leidian_index',
+    '_mumu_index', '_mumu12v5_index', '_leidian_index',
     'mumu_background_mode', 'target_screenshot_interval',
 
     # purchase
@@ -482,6 +483,7 @@ class KotoneBotUI:
 
         valid_screenshot_methods = {
             'mumu12': ['adb', 'adb_raw', 'uiautomator2', 'nemu_ipc'],
+            'mumu12v5': ['adb', 'adb_raw', 'uiautomator2', 'nemu_ipc'],
             'leidian': ['adb', 'adb_raw', 'uiautomator2'],
             'custom': ['adb', 'adb_raw', 'uiautomator2'],
             'dmm': ['remote_windows', 'windows']
@@ -967,8 +969,8 @@ class KotoneBotUI:
             return new_value
 
         with gr.Tabs(selected=self.current_config.backend.type):
-            with gr.Tab("MuMu 12", id="mumu12") as tab_mumu12:
-                gr.Markdown("已选中 MuMu 12 模拟器")
+            with gr.Tab("MuMu 12 v4.x", id="mumu12") as tab_mumu12:
+                gr.Markdown("已选中 MuMu 12 v4.x 模拟器")
                 mumu_refresh_message = gr.Markdown("<div style='color: red;'>点击下方「刷新」按钮载入信息</div>", visible=True)
                 mumu_instance = gr.Dropdown(
                     label="选择多开实例",
@@ -1007,6 +1009,51 @@ class KotoneBotUI:
 
                 mumu_background_mode = gr.Checkbox(
                     label="MuMu12 模拟器后台保活模式",
+                    value=self.current_config.backend.mumu_background_mode,
+                    info=BackendConfig.model_fields['mumu_background_mode'].description,
+                    interactive=True
+                )
+
+            with gr.Tab("MuMu 12 v5.x", id="mumu12v5") as tab_mumu12v5:
+                gr.Markdown("已选中 MuMu 12 v5.x 模拟器")
+                mumu_refresh_message = gr.Markdown("<div style='color: red;'>点击下方「刷新」按钮载入信息</div>", visible=True)
+                mumu_instance12v5 = gr.Dropdown(
+                    label="选择多开实例",
+                    choices=[],
+                    interactive=True
+                )
+                mumu_refresh_btn = gr.Button("刷新")
+
+                def refresh_mumu12v5_instances():
+                    try:
+                        instances = Mumu12V5Host.list()
+                        is_mumu12v5 = self.current_config.backend.type == 'mumu12v5'
+                        current_id = self.current_config.backend.instance_id if is_mumu12v5 else None
+                        choices = [(i.name, i.id) for i in instances]
+                        return gr.Dropdown(choices=choices, value=current_id, interactive=True), gr.Markdown(visible=False)
+                    except Exception as e:
+                        logger.exception('Failed to list installed MuMu12v5')
+                        gr.Error("获取 MuMu12 模拟器列表失败，请升级模拟器到最新版本。若问题依旧，前往 QQ 群、QQ 频道或 Github 反馈 bug。")
+                        return gr.Dropdown(choices=[], interactive=True), gr.Markdown(visible=True)
+
+                mumu_refresh_btn.click(
+                    fn=refresh_mumu12v5_instances,
+                    outputs=[mumu_instance12v5, mumu_refresh_message]
+                )
+
+                # 如果当前是 MuMu 模拟器且有配置的 instance_id，立即加载实例列表
+                if self.current_config.backend.type == 'mumu12v5' and self.current_config.backend.instance_id:
+                    try:
+                        instances = Mumu12V5Host.list()
+                        choices = [(i.name, i.id) for i in instances]
+                        mumu_instance12v5.choices = choices
+                        mumu_instance12v5.value = self.current_config.backend.instance_id
+                        mumu_refresh_message.visible = False
+                    except Exception as e:
+                        logger.exception('Failed to auto-load MuMu12v5 instances')
+
+                mumu_background_mode = gr.Checkbox(
+                    label="MuMu12v5 模拟器后台保活模式",
                     value=self.current_config.backend.mumu_background_mode,
                     info=BackendConfig.model_fields['mumu_background_mode'].description,
                     interactive=True
@@ -1122,6 +1169,7 @@ class KotoneBotUI:
         )
 
         tab_mumu12.select(fn=partial(_update_emulator_tab_options, selected_index=0), inputs=[screenshot_impl], outputs=[screenshot_impl])
+        tab_mumu12v5.select(fn=partial(_update_emulator_tab_options, selected_index=1), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_leidian.select(fn=partial(_update_emulator_tab_options, selected_index=1), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_custom.select(fn=partial(_update_emulator_tab_options, selected_index=2), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_dmm.select(fn=partial(_update_emulator_tab_options, selected_index=3), inputs=[screenshot_impl], outputs=[screenshot_impl])
@@ -1132,20 +1180,25 @@ class KotoneBotUI:
                 impl_value=self.current_config.backend.screenshot_impl,
                 selected_index=0
             )
-        elif self.current_config.backend.type == 'leidian':
+        elif self.current_config.backend.type == 'mumu12v5':
             _update_emulator_tab_options(
                 impl_value=self.current_config.backend.screenshot_impl,
                 selected_index=1
             )
-        elif self.current_config.backend.type == 'custom':
+        elif self.current_config.backend.type == 'leidian':
             _update_emulator_tab_options(
                 impl_value=self.current_config.backend.screenshot_impl,
                 selected_index=2
             )
-        elif self.current_config.backend.type == 'dmm':
+        elif self.current_config.backend.type == 'custom':
             _update_emulator_tab_options(
                 impl_value=self.current_config.backend.screenshot_impl,
                 selected_index=3
+            )
+        elif self.current_config.backend.type == 'dmm':
+            _update_emulator_tab_options(
+                impl_value=self.current_config.backend.screenshot_impl,
+                selected_index=4
             )
         else:
             gr.Warning(f"未知的模拟器类型：{self.current_config.backend.type}")
@@ -1156,10 +1209,15 @@ class KotoneBotUI:
                 self.current_config.backend.type = 'mumu12'
                 self.current_config.backend.instance_id = data['_mumu_index']
                 self.current_config.backend.mumu_background_mode = data['mumu_background_mode']
-            elif current_tab == 1:  # Leidian
+            elif current_tab == 1:  # Mumu12v5
+                # TODO: 由于 backend 类型放在了 Kotonebot 里，现在无法扩展，后续需要移出来
+                self.current_config.backend.type = 'mumu12v5'
+                self.current_config.backend.instance_id = data['_mumu12v5_index']
+                self.current_config.backend.mumu_background_mode = data['mumu_background_mode']
+            elif current_tab == 2:  # Leidian
                 self.current_config.backend.type = 'leidian'
                 self.current_config.backend.instance_id = data['_leidian_index']
-            elif current_tab == 2:  # Custom
+            elif current_tab == 3:  # Custom
                 self.current_config.backend.type = 'custom'
                 self.current_config.backend.instance_id = None
                 self.current_config.backend.adb_ip = data['adb_ip']
@@ -1168,7 +1226,7 @@ class KotoneBotUI:
                 self.current_config.backend.check_emulator = data['check_emulator']
                 self.current_config.backend.emulator_path = data['emulator_path']
                 self.current_config.backend.emulator_args = data['emulator_args']
-            elif current_tab == 3:  # DMM
+            elif current_tab == 4:  # DMM
                 self.current_config.backend.type = 'dmm'
                 self.current_config.backend.instance_id = None  # DMM doesn't use instance_id here
 
@@ -1187,6 +1245,7 @@ class KotoneBotUI:
             'emulator_args': emulator_args,
             '_mumu_index': mumu_instance,
             '_leidian_index': leidian_instance,
+            '_mumu12v5_index': mumu_instance12v5,
             'mumu_background_mode': mumu_background_mode
         }
 
