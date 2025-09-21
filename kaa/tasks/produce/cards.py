@@ -193,11 +193,11 @@ def do_cards(
                 # Log
                 logger.info('Click drink %s', drinks_list[0][0].name)
             else:
+                # Log
+                logger.info('Drink %s cannot be process, skip', drinks_list[0][0].name)
                 # 不可以处理第0个饮品
                 drinks_list.pop(0)
                 drink_retries = 0 # 逻辑正常运作，重置drink_retries
-                # Log
-                logger.info('Drink %s cannot be process, skip', drinks_list[0][0].name)
 
             drink_retries += 1
             if drink_retries > DRINK_MAX_RETRIES: # 卡死

@@ -21,7 +21,9 @@ def preprocess_drink_slot_img(img: MatLike) -> MatLike:
     :param img: 输入的饮品槽图像，大小 68x68 (BGR)
     :return: 处理后的图像，大小 68x68，其中会出现更大量的纯白色，便于识别
     """
-    PREPROCESS_COLOR_THRESHOLD = 250
+    BLUE_THRESHOLD = 255
+    FLOOD_BLUE_THRESHOLD = 240
+    FLOOD_COLOR_THRESHOLD = 230
 
     assert img.shape[2] == 3
     h, w, _ = img.shape
@@ -30,7 +32,7 @@ def preprocess_drink_slot_img(img: MatLike) -> MatLike:
     b, g, r = cv2.split(img)
 
     # 把 b==255 的像素修正为纯白
-    mask = (b >= PREPROCESS_COLOR_THRESHOLD)
+    mask = (b >= BLUE_THRESHOLD)
     g[mask] = 255
     b[mask] = 255
     r[mask] = 255
@@ -66,7 +68,7 @@ def preprocess_drink_slot_img(img: MatLike) -> MatLike:
         # 四邻域扩展
         for dy, dx in [(-1,0), (1,0), (0,-1), (0,1)]:
             ny, nx = y + dy, x + dx
-            if 0 <= nx < w and 0 <= ny < h and not (nx > right_top_x and ny < right_top_y) and not visited[ny, nx] and not np.all(img[ny, nx] >= PREPROCESS_COLOR_THRESHOLD):
+            if 0 <= nx < w and 0 <= ny < h and not (nx > right_top_x and ny < right_top_y) and not visited[ny, nx] and not np.all(img[ny, nx] >= FLOOD_COLOR_THRESHOLD) and not (img[ny, nx][0] >= FLOOD_BLUE_THRESHOLD):
                 q.append((ny, nx))
 
     return img
@@ -89,7 +91,12 @@ def match_first_drinks(img: MatLike, delta_threshold: float = 0.7) -> Drink | No
     :return: 若匹配成功，则返回 饮品的信息 和 前1~3个匹配饮品的数据库查询结果（用于更详细的日志输出）；否则返回 None。
     """
 
+
+    # cv2.imshow("img", img)
     img = preprocess_drink_slot_img(img)
+    # cv2.imshow("img1", img)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     
     db = drinks_db()
     matches = db.match_all(img, threshold=114514)
@@ -157,10 +164,11 @@ if __name__ == '__main__':
     from logging import getLogger
     logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s')
 
-    img = R.InPurodyuusu.Screenshot5Cards.data
-    # img = R.InPurodyuusu.ScreenshotSenseiTipConsult.data
-    # img = R.InPurodyuusu.Screenshot1Cards.data
+    # img = R.InPurodyuusu.Screenshot5Cards.data # len = 2
+    # img = R.InPurodyuusu.ScreenshotSenseiTipConsult.data # len = 3
+    # img = R.InPurodyuusu.Screenshot1Cards.data # len = 2
     # img = R.InPurodyuusu.ScreenshotDrinkTest.data # len = 2
     # img = R.InPurodyuusu.Screenshot4Cards.data # len = 0
+    img = R.InPurodyuusu.ScreenshotDrinkTest3.data # len = 1
     results = locate_all_drinks_in_3_drink_slots(img)
     print(len(results), ":", results)
