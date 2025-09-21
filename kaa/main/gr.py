@@ -856,46 +856,78 @@ class KotoneBotUI:
         with gr.Tab("任务"):
             gr.Markdown("## 执行任务")
 
-            # 创建任务选择下拉框
-            task_choices = [task.name for task in task_registry.values()]
-            task_dropdown = gr.Dropdown(
-                choices=task_choices,
-                label="选择要执行的任务",
-                info="选择一个要单独执行的任务",
-                type="value",
-                value=None
-            )
-
-            # 创建执行按钮和暂停按钮
+            # 第一行：统一的停止和暂停按钮
             with gr.Row():
-                execute_btn = gr.Button("执行任务", scale=2)
+                stop_all_btn = gr.Button("停止任务", variant="stop", scale=1)
                 pause_btn = gr.Button("暂停", scale=1)
+            
             task_result = gr.Markdown("")
 
-            def toggle_single_task(task_name: str) -> Tuple[gr.Button, str]:
+            # 获取所有任务并创建列表布局
+            tasks = list(task_registry.values())
+            task_buttons = []  # 存储所有任务按钮的引用
+            
+            # 为每个任务创建一行：左侧启动按钮，右侧任务名
+            for task in tasks:
+                with gr.Row():
+                    with gr.Column(scale=1, min_width=50):
+                        task_btn = gr.Button("启动", variant="primary", size="sm")
+                        task_buttons.append((task_btn, task.name))
+                    with gr.Column(scale=7):
+                        gr.Markdown(f"{task.name}")
+
+            # 事件处理函数
+            def start_single_task_by_name(task_name: str):
+                """启动指定任务并返回状态信息及所有按钮的更新状态"""
                 if self.single_task_running:
-                    # 如果正在停止过程中，忽略重复点击
-                    if self.is_single_task_stopping:
-                        return gr.Button(value="停止中...", interactive=False), "正在停止任务..."
-
-                    result = self.stop_single_task()
-                    return gr.Button(value=result[0], interactive=False), result[1]
+                    return ["已有任务正在运行"] + [gr.Button(interactive=False) for _ in task_buttons]
+                
+                # 启动任务
+                result = self.start_single_task(task_name)
+                status_msg = result[1]
+                
+                # 如果成功启动，禁用所有任务按钮
+                if self.single_task_running:
+                    disabled_buttons = [gr.Button(value="运行中", interactive=False) for _ in task_buttons]
                 else:
-                    result = self.start_single_task(task_name)
-                    return gr.Button(value=result[0], interactive=True), result[1]
+                    disabled_buttons = [gr.Button(value="启动", interactive=True) for _ in task_buttons]
+                
+                return [status_msg] + disabled_buttons
 
-            def get_task_button_status() -> gr.Button:
+            def stop_all_tasks():
+                """停止所有任务并重置按钮状态"""
+                if not self.single_task_running:
+                    return ["没有正在运行的任务"] + [gr.Button(value="启动", interactive=True) for _ in task_buttons]
+                
+                # 停止任务
+                result = self.stop_single_task()
+                status_msg = result[1]
+                
+                # 如果正在停止中，显示停止中状态
+                if self.is_single_task_stopping:
+                    disabled_buttons = [gr.Button(value="停止中", interactive=False) for _ in task_buttons]
+                else:
+                    disabled_buttons = [gr.Button(value="启动", interactive=True) for _ in task_buttons]
+                
+                return [status_msg] + disabled_buttons
+
+            def get_task_buttons_status() -> List[gr.Button]:
+                """获取所有任务按钮的状态"""
                 if not hasattr(self, 'run_status') or not self.run_status.running:
                     self.single_task_running = False
-                    self.is_single_task_stopping = False  # 重置停止状态
-                    return gr.Button(value="执行任务", interactive=True)
+                    self.is_single_task_stopping = False
+                    return [gr.Button(value="启动", interactive=True) for _ in task_buttons]
 
                 if self.is_single_task_stopping:
-                    return gr.Button(value="停止中...", interactive=False)  # 停止中时禁用按钮
+                    return [gr.Button(value="停止中", interactive=False) for _ in task_buttons]
 
-                return gr.Button(value="停止任务", interactive=True)
+                if self.single_task_running:
+                    return [gr.Button(value="运行中", interactive=False) for _ in task_buttons]
+
+                return [gr.Button(value="启动", interactive=True) for _ in task_buttons]
 
             def get_single_task_status() -> str:
+                """获取任务状态信息"""
                 if not hasattr(self, 'run_status'):
                     return ""
 
@@ -926,15 +958,29 @@ class KotoneBotUI:
 
                 return ""
 
-            def on_pause_click(evt: gr.EventData) -> str:
+            def on_pause_click() -> str:
                 return self.toggle_pause()
 
-            execute_btn.click(
-                fn=toggle_single_task,
-                inputs=[task_dropdown],
-                outputs=[execute_btn, task_result]
+            # 绑定事件 - 为每个任务按钮绑定点击事件
+            def create_task_handler(task_name: str):
+                """创建任务处理函数，避免闭包问题"""
+                def handler():
+                    return start_single_task_by_name(task_name)
+                return handler
+
+            for task_btn, task_name in task_buttons:
+                task_btn.click(
+                    fn=create_task_handler(task_name),
+                    outputs=[task_result] + [btn for btn, _ in task_buttons]
+                )
+
+            # 绑定停止按钮事件
+            stop_all_btn.click(
+                fn=stop_all_tasks,
+                outputs=[task_result] + [btn for btn, _ in task_buttons]
             )
 
+            # 绑定暂停按钮事件
             pause_btn.click(
                 fn=on_pause_click,
                 outputs=[pause_btn]
@@ -942,8 +988,8 @@ class KotoneBotUI:
 
             # 添加定时器更新按钮状态和任务状态
             gr.Timer(1.0).tick(
-                fn=get_task_button_status,
-                outputs=[execute_btn]
+                fn=get_task_buttons_status,
+                outputs=[btn for btn, _ in task_buttons]
             )
             gr.Timer(1.0).tick(
                 fn=self.get_pause_button_with_interactive,
