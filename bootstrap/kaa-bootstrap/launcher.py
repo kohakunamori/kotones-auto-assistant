@@ -17,6 +17,7 @@ from datetime import datetime
 from time import sleep
 from typing import Optional, Dict, Any, TypedDict, Literal, List
 
+from meta import VERSION
 from request import head, HTTPError, NetworkError
 from terminal import (
     Color, print_header, print_status, clear_screen, 
@@ -823,7 +824,7 @@ def main_launch():
             raise ValueError(f"不支持的文件类型: {args.package_file}")
 
     setup_logging()
-    run_command("title 琴音小助手（运行时请勿关闭此窗口）", verbatim=True, log_output=False)
+    run_command(f"title 琴音小助手启动器（运行时请勿关闭此窗口） v{VERSION}", verbatim=True, log_output=False)
     clear_screen()
     print_header("琴音小助手启动器")
     logging.info("启动器已启动。")
