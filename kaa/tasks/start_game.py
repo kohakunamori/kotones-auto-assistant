@@ -60,6 +60,7 @@ def wait_for_home():
     click_cd = Countdown(1).start()
     should_click = False
     for _ in Loop():
+        logger.info('尝试进入/返回主页中...')
         # 首页
         if image.find(R.Daily.ButtonHomeCurrent):
             break
@@ -85,6 +86,12 @@ def wait_for_home():
         # [screenshots/startup/birthday.png]
         elif handle_unread_commu():
             pass
+        # 如果已经进入游戏，但是在其他页面，也尝试跳转回主页面
+        # 左下角是否有 Home 图标
+        elif image.find(R.Common.ButtonToolbarHome):
+            device.click()
+        elif image.find(R.Common.ButtonHome):
+            device.click()
 
         if should_click and click_cd.expired():
             device.click(0, 0)
