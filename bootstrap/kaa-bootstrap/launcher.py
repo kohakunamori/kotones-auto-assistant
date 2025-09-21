@@ -212,6 +212,7 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
     # 设置环境变量以确保正确的编码处理
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUNBUFFERED"] = "1"  # 强制子进程（Python）无缓冲输出
 
     # 获取系统默认编码
     system_encoding = locale.getpreferredencoding()
@@ -241,6 +242,7 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
                 for line in iter(process.stdout.readline, b''):
                     clean_line = decode_output(line).strip('\n')
                     print(clean_line)
+                    sys.stdout.flush()
                     if log_output:
                         logging.info(clean_line)
 
@@ -316,6 +318,7 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
                     
                     # 使用 \r 和 \n 刷新行
                     print(f"\r{prefix}{truncated}{padding}")
+                sys.stdout.flush()
                 
 
         returncode = process.wait()
