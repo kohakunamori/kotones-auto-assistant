@@ -365,6 +365,7 @@ def install_ksaa_version(pip_server: str, trusted_hosts: str, version: str) -> b
     :return: 安装是否成功
     :rtype: bool
     """
+    print_status("卸载现有的琴音小助手", status='info')
     if not uninstall_packages(["ksaa", "kotonebot"]):
         raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
     
@@ -406,6 +407,7 @@ def install_ksaa_from_zip(zip_path: str) -> bool:
             with zipfile.ZipFile(zip_file, 'r') as zip_ref:
                 zip_ref.extractall(temp_path)
             # 先卸载 ksaa 和 kotonebot
+            print_status("卸载现有的琴音小助手...", status='info', indent=1)
             if not uninstall_packages(["ksaa", "kotonebot"]):
                 raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
             # 使用pip install --find-links安装
@@ -448,6 +450,7 @@ def install_ksaa_from_package(package_path: str) -> bool:
         logging.error(msg)
         return False
     # 先卸载 ksaa 和 kotonebot
+    print_status("卸载现有的琴音小助手", status='info')
     if not uninstall_packages(["ksaa", "kotonebot"]):
         raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
 
@@ -483,29 +486,15 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
     # 根据更新通道决定是否包含预发布版本
     pre_flag = " --pre" if update_channel == 'beta' else ""
 
-    # 默认安装逻辑
+    # 先卸载 ksaa 和 kotonebot
+    print_status("卸载现有的琴音小助手", status='info')
+    if not uninstall_packages(["ksaa", "kotonebot"]):
+        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
+
+    # 安装琴音小助手
+    print_status("安装琴音小助手", status='info')
     install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location{pre_flag} ksaa'
-    ksaa_version_str = package_version("ksaa")
-    # 未安装
-    if not ksaa_version_str:
-        print_status("安装琴音小助手", status='info')
-        return run_command(install_command)
-    # 已安装，检查更新
-    else:
-        ksaa_version = Version(ksaa_version_str)
-        if check_update:
-            has_update, current_version, latest_version = check_ksaa_update_available(pip_server, ksaa_version, include_pre_release=(update_channel == 'beta'))
-            if has_update:
-                if install_update:
-                    print_status("更新琴音小助手", status='info')
-                    return run_command(install_command)
-                else:
-                    print_update_notice(str(current_version), str(latest_version))
-            else:
-                print_status("已是最新版本", status='success')
-        else:
-            print_status("跳过更新检查", status='info')
-    return True
+    return run_command(install_command)
 
 def load_config() -> Optional[Config]:
     """
