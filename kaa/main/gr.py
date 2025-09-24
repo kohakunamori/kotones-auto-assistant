@@ -2676,7 +2676,63 @@ class KotoneBotUI:
             def list_all_versions():
                 """列出所有可用版本"""
                 import logging
+                import re
                 logger = logging.getLogger(__name__)
+                
+                # 检查启动器版本
+                def check_launcher_version():
+                    """通过读取bootstrap.pyz/meta.py获取启动器版本"""
+                    import zipfile
+                    try:
+                        bootstrap_path = os.path.join(os.getcwd(), "bootstrap.pyz")
+                        if not os.path.exists(bootstrap_path):
+                            logger.warning("启动器文件不存在")
+                            gr.Warning("启动器文件不存在")
+                            return None
+                        
+                        # 尝试从bootstrap.pyz中读取meta.py
+                        try:
+                            with zipfile.ZipFile(bootstrap_path, 'r') as zip_file:
+                                if 'meta.py' in zip_file.namelist():
+                                    # 读取meta.py内容
+                                    meta_content = zip_file.read('meta.py').decode('utf-8')
+                                    
+                                    # 创建一个安全的执行环境
+                                    exec_globals = {}
+                                    exec_locals = {}
+                                    
+                                    # 执行meta.py内容
+                                    exec(meta_content, exec_globals, exec_locals)
+                                    
+                                    # 获取VERSION变量
+                                    if 'VERSION' in exec_locals:
+                                        version = exec_locals['VERSION']
+                                        # 移除v前缀（如果有）
+                                        if isinstance(version, str) and version.startswith('v'):
+                                            version = version[1:]
+                                        logger.info(f"从meta.py读取到启动器版本: {version}")
+                                        return str(version)
+                                    else:
+                                        logger.warning("meta.py中未找到VERSION变量")
+                                        gr.Warning("meta.py中未找到VERSION变量")
+                                        return None
+                                else:
+                                    logger.warning("bootstrap.pyz中未找到meta.py文件")
+                                    gr.Warning("bootstrap.pyz中未找到meta.py文件")
+                                    return None
+                        except zipfile.BadZipFile:
+                            # 不是有效的zip文件，可能是旧版本启动器
+                            logger.info("bootstrap.pyz不是有效的zip文件，判断为旧版本启动器")
+                            return "0.4.x"
+                        except Exception as e:
+                            logger.warning(f"读取bootstrap.pyz失败: {str(e)}")
+                            gr.Warning(f"读取bootstrap.pyz失败: {str(e)}")
+                            return None
+                            
+                    except Exception as e:
+                        logger.warning(f"检查启动器版本失败: {str(e)}")
+                        gr.Warning(f"检查启动器版本失败: {str(e)}")
+                        return None
 
                 try:
                     # 构建命令，使用清华镜像源
@@ -2742,12 +2798,22 @@ class KotoneBotUI:
                             gr.Button(visible=False)
                         )
 
+                    # 检查启动器版本
+                    launcher_version = check_launcher_version()
+                    
                     # 构建状态信息
                     status_info = []
                     if installed_version:
                         status_info.append(f"**当前安装版本:** {installed_version}")
                     if latest_version:
                         status_info.append(f"**最新版本:** {latest_version}")
+                    if launcher_version:
+                        if launcher_version == "0.4.x":
+                            status_info.append(f"**启动器版本:** < v0.5.0 (旧版本)")
+                        else:
+                            status_info.append(f"**启动器版本:** v{launcher_version}")
+                    else:
+                        status_info.append(f"**启动器版本:** 未知")
                     status_info.append(f"**找到 {len(versions)} 个可用版本**")
 
                     status_message = "\n\n".join(status_info)
@@ -2785,12 +2851,130 @@ class KotoneBotUI:
                 import logging
                 import threading
                 import time
+                import re
                 logger = logging.getLogger(__name__)
 
                 if not selected_version:
                     error_msg = "请先选择一个版本"
                     logger.warning(error_msg)
                     return error_msg
+                
+
+                def compare_version(version1: str, version2: str) -> int:
+                    """比较版本号，返回-1(v1<v2), 0(v1==v2), 1(v1>v2)"""
+                    # 处理特殊标记
+                    if version1 == "0.4.x":
+                        version1 = "0.4.0"
+                    
+                    def parse_version(v):
+                        # 移除v前缀并解析版本号和预发布标识
+                        v = v.lstrip('v')
+                        if 'b' in v:
+                            base, beta = v.split('b', 1)
+                            return tuple(map(int, base.split('.'))) + (-1, int(beta))
+                        elif 'a' in v:
+                            base, alpha = v.split('a', 1)
+                            return tuple(map(int, base.split('.'))) + (-2, int(alpha))
+                        elif 'rc' in v:
+                            base, rc = v.split('rc', 1)
+                            return tuple(map(int, base.split('.'))) + (-0.5, int(rc))
+                        else:
+                            return tuple(map(int, v.split('.'))) + (0, 0)
+                    
+                    v1_parsed = parse_version(version1)
+                    v2_parsed = parse_version(version2)
+                    
+                    if v1_parsed < v2_parsed:
+                        return -1
+                    elif v1_parsed > v2_parsed:
+                        return 1
+                    else:
+                        return 0
+                
+                # 检查启动器版本进行兼容性验证
+                def check_launcher_version_simple():
+                    """通过读取bootstrap.pyz/meta.py获取启动器版本"""
+                    import zipfile
+                    try:
+                        bootstrap_path = os.path.join(os.getcwd(), "bootstrap.pyz")
+                        if not os.path.exists(bootstrap_path):
+                            logger.warning("启动器文件不存在")
+                            gr.Warning("启动器文件不存在")
+                            return None
+                        
+                        # 尝试从bootstrap.pyz中读取meta.py
+                        try:
+                            with zipfile.ZipFile(bootstrap_path, 'r') as zip_file:
+                                if 'meta.py' in zip_file.namelist():
+                                    # 读取meta.py内容
+                                    meta_content = zip_file.read('meta.py').decode('utf-8')
+                                    
+                                    # 创建一个安全的执行环境
+                                    exec_globals = {}
+                                    exec_locals = {}
+                                    
+                                    # 执行meta.py内容
+                                    exec(meta_content, exec_globals, exec_locals)
+                                    
+                                    # 获取VERSION变量
+                                    if 'VERSION' in exec_locals:
+                                        version = exec_locals['VERSION']
+                                        # 移除v前缀（如果有）
+                                        if isinstance(version, str) and version.startswith('v'):
+                                            version = version[1:]
+                                        logger.info(f"从meta.py读取到启动器版本: {version}")
+                                        return str(version)
+                                    else:
+                                        logger.warning("meta.py中未找到VERSION变量")
+                                        gr.Warning("meta.py中未找到VERSION变量")
+                                        return None
+                                else:
+                                    logger.warning("bootstrap.pyz中未找到meta.py文件")
+                                    gr.Warning("bootstrap.pyz中未找到meta.py文件")
+                                    return None
+                        except zipfile.BadZipFile:
+                            # 不是有效的zip文件，可能是旧版本启动器
+                            logger.info("bootstrap.pyz不是有效的zip文件，判断为旧版本启动器")
+                            return "0.4.x"
+                        except Exception as e:
+                            logger.warning(f"读取bootstrap.pyz失败: {str(e)}")
+                            gr.Warning(f"读取bootstrap.pyz失败: {str(e)}")
+                            return None
+                            
+                    except Exception as e:
+                        logger.warning(f"检查启动器版本失败: {str(e)}")
+                        gr.Warning(f"检查启动器版本失败: {str(e)}")
+                        return None
+                
+                # 执行启动器版本检查
+                launcher_version = check_launcher_version_simple()
+                logger.info(f"检测到启动器版本: {launcher_version}")
+                
+                # 版本兼容性检查
+                if launcher_version:
+                    if compare_version(launcher_version, "0.5.0") < 0:
+                        # 启动器版本低于0.5.0
+                        logger.warning(f"启动器版本 {launcher_version} 低于 v0.5.0")
+                        
+                        # 检查要安装的版本是否 >= v2025.9b1
+                        if compare_version(selected_version, "2025.9b1") >= 0:
+                            error_msg = (
+                                f"❌ 版本兼容性错误\n\n"
+                                f"启动器版本: {launcher_version}\n"
+                                f"要安装的版本: {selected_version}\n\n"
+                                f"v2025.9b1 及以上版本需要**启动器 v0.5.0*** 或更高版本支持。\n"
+                                f"请先升级启动器到 v0.5.0 以上版本。[查看帮助](https://www.kdocs.cn/l/cetCY8mGKHLj?linkname=UhPH1itaSv)"
+                            )
+                            logger.error(error_msg)
+                            return error_msg
+                        else:
+                            # 版本兼容，但给出警告
+                            logger.warning(f"启动器版本较低，建议升级到 v0.5.0 以上")
+                            gr.Warning("启动器版本较低，建议升级到 v0.5.0 以上")
+                else:
+                    # 无法获取启动器版本，给出警告但继续
+                    logger.warning("无法获取启动器版本，可以继续安装但可能存在兼容性问题")
+                    gr.Warning("无法获取启动器版本，可以继续安装但可能存在兼容性问题")
 
                 def install_and_exit():
                     """在后台线程中执行安装并退出程序"""
