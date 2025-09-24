@@ -16,6 +16,7 @@ from datetime import datetime
 from time import sleep
 from typing import Optional, Dict, Any, TypedDict, Literal, List
 
+from meta import VERSION
 from request import head, HTTPError, NetworkError
 from terminal import (
     Color, print_header, print_status, clear_screen, wait_key
@@ -209,6 +210,7 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
     # 设置环境变量以确保正确的编码处理
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUNBUFFERED"] = "1"  # 强制子进程（Python）无缓冲输出
 
     # 获取系统默认编码
     system_encoding = locale.getpreferredencoding()
@@ -244,6 +246,7 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
                 clean_line = decode_output(line)
                 if clean_line.strip():  # 只输出非空行
                     print(clean_line)
+                    sys.stdout.flush()
                     if log_output:
                         logging.info(clean_line)
         
@@ -278,6 +281,110 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
         print_status(msg, status='error')
         logging.error(msg, exc_info=True)
         return False
+
+    # --- 滚动UI模式 ---
+    if scroll_region_size == -1:
+        # Heuristic: leave some lines for context above and below.
+        # Use at least 5 lines.
+        SCROLL_REGION_SIZE = max(5, get_terminal_height() - 8)
+    else:
+        SCROLL_REGION_SIZE = scroll_region_size
+        
+    terminal_width = get_terminal_width()
+
+    # 打印初始状态行
+    prefix = "▶ "
+    prefix_width = 2  # "▶ "
+    available_width = terminal_width - prefix_width
+    command_text = f"执行命令: {command}"
+    truncated_command = truncate_string(command_text, available_width)
+    padding_len = available_width - get_display_width(truncated_command)
+    padding = ' ' * max(0, padding_len)
+    
+    print(f"{Color.GRAY}{prefix}{truncated_command}{padding}{Color.RESET}")
+
+    process = subprocess.Popen(
+        command, shell=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        env=env
+    )
+
+    output_buffer = deque(maxlen=SCROLL_REGION_SIZE)
+    lines_rendered = 0
+    hide_cursor()
+
+    try:
+        if process.stdout:
+            for line in iter(process.stdout.readline, b''):
+                stripped_line = decode_output(line).strip()
+                output_buffer.append(stripped_line)
+                if log_output:
+                    logging.info(stripped_line)
+
+                # 移动光标到绘制区域顶部
+                if lines_rendered > 0:
+                    move_cursor_up(lines_rendered)
+
+                lines_rendered = min(len(output_buffer), SCROLL_REGION_SIZE)
+                # 重新绘制滚动区域
+                lines_to_render = list(output_buffer)
+                for i in range(lines_rendered):
+                    line_to_print = lines_to_render[i] if i < len(lines_to_render) else ""
+                    prefix = f"{Color.GRAY}|{Color.RESET} "
+                    prefix_width = 2
+                    
+                    available_width = terminal_width - prefix_width
+                    truncated = truncate_string(line_to_print, available_width)
+                    padding_len = available_width - get_display_width(truncated)
+                    padding = ' ' * max(0, padding_len)
+                    
+                    # 使用 \r 和 \n 刷新行
+                    print(f"\r{prefix}{truncated}{padding}")
+                sys.stdout.flush()
+                
+
+        returncode = process.wait()
+        logging.info(f"命令执行完毕，返回码: {returncode}")
+
+    finally:
+        show_cursor()
+
+    # 清理滚动区域
+    if lines_rendered > 0:
+        move_cursor_up(lines_rendered)
+        for _ in range(lines_rendered):
+            print(' ' * terminal_width)
+        move_cursor_up(lines_rendered)
+
+    # 更新最终状态行
+    move_cursor_up(1)
+    
+    if returncode == 0:
+        final_symbol = f"{Color.GREEN}✓"
+        success = True
+    else:
+        final_symbol = f"{Color.RED}✗"
+        success = False
+
+    # 重新计算填充以确保行被完全覆盖
+    final_prefix = f"{final_symbol} "
+    final_prefix_width = 2 # "✓ " or "✗ "
+    available_width = terminal_width - final_prefix_width
+    
+    final_line_text = f"执行命令: {command}"
+    truncated_final_line = truncate_string(final_line_text, available_width)
+    padding_len = available_width - get_display_width(truncated_final_line)
+    padding = ' ' * max(0, padding_len)
+    
+    print(f"\r{final_prefix}{truncated_final_line}{Color.RESET}{padding}")
+
+    if check and not success:
+        msg = f"命令执行失败，返回码: {returncode}"
+        print_status(msg, status='error', indent=1)
+        logging.error(msg)
+        return False
+        
+    return success
 
 def check_ksaa_update_available(pip_server: str, current_version: Version, *, include_pre_release: bool = False) -> tuple[bool, Version | None, Version | None]:
     """
@@ -740,7 +847,7 @@ def main_launch():
             raise ValueError(f"不支持的文件类型: {args.package_file}")
 
     setup_logging()
-    run_command("title 琴音小助手（运行时请勿关闭此窗口）", verbatim=True, log_output=False)
+    run_command(f"title 琴音小助手启动器（运行时请勿关闭此窗口） v{VERSION}", verbatim=True, log_output=False)
     clear_screen()
     print_header("琴音小助手启动器")
     logging.info("启动器已启动。")

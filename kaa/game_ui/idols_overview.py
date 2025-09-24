@@ -141,11 +141,17 @@ def locate_idol(skin_id: str) -> Rect | None:
 
     sc.update()
     logger.debug('Idol preview pages count: %s', repr(sc.page_count))
-    pc = sc.page_count
-    assert pc is not None
+
+    if sc.page_count is not None:
+        iterator = sc(4 / (sc.page_count * 12) * 0.8)
+    else:
+        # 没找到ScrollBar的情况，只执行一次for循环
+        logger.warning('Not found ScrollBar in Idol overview page.')
+        iterator = range(1)
+
     # 1280x720 分辨率下，一行 4 个，一页共 12 个。
     # 一次只翻 0.8 行。
-    for _ in sc(4 / (pc * 12) * 0.8):
+    for _ in iterator:
         img = device.screenshot()
         # 只保留 BoxIdolOverviewIdols 区域
         mask = np.zeros_like(img)
