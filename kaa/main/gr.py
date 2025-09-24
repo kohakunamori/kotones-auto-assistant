@@ -1194,6 +1194,7 @@ class KotoneBotUI:
 
             with gr.Tab("DMM", id="dmm") as tab_dmm:
                 gr.Markdown("已选中 DMM")
+                gr.Markdown("**暂停快捷键 <kbd>Ctrl</kbd> + <kbd>F4</kbd>，停止快捷键 <kbd>Ctrl</kbd> + <kbd>F3</kbd>**")
 
         choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
         screenshot_impl = gr.Dropdown(
