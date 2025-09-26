@@ -12,7 +12,6 @@ import tempfile
 import zipfile
 import shutil
 from pathlib import Path
-from collections import deque
 from datetime import datetime
 from time import sleep
 from typing import Optional, Dict, Any, TypedDict, Literal, List
@@ -20,9 +19,7 @@ from typing import Optional, Dict, Any, TypedDict, Literal, List
 from meta import VERSION
 from request import head, HTTPError, NetworkError
 from terminal import (
-    Color, print_header, print_status, clear_screen, 
-    get_terminal_width, get_display_width, truncate_string,
-    hide_cursor, show_cursor, move_cursor_up, wait_key, get_terminal_height
+    Color, print_header, print_status, clear_screen, wait_key
 )
 from repo import Version
 
@@ -203,8 +200,8 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
     
     :param command: 要运行的命令
     :param check: 是否检查返回码
-    :param verbatim: 是否原样输出，不使用滚动UI
-    :param scroll_region_size: 滚动区域的大小, -1 表示动态计算
+    :param verbatim: 是否原样输出（保留参数兼容性，实际不使用）
+    :param scroll_region_size: 滚动区域的大小（保留参数兼容性，实际不使用）
     :param log_output: 是否将命令输出记录到日志中
     :return: 命令是否成功执行
     """
@@ -231,139 +228,47 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
                 # 如果都失败了，使用'replace'策略
                 return line.decode('utf-8', errors='replace')
 
-    if verbatim:
-        print(f"▶ 执行命令: {command}")
-        try:
-            process = subprocess.Popen(
-                command, shell=True,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                env=env
-            )
-            if process.stdout:
-                for line in iter(process.stdout.readline, b''):
-                    clean_line = decode_output(line).strip('\n')
+    print(f"▶ 执行命令: {command}")
+    
+    try:
+        process = subprocess.Popen(
+            command, shell=True,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            env=env, bufsize=1, universal_newlines=False
+        )
+        
+        # 实时读取输出
+        if process.stdout:
+            for line in iter(process.stdout.readline, b''):
+                clean_line = decode_output(line.rstrip(b'\r\n'))
+                if clean_line.strip():  # 只输出非空行
                     print(clean_line)
                     sys.stdout.flush()
                     if log_output:
                         logging.info(clean_line)
-
-            returncode = process.wait()
-            logging.info(f"命令执行完毕，返回码: {returncode}")
-            return returncode == 0
-        except FileNotFoundError:
-            msg = f"命令未找到: {command.split()[0]}"
-            print_status(msg, status='error', indent=1)
-            logging.error(msg)
-            return False
-        except Exception as e:
-            msg = f"命令执行时发生错误: {e}"
-            print_status(msg, status='error', indent=1)
-            logging.error(msg, exc_info=True)
-            return False
-
-    # --- 滚动UI模式 ---
-    if scroll_region_size == -1:
-        # Heuristic: leave some lines for context above and below.
-        # Use at least 5 lines.
-        SCROLL_REGION_SIZE = max(5, get_terminal_height() - 8)
-    else:
-        SCROLL_REGION_SIZE = scroll_region_size
         
-    terminal_width = get_terminal_width()
-
-    # 打印初始状态行
-    prefix = "▶ "
-    prefix_width = 2  # "▶ "
-    available_width = terminal_width - prefix_width
-    command_text = f"执行命令: {command}"
-    truncated_command = truncate_string(command_text, available_width)
-    padding_len = available_width - get_display_width(truncated_command)
-    padding = ' ' * max(0, padding_len)
-    
-    print(f"{Color.GRAY}{prefix}{truncated_command}{padding}{Color.RESET}")
-
-    process = subprocess.Popen(
-        command, shell=True,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        env=env
-    )
-
-    output_buffer = deque(maxlen=SCROLL_REGION_SIZE)
-    lines_rendered = 0
-    hide_cursor()
-
-    try:
-        if process.stdout:
-            for line in iter(process.stdout.readline, b''):
-                stripped_line = decode_output(line).strip()
-                output_buffer.append(stripped_line)
-                if log_output:
-                    logging.info(stripped_line)
-
-                # 移动光标到绘制区域顶部
-                if lines_rendered > 0:
-                    move_cursor_up(lines_rendered)
-
-                lines_rendered = min(len(output_buffer), SCROLL_REGION_SIZE)
-                # 重新绘制滚动区域
-                lines_to_render = list(output_buffer)
-                for i in range(lines_rendered):
-                    line_to_print = lines_to_render[i] if i < len(lines_to_render) else ""
-                    prefix = f"{Color.GRAY}|{Color.RESET} "
-                    prefix_width = 2
-                    
-                    available_width = terminal_width - prefix_width
-                    truncated = truncate_string(line_to_print, available_width)
-                    padding_len = available_width - get_display_width(truncated)
-                    padding = ' ' * max(0, padding_len)
-                    
-                    # 使用 \r 和 \n 刷新行
-                    print(f"\r{prefix}{truncated}{padding}")
-                sys.stdout.flush()
-                
-
+        # 等待进程结束
         returncode = process.wait()
         logging.info(f"命令执行完毕，返回码: {returncode}")
-
-    finally:
-        show_cursor()
-
-    # 清理滚动区域
-    if lines_rendered > 0:
-        move_cursor_up(lines_rendered)
-        for _ in range(lines_rendered):
-            print(' ' * terminal_width)
-        move_cursor_up(lines_rendered)
-
-    # 更新最终状态行
-    move_cursor_up(1)
-    
-    if returncode == 0:
-        final_symbol = f"{Color.GREEN}✓"
-        success = True
-    else:
-        final_symbol = f"{Color.RED}✗"
-        success = False
-
-    # 重新计算填充以确保行被完全覆盖
-    final_prefix = f"{final_symbol} "
-    final_prefix_width = 2 # "✓ " or "✗ "
-    available_width = terminal_width - final_prefix_width
-    
-    final_line_text = f"执行命令: {command}"
-    truncated_final_line = truncate_string(final_line_text, available_width)
-    padding_len = available_width - get_display_width(truncated_final_line)
-    padding = ' ' * max(0, padding_len)
-    
-    print(f"\r{final_prefix}{truncated_final_line}{Color.RESET}{padding}")
-
-    if check and not success:
-        msg = f"命令执行失败，返回码: {returncode}"
-        print_status(msg, status='error', indent=1)
+        
+        if check and returncode != 0:
+            msg = f"命令执行失败，返回码: {returncode}"
+            print_status(msg, status='error')
+            logging.error(msg)
+            return False
+            
+        return returncode == 0
+        
+    except FileNotFoundError:
+        msg = f"命令未找到: {command.split()[0]}"
+        print_status(msg, status='error')
         logging.error(msg)
         return False
-        
-    return success
+    except Exception as e:
+        msg = f"命令执行时发生错误: {e}"
+        print_status(msg, status='error')
+        logging.error(msg, exc_info=True)
+        return False
 
 def check_ksaa_update_available(pip_server: str, current_version: Version, *, include_pre_release: bool = False) -> tuple[bool, Version | None, Version | None]:
     """
@@ -460,11 +365,9 @@ def install_ksaa_version(pip_server: str, trusted_hosts: str, version: str) -> b
     :return: 安装是否成功
     :rtype: bool
     """
-    # 如果安装的是 2025.9b2 版本，先卸载 ksaa 和 kotonebot
-    if version == "2025.9b2":
-        print_status("检测到安装版本为 2025.9b2，先执行卸载操作", status='info')
-        if not uninstall_packages(["ksaa", "kotonebot"]):
-            print_status("卸载操作失败，但继续尝试安装", status='warning')
+    print_status("卸载现有的琴音小助手", status='info')
+    if not uninstall_packages(["ksaa", "kotonebot"]):
+        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
     
     print_status(f"安装琴音小助手 v{version}", status='info')
     install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --index-url {pip_server} --trusted-host "{trusted_hosts}" --no-warn-script-location ksaa=={version}'
@@ -503,10 +406,13 @@ def install_ksaa_from_zip(zip_path: str) -> bool:
             print_status("解压zip文件...", status='info', indent=1)
             with zipfile.ZipFile(zip_file, 'r') as zip_ref:
                 zip_ref.extractall(temp_path)
-
+            # 先卸载 ksaa 和 kotonebot
+            print_status("卸载现有的琴音小助手...", status='info', indent=1)
+            if not uninstall_packages(["ksaa", "kotonebot"]):
+                raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
             # 使用pip install --find-links安装
             print_status("安装ksaa包...", status='info', indent=1)
-            install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --no-cache-dir --upgrade --no-deps --force-reinstall --no-index --find-links "{temp_path.absolute()}" ksaa'
+            install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --upgrade --find-links "{temp_path.absolute()}" ksaa'
             return run_command(install_command)
 
         except zipfile.BadZipFile:
@@ -543,10 +449,14 @@ def install_ksaa_from_package(package_path: str) -> bool:
         print_status(msg, status='error')
         logging.error(msg)
         return False
+    # 先卸载 ksaa 和 kotonebot
+    print_status("卸载现有的琴音小助手", status='info')
+    if not uninstall_packages(["ksaa", "kotonebot"]):
+        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
 
     print_status(f"从包文件安装琴音小助手: {package_path}", status='info')
 
-    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --no-cache-dir --upgrade --no-deps --force-reinstall --no-index "{package_file.absolute()}"'
+    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --upgrade "{package_file.absolute()}"'
     return run_command(install_command)
 
 def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_update: bool = True, update_channel: Literal['release', 'beta'] = 'release') -> bool:
@@ -576,29 +486,15 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
     # 根据更新通道决定是否包含预发布版本
     pre_flag = " --pre" if update_channel == 'beta' else ""
 
-    # 默认安装逻辑
+    # 先卸载 ksaa 和 kotonebot
+    print_status("卸载现有的琴音小助手", status='info')
+    if not uninstall_packages(["ksaa", "kotonebot"]):
+        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
+
+    # 安装琴音小助手
+    print_status("安装琴音小助手", status='info')
     install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location{pre_flag} ksaa'
-    ksaa_version_str = package_version("ksaa")
-    # 未安装
-    if not ksaa_version_str:
-        print_status("安装琴音小助手", status='info')
-        return run_command(install_command)
-    # 已安装，检查更新
-    else:
-        ksaa_version = Version(ksaa_version_str)
-        if check_update:
-            has_update, current_version, latest_version = check_ksaa_update_available(pip_server, ksaa_version, include_pre_release=(update_channel == 'beta'))
-            if has_update:
-                if install_update:
-                    print_status("更新琴音小助手", status='info')
-                    return run_command(install_command)
-                else:
-                    print_update_notice(str(current_version), str(latest_version))
-            else:
-                print_status("已是最新版本", status='success')
-        else:
-            print_status("跳过更新检查", status='info')
-    return True
+    return run_command(install_command)
 
 def load_config() -> Optional[Config]:
     """

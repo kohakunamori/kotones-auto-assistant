@@ -197,6 +197,9 @@ def do_produce(
             # 再开
             resume_produce()
             return True
+        # 首页的各种贴脸通知（比如 TRUE END 达成）
+        elif dialog.no():
+            continue
         else:
             device.click(R.Produce.BoxProduceOngoing)
             sleep(2)

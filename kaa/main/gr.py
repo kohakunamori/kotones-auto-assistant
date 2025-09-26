@@ -20,6 +20,7 @@ from kaa.db import IdolCard
 from kotonebot.backend.context.context import vars
 from kotonebot.errors import ContextNotInitializedError
 from kotonebot.client.host import Mumu12Host, LeidianHost
+from kotonebot.client.host.mumu12_host import Mumu12V5Host
 from kotonebot.config.manager import load_config, save_config
 from kotonebot.config.base_config import UserConfig, BackendConfig
 from kotonebot.backend.context import task_registry, ContextStackVars
@@ -42,7 +43,7 @@ ConfigKey = Literal[
     'screenshot_method', 'keep_screenshots',
     'check_emulator', 'emulator_path',
     'adb_emulator_name', 'emulator_args',
-    '_mumu_index', '_leidian_index',
+    '_mumu_index', '_mumu12v5_index', '_leidian_index',
     'mumu_background_mode', 'target_screenshot_interval',
 
     # purchase
@@ -482,6 +483,7 @@ class KotoneBotUI:
 
         valid_screenshot_methods = {
             'mumu12': ['adb', 'adb_raw', 'uiautomator2', 'nemu_ipc'],
+            'mumu12v5': ['adb', 'adb_raw', 'uiautomator2', 'nemu_ipc'],
             'leidian': ['adb', 'adb_raw', 'uiautomator2'],
             'custom': ['adb', 'adb_raw', 'uiautomator2'],
             'dmm': ['remote_windows', 'windows']
@@ -854,46 +856,78 @@ class KotoneBotUI:
         with gr.Tab("任务"):
             gr.Markdown("## 执行任务")
 
-            # 创建任务选择下拉框
-            task_choices = [task.name for task in task_registry.values()]
-            task_dropdown = gr.Dropdown(
-                choices=task_choices,
-                label="选择要执行的任务",
-                info="选择一个要单独执行的任务",
-                type="value",
-                value=None
-            )
-
-            # 创建执行按钮和暂停按钮
+            # 第一行：统一的停止和暂停按钮
             with gr.Row():
-                execute_btn = gr.Button("执行任务", scale=2)
+                stop_all_btn = gr.Button("停止任务", variant="stop", scale=1)
                 pause_btn = gr.Button("暂停", scale=1)
+            
             task_result = gr.Markdown("")
 
-            def toggle_single_task(task_name: str) -> Tuple[gr.Button, str]:
+            # 获取所有任务并创建列表布局
+            tasks = list(task_registry.values())
+            task_buttons = []  # 存储所有任务按钮的引用
+            
+            # 为每个任务创建一行：左侧启动按钮，右侧任务名
+            for task in tasks:
+                with gr.Row():
+                    with gr.Column(scale=1, min_width=50):
+                        task_btn = gr.Button("启动", variant="primary", size="sm")
+                        task_buttons.append((task_btn, task.name))
+                    with gr.Column(scale=7):
+                        gr.Markdown(f"{task.name}")
+
+            # 事件处理函数
+            def start_single_task_by_name(task_name: str):
+                """启动指定任务并返回状态信息及所有按钮的更新状态"""
                 if self.single_task_running:
-                    # 如果正在停止过程中，忽略重复点击
-                    if self.is_single_task_stopping:
-                        return gr.Button(value="停止中...", interactive=False), "正在停止任务..."
-
-                    result = self.stop_single_task()
-                    return gr.Button(value=result[0], interactive=False), result[1]
+                    return ["已有任务正在运行"] + [gr.Button(interactive=False) for _ in task_buttons]
+                
+                # 启动任务
+                result = self.start_single_task(task_name)
+                status_msg = result[1]
+                
+                # 如果成功启动，禁用所有任务按钮
+                if self.single_task_running:
+                    disabled_buttons = [gr.Button(value="运行中", interactive=False) for _ in task_buttons]
                 else:
-                    result = self.start_single_task(task_name)
-                    return gr.Button(value=result[0], interactive=True), result[1]
+                    disabled_buttons = [gr.Button(value="启动", interactive=True) for _ in task_buttons]
+                
+                return [status_msg] + disabled_buttons
 
-            def get_task_button_status() -> gr.Button:
+            def stop_all_tasks():
+                """停止所有任务并重置按钮状态"""
+                if not self.single_task_running:
+                    return ["没有正在运行的任务"] + [gr.Button(value="启动", interactive=True) for _ in task_buttons]
+                
+                # 停止任务
+                result = self.stop_single_task()
+                status_msg = result[1]
+                
+                # 如果正在停止中，显示停止中状态
+                if self.is_single_task_stopping:
+                    disabled_buttons = [gr.Button(value="停止中", interactive=False) for _ in task_buttons]
+                else:
+                    disabled_buttons = [gr.Button(value="启动", interactive=True) for _ in task_buttons]
+                
+                return [status_msg] + disabled_buttons
+
+            def get_task_buttons_status() -> List[gr.Button]:
+                """获取所有任务按钮的状态"""
                 if not hasattr(self, 'run_status') or not self.run_status.running:
                     self.single_task_running = False
-                    self.is_single_task_stopping = False  # 重置停止状态
-                    return gr.Button(value="执行任务", interactive=True)
+                    self.is_single_task_stopping = False
+                    return [gr.Button(value="启动", interactive=True) for _ in task_buttons]
 
                 if self.is_single_task_stopping:
-                    return gr.Button(value="停止中...", interactive=False)  # 停止中时禁用按钮
+                    return [gr.Button(value="停止中", interactive=False) for _ in task_buttons]
 
-                return gr.Button(value="停止任务", interactive=True)
+                if self.single_task_running:
+                    return [gr.Button(value="运行中", interactive=False) for _ in task_buttons]
+
+                return [gr.Button(value="启动", interactive=True) for _ in task_buttons]
 
             def get_single_task_status() -> str:
+                """获取任务状态信息"""
                 if not hasattr(self, 'run_status'):
                     return ""
 
@@ -924,15 +958,29 @@ class KotoneBotUI:
 
                 return ""
 
-            def on_pause_click(evt: gr.EventData) -> str:
+            def on_pause_click() -> str:
                 return self.toggle_pause()
 
-            execute_btn.click(
-                fn=toggle_single_task,
-                inputs=[task_dropdown],
-                outputs=[execute_btn, task_result]
+            # 绑定事件 - 为每个任务按钮绑定点击事件
+            def create_task_handler(task_name: str):
+                """创建任务处理函数，避免闭包问题"""
+                def handler():
+                    return start_single_task_by_name(task_name)
+                return handler
+
+            for task_btn, task_name in task_buttons:
+                task_btn.click(
+                    fn=create_task_handler(task_name),
+                    outputs=[task_result] + [btn for btn, _ in task_buttons]
+                )
+
+            # 绑定停止按钮事件
+            stop_all_btn.click(
+                fn=stop_all_tasks,
+                outputs=[task_result] + [btn for btn, _ in task_buttons]
             )
 
+            # 绑定暂停按钮事件
             pause_btn.click(
                 fn=on_pause_click,
                 outputs=[pause_btn]
@@ -940,8 +988,8 @@ class KotoneBotUI:
 
             # 添加定时器更新按钮状态和任务状态
             gr.Timer(1.0).tick(
-                fn=get_task_button_status,
-                outputs=[execute_btn]
+                fn=get_task_buttons_status,
+                outputs=[btn for btn, _ in task_buttons]
             )
             gr.Timer(1.0).tick(
                 fn=self.get_pause_button_with_interactive,
@@ -967,8 +1015,8 @@ class KotoneBotUI:
             return new_value
 
         with gr.Tabs(selected=self.current_config.backend.type):
-            with gr.Tab("MuMu 12", id="mumu12") as tab_mumu12:
-                gr.Markdown("已选中 MuMu 12 模拟器")
+            with gr.Tab("MuMu 12 v4.x", id="mumu12") as tab_mumu12:
+                gr.Markdown("已选中 MuMu 12 v4.x 模拟器")
                 mumu_refresh_message = gr.Markdown("<div style='color: red;'>点击下方「刷新」按钮载入信息</div>", visible=True)
                 mumu_instance = gr.Dropdown(
                     label="选择多开实例",
@@ -1007,6 +1055,51 @@ class KotoneBotUI:
 
                 mumu_background_mode = gr.Checkbox(
                     label="MuMu12 模拟器后台保活模式",
+                    value=self.current_config.backend.mumu_background_mode,
+                    info=BackendConfig.model_fields['mumu_background_mode'].description,
+                    interactive=True
+                )
+
+            with gr.Tab("MuMu 12 v5.x", id="mumu12v5") as tab_mumu12v5:
+                gr.Markdown("已选中 MuMu 12 v5.x 模拟器")
+                mumu_refresh_message = gr.Markdown("<div style='color: red;'>点击下方「刷新」按钮载入信息</div>", visible=True)
+                mumu_instance12v5 = gr.Dropdown(
+                    label="选择多开实例",
+                    choices=[],
+                    interactive=True
+                )
+                mumu_refresh_btn = gr.Button("刷新")
+
+                def refresh_mumu12v5_instances():
+                    try:
+                        instances = Mumu12V5Host.list()
+                        is_mumu12v5 = self.current_config.backend.type == 'mumu12v5'
+                        current_id = self.current_config.backend.instance_id if is_mumu12v5 else None
+                        choices = [(i.name, i.id) for i in instances]
+                        return gr.Dropdown(choices=choices, value=current_id, interactive=True), gr.Markdown(visible=False)
+                    except Exception as e:
+                        logger.exception('Failed to list installed MuMu12v5')
+                        gr.Error("获取 MuMu12 模拟器列表失败，请升级模拟器到最新版本。若问题依旧，前往 QQ 群、QQ 频道或 Github 反馈 bug。")
+                        return gr.Dropdown(choices=[], interactive=True), gr.Markdown(visible=True)
+
+                mumu_refresh_btn.click(
+                    fn=refresh_mumu12v5_instances,
+                    outputs=[mumu_instance12v5, mumu_refresh_message]
+                )
+
+                # 如果当前是 MuMu 模拟器且有配置的 instance_id，立即加载实例列表
+                if self.current_config.backend.type == 'mumu12v5' and self.current_config.backend.instance_id:
+                    try:
+                        instances = Mumu12V5Host.list()
+                        choices = [(i.name, i.id) for i in instances]
+                        mumu_instance12v5.choices = choices
+                        mumu_instance12v5.value = self.current_config.backend.instance_id
+                        mumu_refresh_message.visible = False
+                    except Exception as e:
+                        logger.exception('Failed to auto-load MuMu12v5 instances')
+
+                mumu_background_mode = gr.Checkbox(
+                    label="MuMu12v5 模拟器后台保活模式",
                     value=self.current_config.backend.mumu_background_mode,
                     info=BackendConfig.model_fields['mumu_background_mode'].description,
                     interactive=True
@@ -1101,6 +1194,7 @@ class KotoneBotUI:
 
             with gr.Tab("DMM", id="dmm") as tab_dmm:
                 gr.Markdown("已选中 DMM")
+                gr.Markdown("**暂停快捷键 <kbd>Ctrl</kbd> + <kbd>F4</kbd>，停止快捷键 <kbd>Ctrl</kbd> + <kbd>F3</kbd>**")
 
         choices = ['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
         screenshot_impl = gr.Dropdown(
@@ -1122,6 +1216,7 @@ class KotoneBotUI:
         )
 
         tab_mumu12.select(fn=partial(_update_emulator_tab_options, selected_index=0), inputs=[screenshot_impl], outputs=[screenshot_impl])
+        tab_mumu12v5.select(fn=partial(_update_emulator_tab_options, selected_index=1), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_leidian.select(fn=partial(_update_emulator_tab_options, selected_index=1), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_custom.select(fn=partial(_update_emulator_tab_options, selected_index=2), inputs=[screenshot_impl], outputs=[screenshot_impl])
         tab_dmm.select(fn=partial(_update_emulator_tab_options, selected_index=3), inputs=[screenshot_impl], outputs=[screenshot_impl])
@@ -1132,20 +1227,25 @@ class KotoneBotUI:
                 impl_value=self.current_config.backend.screenshot_impl,
                 selected_index=0
             )
-        elif self.current_config.backend.type == 'leidian':
+        elif self.current_config.backend.type == 'mumu12v5':
             _update_emulator_tab_options(
                 impl_value=self.current_config.backend.screenshot_impl,
                 selected_index=1
             )
-        elif self.current_config.backend.type == 'custom':
+        elif self.current_config.backend.type == 'leidian':
             _update_emulator_tab_options(
                 impl_value=self.current_config.backend.screenshot_impl,
                 selected_index=2
             )
-        elif self.current_config.backend.type == 'dmm':
+        elif self.current_config.backend.type == 'custom':
             _update_emulator_tab_options(
                 impl_value=self.current_config.backend.screenshot_impl,
                 selected_index=3
+            )
+        elif self.current_config.backend.type == 'dmm':
+            _update_emulator_tab_options(
+                impl_value=self.current_config.backend.screenshot_impl,
+                selected_index=4
             )
         else:
             gr.Warning(f"未知的模拟器类型：{self.current_config.backend.type}")
@@ -1156,10 +1256,15 @@ class KotoneBotUI:
                 self.current_config.backend.type = 'mumu12'
                 self.current_config.backend.instance_id = data['_mumu_index']
                 self.current_config.backend.mumu_background_mode = data['mumu_background_mode']
-            elif current_tab == 1:  # Leidian
+            elif current_tab == 1:  # Mumu12v5
+                # TODO: 由于 backend 类型放在了 Kotonebot 里，现在无法扩展，后续需要移出来
+                self.current_config.backend.type = 'mumu12v5'
+                self.current_config.backend.instance_id = data['_mumu12v5_index']
+                self.current_config.backend.mumu_background_mode = data['mumu_background_mode']
+            elif current_tab == 2:  # Leidian
                 self.current_config.backend.type = 'leidian'
                 self.current_config.backend.instance_id = data['_leidian_index']
-            elif current_tab == 2:  # Custom
+            elif current_tab == 3:  # Custom
                 self.current_config.backend.type = 'custom'
                 self.current_config.backend.instance_id = None
                 self.current_config.backend.adb_ip = data['adb_ip']
@@ -1168,7 +1273,7 @@ class KotoneBotUI:
                 self.current_config.backend.check_emulator = data['check_emulator']
                 self.current_config.backend.emulator_path = data['emulator_path']
                 self.current_config.backend.emulator_args = data['emulator_args']
-            elif current_tab == 3:  # DMM
+            elif current_tab == 4:  # DMM
                 self.current_config.backend.type = 'dmm'
                 self.current_config.backend.instance_id = None  # DMM doesn't use instance_id here
 
@@ -1187,6 +1292,7 @@ class KotoneBotUI:
             'emulator_args': emulator_args,
             '_mumu_index': mumu_instance,
             '_leidian_index': leidian_instance,
+            '_mumu12v5_index': mumu_instance12v5,
             'mumu_background_mode': mumu_background_mode
         }
 
@@ -2570,7 +2676,63 @@ class KotoneBotUI:
             def list_all_versions():
                 """列出所有可用版本"""
                 import logging
+                import re
                 logger = logging.getLogger(__name__)
+                
+                # 检查启动器版本
+                def check_launcher_version():
+                    """通过读取bootstrap.pyz/meta.py获取启动器版本"""
+                    import zipfile
+                    try:
+                        bootstrap_path = os.path.join(os.getcwd(), "bootstrap.pyz")
+                        if not os.path.exists(bootstrap_path):
+                            logger.warning("启动器文件不存在")
+                            gr.Warning("启动器文件不存在")
+                            return None
+                        
+                        # 尝试从bootstrap.pyz中读取meta.py
+                        try:
+                            with zipfile.ZipFile(bootstrap_path, 'r') as zip_file:
+                                if 'meta.py' in zip_file.namelist():
+                                    # 读取meta.py内容
+                                    meta_content = zip_file.read('meta.py').decode('utf-8')
+                                    
+                                    # 创建一个安全的执行环境
+                                    exec_globals = {}
+                                    exec_locals = {}
+                                    
+                                    # 执行meta.py内容
+                                    exec(meta_content, exec_globals, exec_locals)
+                                    
+                                    # 获取VERSION变量
+                                    if 'VERSION' in exec_locals:
+                                        version = exec_locals['VERSION']
+                                        # 移除v前缀（如果有）
+                                        if isinstance(version, str) and version.startswith('v'):
+                                            version = version[1:]
+                                        logger.info(f"从meta.py读取到启动器版本: {version}")
+                                        return str(version)
+                                    else:
+                                        logger.warning("meta.py中未找到VERSION变量")
+                                        gr.Warning("meta.py中未找到VERSION变量")
+                                        return None
+                                else:
+                                    logger.warning("bootstrap.pyz中未找到meta.py文件")
+                                    gr.Warning("bootstrap.pyz中未找到meta.py文件")
+                                    return None
+                        except zipfile.BadZipFile:
+                            # 不是有效的zip文件，可能是旧版本启动器
+                            logger.info("bootstrap.pyz不是有效的zip文件，判断为旧版本启动器")
+                            return "0.4.x"
+                        except Exception as e:
+                            logger.warning(f"读取bootstrap.pyz失败: {str(e)}")
+                            gr.Warning(f"读取bootstrap.pyz失败: {str(e)}")
+                            return None
+                            
+                    except Exception as e:
+                        logger.warning(f"检查启动器版本失败: {str(e)}")
+                        gr.Warning(f"检查启动器版本失败: {str(e)}")
+                        return None
 
                 try:
                     # 构建命令，使用清华镜像源
@@ -2636,12 +2798,22 @@ class KotoneBotUI:
                             gr.Button(visible=False)
                         )
 
+                    # 检查启动器版本
+                    launcher_version = check_launcher_version()
+                    
                     # 构建状态信息
                     status_info = []
                     if installed_version:
                         status_info.append(f"**当前安装版本:** {installed_version}")
                     if latest_version:
                         status_info.append(f"**最新版本:** {latest_version}")
+                    if launcher_version:
+                        if launcher_version == "0.4.x":
+                            status_info.append(f"**启动器版本:** < v0.5.0 (旧版本)")
+                        else:
+                            status_info.append(f"**启动器版本:** v{launcher_version}")
+                    else:
+                        status_info.append(f"**启动器版本:** 未知")
                     status_info.append(f"**找到 {len(versions)} 个可用版本**")
 
                     status_message = "\n\n".join(status_info)
@@ -2679,12 +2851,130 @@ class KotoneBotUI:
                 import logging
                 import threading
                 import time
+                import re
                 logger = logging.getLogger(__name__)
 
                 if not selected_version:
                     error_msg = "请先选择一个版本"
                     logger.warning(error_msg)
                     return error_msg
+                
+
+                def compare_version(version1: str, version2: str) -> int:
+                    """比较版本号，返回-1(v1<v2), 0(v1==v2), 1(v1>v2)"""
+                    # 处理特殊标记
+                    if version1 == "0.4.x":
+                        version1 = "0.4.0"
+                    
+                    def parse_version(v):
+                        # 移除v前缀并解析版本号和预发布标识
+                        v = v.lstrip('v')
+                        if 'b' in v:
+                            base, beta = v.split('b', 1)
+                            return tuple(map(int, base.split('.'))) + (-1, int(beta))
+                        elif 'a' in v:
+                            base, alpha = v.split('a', 1)
+                            return tuple(map(int, base.split('.'))) + (-2, int(alpha))
+                        elif 'rc' in v:
+                            base, rc = v.split('rc', 1)
+                            return tuple(map(int, base.split('.'))) + (-0.5, int(rc))
+                        else:
+                            return tuple(map(int, v.split('.'))) + (0, 0)
+                    
+                    v1_parsed = parse_version(version1)
+                    v2_parsed = parse_version(version2)
+                    
+                    if v1_parsed < v2_parsed:
+                        return -1
+                    elif v1_parsed > v2_parsed:
+                        return 1
+                    else:
+                        return 0
+                
+                # 检查启动器版本进行兼容性验证
+                def check_launcher_version_simple():
+                    """通过读取bootstrap.pyz/meta.py获取启动器版本"""
+                    import zipfile
+                    try:
+                        bootstrap_path = os.path.join(os.getcwd(), "bootstrap.pyz")
+                        if not os.path.exists(bootstrap_path):
+                            logger.warning("启动器文件不存在")
+                            gr.Warning("启动器文件不存在")
+                            return None
+                        
+                        # 尝试从bootstrap.pyz中读取meta.py
+                        try:
+                            with zipfile.ZipFile(bootstrap_path, 'r') as zip_file:
+                                if 'meta.py' in zip_file.namelist():
+                                    # 读取meta.py内容
+                                    meta_content = zip_file.read('meta.py').decode('utf-8')
+                                    
+                                    # 创建一个安全的执行环境
+                                    exec_globals = {}
+                                    exec_locals = {}
+                                    
+                                    # 执行meta.py内容
+                                    exec(meta_content, exec_globals, exec_locals)
+                                    
+                                    # 获取VERSION变量
+                                    if 'VERSION' in exec_locals:
+                                        version = exec_locals['VERSION']
+                                        # 移除v前缀（如果有）
+                                        if isinstance(version, str) and version.startswith('v'):
+                                            version = version[1:]
+                                        logger.info(f"从meta.py读取到启动器版本: {version}")
+                                        return str(version)
+                                    else:
+                                        logger.warning("meta.py中未找到VERSION变量")
+                                        gr.Warning("meta.py中未找到VERSION变量")
+                                        return None
+                                else:
+                                    logger.warning("bootstrap.pyz中未找到meta.py文件")
+                                    gr.Warning("bootstrap.pyz中未找到meta.py文件")
+                                    return None
+                        except zipfile.BadZipFile:
+                            # 不是有效的zip文件，可能是旧版本启动器
+                            logger.info("bootstrap.pyz不是有效的zip文件，判断为旧版本启动器")
+                            return "0.4.x"
+                        except Exception as e:
+                            logger.warning(f"读取bootstrap.pyz失败: {str(e)}")
+                            gr.Warning(f"读取bootstrap.pyz失败: {str(e)}")
+                            return None
+                            
+                    except Exception as e:
+                        logger.warning(f"检查启动器版本失败: {str(e)}")
+                        gr.Warning(f"检查启动器版本失败: {str(e)}")
+                        return None
+                
+                # 执行启动器版本检查
+                launcher_version = check_launcher_version_simple()
+                logger.info(f"检测到启动器版本: {launcher_version}")
+                
+                # 版本兼容性检查
+                if launcher_version:
+                    if compare_version(launcher_version, "0.5.0") < 0:
+                        # 启动器版本低于0.5.0
+                        logger.warning(f"启动器版本 {launcher_version} 低于 v0.5.0")
+                        
+                        # 检查要安装的版本是否 >= v2025.9b1
+                        if compare_version(selected_version, "2025.9b1") >= 0:
+                            error_msg = (
+                                f"❌ 版本兼容性错误\n\n"
+                                f"启动器版本: {launcher_version}\n"
+                                f"要安装的版本: {selected_version}\n\n"
+                                f"v2025.9b1 及以上版本需要**启动器 v0.5.0*** 或更高版本支持。\n"
+                                f"请先升级启动器到 v0.5.0 以上版本。[查看帮助](https://www.kdocs.cn/l/cetCY8mGKHLj?linkname=UhPH1itaSv)"
+                            )
+                            logger.error(error_msg)
+                            return error_msg
+                        else:
+                            # 版本兼容，但给出警告
+                            logger.warning(f"启动器版本较低，建议升级到 v0.5.0 以上")
+                            gr.Warning("启动器版本较低，建议升级到 v0.5.0 以上")
+                else:
+                    # 无法获取启动器版本，给出警告但继续
+                    logger.warning("无法获取启动器版本，可以继续安装但可能存在兼容性问题")
+                    gr.Warning("无法获取启动器版本，可以继续安装但可能存在兼容性问题")
 
                 def install_and_exit():
                     """在后台线程中执行安装并退出程序"""
@@ -2704,9 +2994,6 @@ class KotoneBotUI:
                             cwd=os.getcwd(),
                             creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
                         )
-
-                        # 等待一小段时间确保启动器启动
-                        time.sleep(2)
 
                         # 退出当前程序
                         logger.info("安装即将开始，正在退出当前程序...")
