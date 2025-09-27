@@ -40,7 +40,6 @@ def money_items2(items: Optional[list[DailyMoneyShopItems]] = None):
         for item in items:
             if ret := image.find(item.to_resource(), colored=True):
                 logger.info(f'Purchasing {item.to_ui_text(item)}...')
-                device.click()
                 confirm_purchase(ret.position)
                 finished.append(item)
         items = [item for item in items if item not in finished]
@@ -74,7 +73,6 @@ def dispatch_recommended_items():
         if rec := image.find(R.Daily.TextShopRecommended):
             logger.info(f'Clicking on recommended item.') # TODO: 计数
             pos = rec.position.offset(dx=0, dy=80)
-            device.click(pos)
             confirm_purchase(pos)
             sleep(2.5) # 
         elif image.find(R.Daily.IconTitleDailyShop) and not image.find(R.Daily.TextShopRecommended):
