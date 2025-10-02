@@ -1,14 +1,16 @@
-import importlib
 import re
+import json
+import subprocess
 import sys
 import html.parser
 import urllib.parse
-from typing import List
+from typing import Callable, List
 from dataclasses import dataclass
 from request import get, HTTPError
 from importlib.metadata import version, PackageNotFoundError
 
 PYTHON_EXECUTABLE = sys.executable
+DEFAULT_PIP_SERVER = "https://pypi.org/simple"
 # PEP 440 version regex (simplified from the official pattern)
 VERSION_PATTERN = r"""
     v?
@@ -218,118 +220,138 @@ def extract_version_from_filename(filename: str) -> str:
     
     return "unknown"
 
+ExecuteCommandFunc = Callable[[str], tuple[int, str]]
 
-def list_versions(package_name: str, *, server_url: str | None = None, include_pre_release: bool = False) -> List[PackageVersion]:
-    """
-    获取指定包的所有可用版本，按版本号降序排列
+class PipPackage:
+    def __init__(
+        self,
+        package_name: str,
+        *,
+        server_url: str = DEFAULT_PIP_SERVER,
+        trusted_host: list[str] | None = None,
+        execute_command: ExecuteCommandFunc | None = None,
+    ):
+        self.package_name = package_name
+        self.server_url = server_url
+        self.trusted_hosts = trusted_host
+        self.normalized_name = normalize_package_name(package_name)
+        self.execute_command: ExecuteCommandFunc = execute_command or self.__exec_command
+
+    def __exec_command(self, command: str) -> tuple[int, str]:
+        result = subprocess.run(command, check=True, capture_output=True)
+        return result.returncode, result.stdout.decode('utf-8')
+
+    def call_pip(self, args: list[str], *, with_default_args: bool = True) -> tuple[int, str]:
+        """
+        调用 pip 命令
+        """
+        return self.execute_command(f'"{PYTHON_EXECUTABLE}" -m pip {" ".join(args)}')
+
+    def install(self, version: str) -> bool:
+        args = [
+            'install',
+            f'{self.package_name}=={version}',
+            '--index-url', self.server_url,
+        ]
+        retcode, _ = self.call_pip(args)
+        if retcode != 0:
+            raise RuntimeError(f'安装失败，返回码: {retcode}')
+        return retcode == 0
     
-    :param package_name: 包名
-    :type package_name: str
-    :param server_url: 可选的服务器URL，默认为None时使用PyPI官方服务器（https://pypi.org/simple）。
-    :type server_url: str | None
-    :param include_pre_release: 是否包含预发布版本（alpha/beta/rc/dev/pre）。默认不包含。
-    :type include_pre_release: bool
-    :return: 包含版本信息的列表，按版本号降序排列
-    :rtype: List[PackageVersion]
-    :raises HTTPError: 当包不存在或网络错误时
-    :raises NetworkError: 当网络连接错误时
-    """
-    # 标准化包名
-    normalized_name = normalize_package_name(package_name)
+    def uninstall(self) -> bool:
+        retcode, _ = self.call_pip(['uninstall', self.package_name, '-y'])
+        if retcode != 0:
+            raise RuntimeError(f'卸载失败，返回码: {retcode}')
+        return retcode == 0
+
+    def is_installed(self) -> bool:
+        try:
+            version(self.package_name)
+            return True
+        except PackageNotFoundError:
+            return False
+
+    def local_version(self) -> Version | None:
+        try:
+            v = version(self.package_name)
+            return Version(v)
+        except PackageNotFoundError:
+            return None
+        except Exception as e:
+            raise RuntimeError(f'获取本地版本失败，包名: {self.package_name}') from e
+            return None
     
-    # 构建API URL
-    if server_url is None:
-        base_url = "https://pypi.org/simple"
-    else:
-        base_url = server_url.rstrip('/')
+    def list_versions(self, *, pre: bool = True) -> List[PackageVersion]:
+        """
+        列出所有远程版本。
+
+        :param pre: 是否包含预发布版本。
+        :return: 版本列表。
+        """
+        args = [
+            'index',
+            'versions',
+            self.package_name,
+            '--json',
+            '--pre' if pre else '',
+            '--index-url', self.server_url,
+        ]
+        retcode, output = self.call_pip(args)
+        if retcode != 0:
+            raise RuntimeError(f'获取版本列表失败，返回码: {retcode}')
+            return []
+        ret = json.loads(output)
+        versions = ret['versions']
+        return [PackageVersion(Version(version), '') for version in versions]
+
+    def latest_version(self, *, pre: bool = True) -> Version | None:
+        """
+        获取最新版本。
+
+        :param pre: 是否包含预发布版本。
+        :return: 最新版本。
+        """
+        versions = self.list_versions(pre=pre)
+        return versions[0].version if versions else None
     
-    url = f"{base_url}/{urllib.parse.quote(normalized_name)}/"
+    def install_from_file(self, file_path: str, *, upgrade: bool = True) -> bool:
+        """
+        从文件安装。
+
+        :param file_path: 文件路径。
+        :param upgrade: 是否升级。
+        :return: 是否成功。
+        """
+        args = [
+            'install',
+            file_path,
+            '--index-url', self.server_url,
+        ]
+        if upgrade:
+            args.append('--upgrade')
+        retcode, _ = self.call_pip(args)
+        if retcode != 0:
+            raise RuntimeError(f'安装失败，返回码: {retcode}')
+        return retcode == 0
     
-    # 设置请求头
-    headers = {
-        'Accept': 'application/vnd.pypi.simple.v1+html'
-    }
-    
-    try:
-        # 发送请求
-        html_content = get(url, headers=headers).decode('utf-8')
-        
-        # 解析HTML
-        parser = PyPIHTMLParser()
-        parser.feed(html_content)
-        
-        # 处理链接并提取版本信息
-        versions: list[PackageVersion] = []
-        for filename, href in parser.links:
-            # 提取版本号
-            version_str = extract_version_from_filename(filename)
-            
-            # 创建Version对象
-            version = Version(version_str)
-            
-            # 过滤预发布版本（当不包含预发布时）
-            if not include_pre_release:
-                if version.prerelease in {'a', 'b', 'rc', 'dev'}:
-                    continue
-            
-            # 创建PackageVersion对象
-            package_version = PackageVersion(
-                version=version,
-                url=href
-            )
-            versions.append(package_version)
-        
-        # 按版本号降序排列
-        versions.sort(key=lambda x: x.version, reverse=True)
-        
-        return versions
-        
-    except HTTPError as e:
-        if e.code == 404:
-            raise ValueError(f"包 '{package_name}' 不存在") from e
-        else:
-            raise
+    def install_from_folder(self, folder_path: str, *, upgrade: bool = True) -> bool:
+        """
+        从文件夹安装。
 
-def local_version(package_name: str) -> Version | None:
-    """
-    获取已安装的包的版本信息
-
-    :return: 已安装的包的版本信息，如果包未安装则返回None
-    """
-    try:
-        return Version(version(package_name))
-    except PackageNotFoundError:
-        return None
-
-def latest_version(package_name: str, *, server_url: str | None = None, include_pre_release: bool = False) -> Version | None:
-    """
-    获取指定包的最新版本信息
-    """
-    versions = list_versions(package_name, server_url=server_url, include_pre_release=include_pre_release)
-    return versions[0].version if versions else None
-
-def main():
-    """测试函数"""
-    try:
-        # 测试获取beautifulsoup4的版本
-        print("获取 beautifulsoup4 的版本信息...")
-        versions = list_versions("beautifulsoup4", include_pre_release=True)
-        
-        print(f"找到 {len(versions)} 个版本:")
-        for i, pkg_version in enumerate(versions[:10], 1):  # 只显示前10个
-            print(f"{i}. 版本: {pkg_version.version.version_str}")
-            print(f"   主版本: {pkg_version.version.major}.{pkg_version.version.minor}.{pkg_version.version.patch}")
-            if pkg_version.version.prerelease:
-                print(f"   预发布: {pkg_version.version.prerelease}{pkg_version.version.prerelease_num}")
-            print(f"   URL: {pkg_version.url}")
-            print()
-            
-        if len(versions) > 10:
-            print(f"... 还有 {len(versions) - 10} 个版本")
-            
-    except Exception as e:
-        print(f"错误: {e}")
-
-
-if __name__ == "__main__":
-    main()
+        :param folder_path: 文件夹路径。
+        :param upgrade: 是否升级。
+        :return: 是否成功。
+        """
+        args = [
+            'install',
+            '--find-links', folder_path,
+            self.package_name,
+            # '--index-url', self.server_url,
+            '--no-index',
+        ]
+        if upgrade:
+            args.append('--upgrade')
+        retcode, _ = self.call_pip(args)
+        if retcode != 0:
+            raise RuntimeError(f'安装失败，返回码: {retcode}')
+        return retcode == 0

@@ -2,7 +2,6 @@ import os
 import sys
 import json
 import ctypes
-import codecs
 import locale
 import logging
 import subprocess
@@ -10,7 +9,6 @@ import importlib.metadata
 import argparse
 import tempfile
 import zipfile
-import shutil
 from pathlib import Path
 from datetime import datetime
 from time import sleep
@@ -21,34 +19,36 @@ from request import head, HTTPError, NetworkError
 from terminal import (
     Color, print_header, print_status, clear_screen, wait_key
 )
-from repo import Version, latest_version, local_version
-
-# 配置文件的类型定义
-class BackendConfig(TypedDict, total=False):
-    type: Literal['custom', 'mumu12', 'leidian', 'dmm']
-    screenshot_impl: Literal['adb', 'adb_raw', 'uiautomator2', 'windows', 'remote_windows', 'nemu_ipc']
-    
-class MiscConfig(TypedDict, total=False):
-    check_update: Literal['never', 'startup']
-    auto_install_update: bool
-    update_channel: Literal['release', 'beta']
-
-class UserConfig(TypedDict, total=False):
-    name: str
-    id: str
-    category: str
-    description: str
-    backend: BackendConfig
-    keep_screenshots: bool
-    options: Dict[str, Any]  # 这里包含 misc 等配置
-
-class Config(TypedDict, total=False):
-    version: int
-    user_configs: List[UserConfig]
+from repo import Version, PipPackage
+from util import (
+    is_admin,
+    load_config_logic,
+    get_update_settings_logic,
+    ConfigLoadError,
+    Config,
+    restart_as_admin,
+    run_command
+)
 
 # 获取当前Python解释器路径
 PYTHON_EXECUTABLE = sys.executable
-TRUSTED_HOSTS = "pypi.org files.pythonhosted.org pypi.python.org mirrors.aliyun.com mirrors.cloud.tencent.com mirrors.tuna.tsinghua.edu.cn"
+_TRUSTED_HOSTS = "pypi.org files.pythonhosted.org pypi.python.org mirrors.aliyun.com mirrors.cloud.tencent.com mirrors.tuna.tsinghua.edu.cn"
+TRUSTED_HOSTS = [
+    "pypi.org",
+    "files.pythonhosted.org",
+    "pypi.python.org",
+    "mirrors.aliyun.com",
+    "mirrors.cloud.tencent.com",
+    "mirrors.tuna.tsinghua.edu.cn",
+]
+PIP_SERVERS = [
+    "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+    "https://mirrors.aliyun.com/pypi/simple",
+    "https://mirrors.cloud.tencent.com/pypi/simple",
+    "https://pypi.org/simple",
+]
+pip_ksaa: PipPackage = PipPackage("ksaa", execute_command=run_command)
+pip_kotonebot: PipPackage = PipPackage("kotonebot", execute_command=run_command)
 
 def setup_logging():
     """
@@ -75,26 +75,7 @@ def setup_logging():
         logging.error("未捕获的异常", exc_info=(exc_type, exc_value, exc_traceback))
 
     sys.excepthook = handle_exception
-    logging.info("日志记录器已初始化。")
-
-PIP_SERVERS = [
-    "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
-    "https://mirrors.aliyun.com/pypi/simple",
-    "https://mirrors.cloud.tencent.com/pypi/simple",
-    "https://pypi.org/simple",
-]
-
-def is_admin() -> bool:
-    """
-    检查当前进程是否具有管理员权限。
-    
-    :return: 如果具有管理员权限返回True，否则返回False
-    :rtype: bool
-    """
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
+    logging.info("日志已初始化。")
 
 def test_url_availability(url: str) -> bool:
     """
@@ -194,128 +175,6 @@ def get_ksaa_version_from_filesystem() -> Optional[str]:
         logging.warning(f"通过文件系统检测 ksaa 版本失败: {e}")
         return None
 
-def run_command(command: str, check: bool = True, verbatim: bool = False, scroll_region_size: int = -1, log_output: bool = True) -> bool:
-    """
-    运行命令并实时输出，返回是否成功。
-    
-    :param command: 要运行的命令
-    :param check: 是否检查返回码
-    :param verbatim: 是否原样输出（保留参数兼容性，实际不使用）
-    :param scroll_region_size: 滚动区域的大小（保留参数兼容性，实际不使用）
-    :param log_output: 是否将命令输出记录到日志中
-    :return: 命令是否成功执行
-    """
-    logging.info(f"执行命令: {command}")
-
-    # 设置环境变量以确保正确的编码处理
-    env = os.environ.copy()
-    env["PYTHONIOENCODING"] = "utf-8"
-    env["PYTHONUNBUFFERED"] = "1"  # 强制子进程（Python）无缓冲输出
-
-    # 获取系统默认编码
-    system_encoding = locale.getpreferredencoding()
-    
-    # 创建解码器
-    def decode_output(line: bytes) -> str:
-        try:
-            # 首先尝试UTF-8解码
-            return line.decode('utf-8')
-        except UnicodeDecodeError:
-            try:
-                # 如果UTF-8失败，尝试系统默认编码
-                return line.decode(system_encoding)
-            except UnicodeDecodeError:
-                # 如果都失败了，使用'replace'策略
-                return line.decode('utf-8', errors='replace')
-
-    print(f"▶ 执行命令: {command}")
-    
-    try:
-        process = subprocess.Popen(
-            command, shell=True,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            env=env, bufsize=1, universal_newlines=False
-        )
-        
-        # 实时读取输出
-        if process.stdout:
-            for line in iter(process.stdout.readline, b''):
-                clean_line = decode_output(line.rstrip(b'\r\n'))
-                if clean_line.strip():  # 只输出非空行
-                    print(clean_line)
-                    sys.stdout.flush()
-                    if log_output:
-                        logging.info(clean_line)
-        
-        # 等待进程结束
-        returncode = process.wait()
-        logging.info(f"命令执行完毕，返回码: {returncode}")
-        
-        if check and returncode != 0:
-            msg = f"命令执行失败，返回码: {returncode}"
-            print_status(msg, status='error')
-            logging.error(msg)
-            return False
-            
-        return returncode == 0
-        
-    except FileNotFoundError:
-        msg = f"命令未找到: {command.split()[0]}"
-        print_status(msg, status='error')
-        logging.error(msg)
-        return False
-    except Exception as e:
-        msg = f"命令执行时发生错误: {e}"
-        print_status(msg, status='error')
-        logging.error(msg, exc_info=True)
-        return False
-
-def check_ksaa_update_available(pip_server: str, current_version: Version, *, include_pre_release: bool = False) -> tuple[bool, Version | None, Version | None]:
-    """
-    检查ksaa包是否有新版本可用。
-    
-    :param pip_server: pip服务器URL
-    :type pip_server: str
-    :param current_version: 当前版本
-    :type current_version: Version
-    :param include_pre_release: 是否包含预发布版本（alpha/beta/rc/dev/pre）
-    :type include_pre_release: bool
-    :return: (是否有更新, 当前版本, 最新版本)
-    :rtype: tuple[bool, Optional[Version], Optional[Version]]
-    """
-    try:
-        # 使用repo.py中的list_versions函数和Version类获取最新版本信息
-        from repo import list_versions, Version
-
-        try:
-            versions = list_versions("ksaa", server_url=pip_server, include_pre_release=include_pre_release)
-            if versions and len(versions) > 0:
-                latest_version = versions[0].version
-                
-                # 使用Version类的比较功能
-                if latest_version > current_version:
-                    return True, current_version, latest_version
-        except Exception as e:
-            logging.warning(f"从服务器 {pip_server} 获取版本信息失败: {e}")
-            print_status(f"从服务器 {pip_server} 获取版本信息失败: {e}", status='error')
-            # 如果指定服务器失败，尝试使用默认PyPI服务器
-            try:
-                versions = list_versions("ksaa", include_pre_release=include_pre_release)
-                if versions and len(versions) > 0:
-                    latest_version = versions[0].version
-                    
-                    # 使用Version类的比较功能
-                    if latest_version > current_version:
-                        return True, current_version, latest_version
-            except Exception as e2:
-                logging.warning(f"从PyPI获取版本信息也失败: {e2}")
-        
-        return False, current_version, latest_version if 'latest_version' in locals() else None
-        
-    except Exception as e:
-        logging.warning(f"检查ksaa更新时发生错误: {e}")
-        return False, None, None
-
 def print_update_notice(current_version: str, latest_version: str):
     """
     打印更新提示信息。
@@ -338,21 +197,16 @@ def print_update_notice(current_version: str, latest_version: str):
     print()
     sleep(5)
 
-def uninstall_packages(packages: list[str]) -> bool:
-    """
-    卸载指定的包。
+def clean():
+    print_status("卸载现有的琴音小助手", status='info')
+    ret1 = pip_ksaa.uninstall()
+    ret2 = pip_kotonebot.uninstall()
+    if not ret1 or not ret2:
+        user_input = input("卸载失败，是否继续安装？(直接回车继续，输入 q 退出)")
+        if user_input == 'q':
+            raise RuntimeError("卸载失败")
 
-    :param packages: 要卸载的包列表
-    :type packages: list[str]
-    :return: 卸载是否成功
-    :rtype: bool
-    """
-    packages_str = " ".join(packages)
-    print_status(f"卸载包: {packages_str}", status='info')
-    uninstall_command = f'"{PYTHON_EXECUTABLE}" -m pip uninstall {packages_str} -y'
-    return run_command(uninstall_command)
-
-def install_ksaa_version(pip_server: str, trusted_hosts: str, version: str) -> bool:
+def install_ksaa_version(version: str) -> bool:
     """
     安装指定版本的ksaa包。
 
@@ -365,13 +219,10 @@ def install_ksaa_version(pip_server: str, trusted_hosts: str, version: str) -> b
     :return: 安装是否成功
     :rtype: bool
     """
-    print_status("卸载现有的琴音小助手", status='info')
-    if not uninstall_packages(["ksaa", "kotonebot"]):
-        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
+    clean()
     
     print_status(f"安装琴音小助手 v{version}", status='info')
-    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --index-url {pip_server} --trusted-host "{trusted_hosts}" --no-warn-script-location ksaa=={version}'
-    return run_command(install_command)
+    return pip_ksaa.install(version)
 
 def install_ksaa_from_zip(zip_path: str) -> bool:
     """
@@ -407,13 +258,10 @@ def install_ksaa_from_zip(zip_path: str) -> bool:
             with zipfile.ZipFile(zip_file, 'r') as zip_ref:
                 zip_ref.extractall(temp_path)
             # 先卸载 ksaa 和 kotonebot
-            print_status("卸载现有的琴音小助手...", status='info', indent=1)
-            if not uninstall_packages(["ksaa", "kotonebot"]):
-                raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
-            # 使用pip install --find-links安装
+            clean()
+
             print_status("安装ksaa包...", status='info', indent=1)
-            install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --upgrade --find-links "{temp_path.absolute()}" ksaa'
-            return run_command(install_command)
+            return pip_ksaa.install_from_folder(str(temp_path.absolute()))
 
         except zipfile.BadZipFile:
             msg = f"无效的zip文件: {zip_path}"
@@ -449,15 +297,9 @@ def install_ksaa_from_package(package_path: str) -> bool:
         print_status(msg, status='error')
         logging.error(msg)
         return False
-    # 先卸载 ksaa 和 kotonebot
-    print_status("卸载现有的琴音小助手", status='info')
-    if not uninstall_packages(["ksaa", "kotonebot"]):
-        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
-
+    clean()
     print_status(f"从包文件安装琴音小助手: {package_path}", status='info')
-
-    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --no-warn-script-location --upgrade "{package_file.absolute()}"'
-    return run_command(install_command)
+    return pip_ksaa.install_from_file(str(package_file.absolute()))
 
 def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_update: bool = True, update_channel: Literal['release', 'beta'] = 'release') -> bool:
     """
@@ -485,50 +327,43 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
 
     # 检查更新
     pre_flag = update_channel == 'beta'
-    local = local_version("ksaa")
-    latest = latest_version("ksaa", server_url=pip_server, include_pre_release=pre_flag)
+    local = pip_ksaa.local_version()
+    latest = pip_ksaa.latest_version(pre=pre_flag)
+    if not latest:
+        msg = "获取最新版本失败，请检查网络连接。"
+        print_status(msg, status='warning')
+        logging.warning(msg)
+        return False
 
-    if local and latest and local < latest:
+    if not local:
+        print_status("未安装琴音小助手，正在安装...", status='info')
+        return pip_ksaa.install(str(latest))
+    elif latest and local < latest:
         if not install_update:
             print_update_notice(str(local), str(latest))
             return True
     else:
         return True
 
-
-    # 更新
-    print_status("卸载现有琴音小助手", status='info')
-    if not uninstall_packages(["ksaa", "kotonebot"]):
-        raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
-
     # 安装琴音小助手
+    clean()
     print_status("安装琴音小助手", status='info')
-    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location{pre_flag} ksaa=={latest}'
-    return run_command(install_command)
+    return pip_ksaa.install(str(latest))
 
 def load_config() -> Optional[Config]:
     """
     加载config.json配置文件。
     
     :return: 配置字典，如果加载失败返回None
-    :rtype: Optional[Config]
     """
-    config_path = Path("./config.json")
-    if not config_path.exists():
-        msg = "配置文件 config.json 不存在，跳过配置加载"
-        print_status(msg, status='warning')
-        logging.warning(msg)
-        return None
-    
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+        config = load_config_logic()
         msg = "成功加载配置文件"
         print_status(msg, status='success')
         logging.info(msg)
         return config
-    except Exception as e:
-        msg = f"加载配置文件失败: {e}"
+    except ConfigLoadError as e:
+        msg = str(e)
         print_status(msg, status='error')
         logging.error(msg, exc_info=True)
         return None
@@ -542,67 +377,10 @@ def get_update_settings(config: Config) -> tuple[bool, bool, Literal['release', 
     :return: (是否检查更新, 是否自动安装更新, 更新通道)
     :rtype: tuple[bool, bool, Literal['release', 'beta']]
     """
-    # 默认值
-    check_update = True
-    auto_install_update = True
-    update_channel: Literal['release', 'beta'] = 'release'
-    
-    # 检查是否有用户配置
-    user_configs = config.get("user_configs", [])
-    if user_configs:
-        first_config = user_configs[0]
-        options = first_config.get("options", {})
-        misc = options.get("misc", {})
-        
-        # 获取检查更新设置
-        check_update_setting = misc.get("check_update", "startup")
-        check_update = check_update_setting == "startup"
-        
-        # 获取自动安装更新设置
-        auto_install_update = misc.get("auto_install_update", True)
-
-        # 获取更新通道
-        update_channel = misc.get("update_channel", 'release')  # type: ignore[assignment]
-        
-        msg = f"更新设置: 检查更新={check_update}, 自动安装={auto_install_update}, 更新通道={update_channel}"
-        logging.info(msg)
-    
+    check_update, auto_install_update, update_channel = get_update_settings_logic(config)
+    msg = f"更新设置: 检查更新={check_update}, 自动安装={auto_install_update}, 更新通道={update_channel}"
+    logging.info(msg)
     return check_update, auto_install_update, update_channel
-
-def restart_as_admin() -> None:
-    """
-    以管理员身份重启程序。
-    """
-    if is_admin():
-        return
-
-    script = os.path.abspath(sys.argv[0])
-    params = ' '.join([f'"{item}"' for item in sys.argv[1:]])
-    
-    # 重启后跳过检查更新
-    if '--skip-update' not in sys.argv:
-        params += ' --skip-update'
-    
-    try:
-        # 使用 ShellExecute 以管理员身份启动程序
-        ret = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", PYTHON_EXECUTABLE, f'"{script}" {params}', None, 1
-        )
-        if ret > 32:  # 返回值大于32表示成功
-            msg = "正在以管理员身份重启程序..."
-            print_status(msg, status='info')
-            logging.info(msg)
-            os._exit(0)
-        else:
-            msg = f"以管理员身份重启失败，错误码: {ret}"
-            print_status(msg, status='error')
-            logging.error(msg)
-            return
-    except Exception as e:
-        msg = f"以管理员身份重启时发生错误: {e}"
-        print_status(msg, status='error')
-        logging.error(msg, exc_info=True)
-        return
 
 def check_admin(config: Config) -> bool:
     """
@@ -631,14 +409,10 @@ def check_admin(config: Config) -> bool:
         print_status(msg, status='info')
         logging.info(msg)
         if not is_admin():
-            msg1 = "需要管理员权限才能使用Windows截图模式"
-            print_status(msg1, status='error')
-            logging.error(msg1)
+            msg1 = "无管理员权限，正在尝试以管理员身份重启..."
+            print_status(msg1, status='info')
+            logging.info(msg1)
             
-            # 尝试以管理员身份重启
-            msg2 = "正在尝试以管理员身份重启..."
-            print_status(msg2, status='info', indent=1)
-            logging.info(msg2)
             restart_as_admin()
             return False
         else:
@@ -755,6 +529,10 @@ def main_launch():
         pip_server = get_working_pip_server()
         if not pip_server:
             raise RuntimeError("没有找到可用的pip服务器，请检查网络连接。")
+        pip_ksaa.server_url = pip_server
+        pip_kotonebot.server_url = pip_server
+        pip_ksaa.trusted_hosts = TRUSTED_HOSTS
+        pip_kotonebot.trusted_hosts = TRUSTED_HOSTS
 
         # 5. 处理特殊安装情况
         if args.install_from_zip:
@@ -770,7 +548,7 @@ def main_launch():
         elif args.install_version:
             # 安装指定版本
             print_header("安装指定版本", color=Color.BLUE)
-            if not install_ksaa_version(pip_server, TRUSTED_HOSTS, args.install_version):
+            if not install_ksaa_version(args.install_version):
                 raise RuntimeError("安装指定版本失败，请检查上面的错误日志。")
         else:
             # 默认安装和更新逻辑
