@@ -1,10 +1,6 @@
 import os
 import sys
-import json
-import ctypes
-import locale
 import logging
-import subprocess
 import importlib.metadata
 import argparse
 import tempfile
@@ -12,7 +8,7 @@ import zipfile
 from pathlib import Path
 from datetime import datetime
 from time import sleep
-from typing import Optional, Dict, Any, TypedDict, Literal, List
+from typing import Optional, Literal
 
 from meta import VERSION
 from request import head, HTTPError, NetworkError
@@ -461,12 +457,42 @@ def run_kaa(args: list[str]) -> bool:
         print_status(f"无法检测到 ksaa 版本，使用默认入口点: {entry_point}", status='warning')
     
     # 运行kaa命令
-    if not run_command(f'"{PYTHON_EXECUTABLE}" -m {entry_point} {" ".join(args)}', verbatim=True, log_output=False):
+    retcode, _ = run_command(f'"{PYTHON_EXECUTABLE}" -m {entry_point} {" ".join(args)}', verbatim=True, log_output=False)
+    if retcode != 0:
         return False
     
     print_header("运行结束", color=Color.GREEN)
     return True
 
+def recovery_mode():
+    print_status("按任意键进入恢复流程...", status='info')
+    wait_key()
+    clear_screen()
+
+    package_versions = pip_ksaa.list_versions()
+    local = pip_ksaa.local_version()
+    if not package_versions:
+        print_status("没有找到可用的 ksaa 版本，请检查网络连接。", status='error')
+        return False
+    
+    clear_screen()
+    print_status("可用版本:", status='info')
+    versions = [str(v.version) for v in package_versions]
+    for i in range(0, len(versions), 3):
+        print_status("  " + "\t\t".join(versions[i:i+3]), status='info', indent=1)
+    print_status("当前版本:", status='info')
+    print_status(f"  {local}", status='info', indent=1)
+    
+    while True:
+        user_input = input("请输入要安装的版本号: ")
+
+        if user_input in versions:
+            print_status(f"正在安装版本 {user_input}...", status='info')
+            pip_ksaa.install(user_input)
+            print_status("安装成功，请重启 kaa", status='info')
+            break
+        else:
+            print_status("版本不存在，请重新输入。", status='error')
 
 def parse_arguments():
     """
@@ -574,9 +600,11 @@ def main_launch():
     except Exception as e:
         msg = f"发生致命错误: {e}"
         print_status(msg, status='error')
-        print_status("压缩 kaa 目录下的 logs 文件夹并给此窗口截图后一并发送给开发者", status='error')
+        print_status("可尝试进入恢复流程，安装旧版本小助手", status='info')
+        print_status("如需反馈，压缩 kaa 目录下的 logs 文件夹并给此窗口截图后一并发送给开发者", status='info')
         logging.critical(msg, exc_info=True)
-
+        print()
+        recovery_mode()
     finally:
         logging.info("启动器运行结束。")
         wait_key("\n按任意键退出...")
