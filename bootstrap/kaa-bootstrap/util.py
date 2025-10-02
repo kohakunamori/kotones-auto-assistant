@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import ctypes
+import threading
 from pathlib import Path
 from typing import Dict, Any, TypedDict, Literal, List
 
@@ -135,14 +136,14 @@ def restart_as_admin() -> None:
     
 def run_command(command: str, check: bool = True, verbatim: bool = False, scroll_region_size: int = -1, log_output: bool = True) -> tuple[int, str]:
     """
-    运行命令并实时输出，返回返回码和输出。
-    
+    运行命令并实时输出，返回返回码和输出（仅包含 stdout，不包含 stderr）。
+
     :param command: 要运行的命令
     :param check: 是否检查返回码
     :param verbatim: 是否原样输出（保留参数兼容性，实际不使用）
     :param scroll_region_size: 滚动区域的大小（保留参数兼容性，实际不使用）
     :param log_output: 是否将命令输出记录到日志中
-    :return: 返回码和输出
+    :return: 返回码和输出（仅 stdout）
     """
     logging.info(f"执行命令: {command}")
 
@@ -153,7 +154,7 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
 
     # 获取系统默认编码
     system_encoding = locale.getpreferredencoding()
-    
+
     # 创建解码器
     def decode_output(line: bytes) -> str:
         try:
@@ -168,44 +169,69 @@ def run_command(command: str, check: bool = True, verbatim: bool = False, scroll
                 return line.decode('utf-8', errors='replace')
 
     print(f"▶ 执行命令: {command}")
-    
-    output = ''
+
+    stdout_chunks: list[str] = []
+
     try:
         process = subprocess.Popen(
-            command, shell=True,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            env=env, bufsize=1, universal_newlines=False
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            bufsize=1,
+            universal_newlines=False,
         )
-        
-        # 实时读取输出
-        if process.stdout:
-            for line in iter(process.stdout.readline, b''):
+
+        def read_stream(stream, is_stdout: bool) -> None:
+            if not stream:
+                return
+            for line in iter(stream.readline, b''):
                 clean_line = decode_output(line.rstrip(b'\r\n'))
-                if clean_line.strip():  # 只输出非空行
+                if clean_line.strip():
                     print(clean_line)
                     sys.stdout.flush()
                     if log_output:
-                        logging.info(clean_line)
-                output += clean_line
-        # 等待进程结束
+                        if is_stdout:
+                            logging.info(clean_line)
+                        else:
+                            logging.error(clean_line)
+                if is_stdout:
+                    stdout_chunks.append(clean_line)
+
+        threads: list[threading.Thread] = []
+        if process.stdout is not None:
+            t_out = threading.Thread(target=read_stream, args=(process.stdout, True), daemon=True)
+            threads.append(t_out)
+            t_out.start()
+        if process.stderr is not None:
+            t_err = threading.Thread(target=read_stream, args=(process.stderr, False), daemon=True)
+            threads.append(t_err)
+            t_err.start()
+
         returncode = process.wait()
+        for t in threads:
+            t.join()
+
         logging.info(f"命令执行完毕，返回码: {returncode}")
-        
+
+        output = ''.join(stdout_chunks)
+
         if check and returncode != 0:
             msg = f"命令执行失败，返回码: {returncode}"
             print_status(msg, status='error')
             logging.error(msg)
             return returncode, output
-            
+
         return returncode, output
-        
+
     except FileNotFoundError:
         msg = f"命令未找到: {command.split()[0]}"
         print_status(msg, status='error')
         logging.error(msg)
-        return -1, output
+        return -1, ''.join(stdout_chunks)
     except Exception as e:
         msg = f"命令执行时发生错误: {e}"
         print_status(msg, status='error')
         logging.error(msg, exc_info=True)
-        return -1, output
+        return -1, ''.join(stdout_chunks)
