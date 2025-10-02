@@ -143,7 +143,7 @@ def do_cards(
     DRINK_MAX_RETRIES = 5
 
     for _ in Loop(interval=1/30):
-        device.click(0, 0)
+        device.click(10, 10)
         img = device.screenshot()
 
         # 技能卡自选移动对话框

@@ -93,7 +93,7 @@ def wait_for_home():
             device.click()
 
         if should_click and click_cd.expired():
-            device.click(0, 0)
+            device.click(10, 10)
             click_cd.reset()
 
 @action('启动游戏.Android', screenshot_mode='manual-inherit')

@@ -342,7 +342,7 @@ def produce_end(has_live: bool = True):
                 elif image.find(R.Produce.TextSkipLiveDialogTitle):
                     logger.info("Confirming skip live.")
                     device.click(image.expect_wait(R.Common.IconButtonCheck))
-                device.click(0, 0)
+                device.click(10, 10)
             else:
                 break
         # 选择封面
@@ -385,7 +385,7 @@ def produce_end(has_live: bool = True):
             break
         else:
             device.click_center()
-            device.click(0, 0) # 为了兼容has_live==False的情况
+            device.click(10, 10) # 为了兼容has_live==False的情况
         sleep(2)
     # 后续动画
     logger.info("Waiting for memory generation animation completed...")
