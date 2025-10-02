@@ -76,6 +76,9 @@ def setup_logging():
 
     sys.excepthook = handle_exception
     logging.info("日志已初始化。")
+    logging.info(f"Python 路径: {PYTHON_EXECUTABLE}")
+    logging.info(f"Python 版本: {sys.version}")
+    logging.info(f"启动器版本: {VERSION}")
 
 def test_url_availability(url: str) -> bool:
     """
