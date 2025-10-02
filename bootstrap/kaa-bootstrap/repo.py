@@ -1,10 +1,14 @@
+import importlib
 import re
+import sys
 import html.parser
 import urllib.parse
 from typing import List
 from dataclasses import dataclass
-from request import get, HTTPError, NetworkError
+from request import get, HTTPError
+from importlib.metadata import version, PackageNotFoundError
 
+PYTHON_EXECUTABLE = sys.executable
 # PEP 440 version regex (simplified from the official pattern)
 VERSION_PATTERN = r"""
     v?
@@ -286,6 +290,23 @@ def list_versions(package_name: str, *, server_url: str | None = None, include_p
         else:
             raise
 
+def local_version(package_name: str) -> Version | None:
+    """
+    获取已安装的包的版本信息
+
+    :return: 已安装的包的版本信息，如果包未安装则返回None
+    """
+    try:
+        return Version(version(package_name))
+    except PackageNotFoundError:
+        return None
+
+def latest_version(package_name: str, *, server_url: str | None = None, include_pre_release: bool = False) -> Version | None:
+    """
+    获取指定包的最新版本信息
+    """
+    versions = list_versions(package_name, server_url=server_url, include_pre_release=include_pre_release)
+    return versions[0].version if versions else None
 
 def main():
     """测试函数"""

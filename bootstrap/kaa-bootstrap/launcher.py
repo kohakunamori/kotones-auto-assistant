@@ -21,7 +21,7 @@ from request import head, HTTPError, NetworkError
 from terminal import (
     Color, print_header, print_status, clear_screen, wait_key
 )
-from repo import Version
+from repo import Version, latest_version, local_version
 
 # 配置文件的类型定义
 class BackendConfig(TypedDict, total=False):
@@ -483,17 +483,27 @@ def install_pip_and_ksaa(pip_server: str, check_update: bool = True, install_upd
         if not run_command(upgrade_pip_command):
             return False
 
-    # 根据更新通道决定是否包含预发布版本
-    pre_flag = " --pre" if update_channel == 'beta' else ""
+    # 检查更新
+    pre_flag = update_channel == 'beta'
+    local = local_version("ksaa")
+    latest = latest_version("ksaa", server_url=pip_server, include_pre_release=pre_flag)
 
-    # 先卸载 ksaa 和 kotonebot
-    print_status("卸载现有的琴音小助手", status='info')
+    if local and latest and local < latest:
+        if not install_update:
+            print_update_notice(str(local), str(latest))
+            return True
+    else:
+        return True
+
+
+    # 更新
+    print_status("卸载现有琴音小助手", status='info')
     if not uninstall_packages(["ksaa", "kotonebot"]):
         raise RuntimeError("卸载 ksaa 和 kotonebot 失败")
 
     # 安装琴音小助手
     print_status("安装琴音小助手", status='info')
-    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --upgrade --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location{pre_flag} ksaa'
+    install_command = f'"{PYTHON_EXECUTABLE}" -m pip install --index-url {pip_server} --trusted-host "{TRUSTED_HOSTS}" --no-warn-script-location{pre_flag} ksaa=={latest}'
     return run_command(install_command)
 
 def load_config() -> Optional[Config]:
