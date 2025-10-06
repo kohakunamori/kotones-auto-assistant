@@ -70,6 +70,44 @@ CARD_DELTA_X_5 = -68
 # SKIP 按钮
 SKIP_CARD_BUTTON = CardPosInfo(621, 739, 85, 85, 10)
 
+YELLOW_HSV_LOWER = np.array([20, 100, 120], dtype=np.uint8)
+YELLOW_HSV_UPPER = np.array([32, 255, 255], dtype=np.uint8)
+MIN_HIGHLIGHT_SATURATION = 130
+MIN_HIGHLIGHT_VALUE = 140
+_MORPH_KERNEL = np.ones((3, 3), dtype=np.uint8)
+
+
+def _extract_highlight_mask(glow_area: MatLike, extension: int) -> np.ndarray:
+    """提取卡片周围发光区域的二值掩模。"""
+    area = glow_area.copy()
+    area_h, area_w = area.shape[:2]
+    if area_h == 0 or area_w == 0:
+        return np.zeros((area_h, area_w), dtype=np.uint8)
+
+    if area_h > extension * 2 and area_w > extension * 2:
+        area[extension:area_h-extension, extension:area_w-extension] = 0
+
+    hsv = cv2.cvtColor(area, cv2.COLOR_BGR2HSV)
+    yellow_mask = cv2.inRange(hsv, YELLOW_HSV_LOWER, YELLOW_HSV_UPPER)
+    _, saturation_mask = cv2.threshold(
+        hsv[:, :, 1], MIN_HIGHLIGHT_SATURATION, 255, cv2.THRESH_BINARY
+    )
+    _, value_mask = cv2.threshold(
+        hsv[:, :, 2], MIN_HIGHLIGHT_VALUE, 255, cv2.THRESH_BINARY
+    )
+
+    mask = cv2.bitwise_and(yellow_mask, saturation_mask)
+    mask = cv2.bitwise_and(mask, value_mask)
+
+    if area_h >= 3 and area_w >= 3:
+        mask = cv2.medianBlur(mask, 3)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, _MORPH_KERNEL, iterations=1)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, _MORPH_KERNEL, iterations=1)
+
+    if area_h > extension * 2 and area_w > extension * 2:
+        mask[extension:area_h-extension, extension:area_w-extension] = 0
+    return mask
+
 
 def calc_card_position(card_count: int):
     w, h = CARD_SIZE
@@ -366,44 +404,48 @@ def detect_recommended_card(
     :param threshold_predicate: 阈值判断函数
     :return: 执行结果。若返回 None，表示未识别到推荐卡片。
     """
-    YELLOW_LOWER = np.array([20, 100, 100])
-    YELLOW_UPPER = np.array([30, 255, 255])
-    GLOW_EXTENSION = 15
-
     cards = calc_card_position(card_count)
     cards.append(SKIP_CARD_BUTTON)
 
     img = use_screenshot(img)
+    if img is None:
+        logger.warning("Screenshot unavailable while detecting recommended card.")
+        return None
     original_image = img.copy()
     results: list[CardDetectResult] = []
+    coverage_map: dict[CardDetectResult, float] = {}
+
+    GLOW_EXTENSION = 15
+
     for x, y, w, h, return_value in cards:
         outer = (max(0, x - GLOW_EXTENSION), max(0, y - GLOW_EXTENSION))
-        # 裁剪出检测区域
-        glow_area = img[outer[1]:y + h + GLOW_EXTENSION, outer[0]:x + w + GLOW_EXTENSION]
+        glow_area = img[outer[1]:y + h + GLOW_EXTENSION, outer[0]:x + w + GLOW_EXTENSION].copy()
         area_h = glow_area.shape[0]
         area_w = glow_area.shape[1]
-        glow_area[GLOW_EXTENSION:area_h-GLOW_EXTENSION, GLOW_EXTENSION:area_w-GLOW_EXTENSION] = 0
+        if area_h == 0 or area_w == 0:
+            continue
 
-        # 过滤出目标黄色
-        glow_area = cv2.cvtColor(glow_area, cv2.COLOR_BGR2HSV)
-        yellow_mask = cv2.inRange(glow_area, YELLOW_LOWER, YELLOW_UPPER)
-        
-        # 分割出每一边
-        left_border = yellow_mask[:, 0:GLOW_EXTENSION]
-        right_border = yellow_mask[:, area_w-GLOW_EXTENSION:area_w]
-        top_border = yellow_mask[0:GLOW_EXTENSION, :]
-        bottom_border = yellow_mask[area_h-GLOW_EXTENSION:area_h, :]
-        y_border_pixels = area_h * GLOW_EXTENSION
-        x_border_pixels = area_w * GLOW_EXTENSION
+        highlight_mask = _extract_highlight_mask(glow_area, GLOW_EXTENSION)
 
-        # 计算每一边的分数
-        left_score = np.count_nonzero(left_border) / y_border_pixels
-        right_score = np.count_nonzero(right_border) / y_border_pixels
-        top_score = np.count_nonzero(top_border) / x_border_pixels
-        bottom_score = np.count_nonzero(bottom_border) / x_border_pixels
+        left_border = highlight_mask[:, 0:GLOW_EXTENSION]
+        right_border = highlight_mask[:, max(0, area_w - GLOW_EXTENSION):area_w]
+        top_border = highlight_mask[0:GLOW_EXTENSION, :]
+        bottom_border = highlight_mask[max(0, area_h - GLOW_EXTENSION):area_h, :]
+
+        left_width = max(left_border.shape[1], 1)
+        right_width = max(right_border.shape[1], 1)
+        top_height = max(top_border.shape[0], 1)
+        bottom_height = max(bottom_border.shape[0], 1)
+
+        left_score = np.count_nonzero(left_border) / (area_h * left_width)
+        right_score = np.count_nonzero(right_border) / (area_h * right_width)
+        top_score = np.count_nonzero(top_border) / (top_height * area_w)
+        bottom_score = np.count_nonzero(bottom_border) / (bottom_height * area_w)
+
+        coverage = float(np.count_nonzero(highlight_mask)) / float(highlight_mask.size or 1)
 
         result = (left_score + right_score + top_score + bottom_score) / 4
-        results.append(CardDetectResult(
+        card_result = CardDetectResult(
             return_value,
             result,
             left_score,
@@ -411,8 +453,9 @@ def detect_recommended_card(
             top_score,
             bottom_score,
             Rect(x, y, w, h)
-        ))
-        img = original_image.copy()
+        )
+        results.append(card_result)
+        coverage_map[card_result] = coverage
     #     cv2.imshow(f"card detect {return_value}", cv2.cvtColor(glow_area, cv2.COLOR_HSV2BGR))
     #     cv2.namedWindow(f"card detect {return_value}", cv2.WINDOW_NORMAL)
     #     cv2.moveWindow(f"card detect {return_value}", 100 + (return_value % 3) * 300, 100 + (return_value // 3) * 300)
@@ -420,25 +463,26 @@ def detect_recommended_card(
     filtered_results = list(filter(partial(threshold_predicate, card_count), results))
     if not filtered_results:
         max_result = max(results, key=lambda x: x.score)
-        logger.info("Max card detect result (discarded): value=%d score=%.4f borders=(%.4f, %.4f, %.4f, %.4f)",
+        logger.info("Max card detect result (discarded): value=%d score=%.4f borders=(%.4f, %.4f, %.4f, %.4f) coverage=%.4f",
             max_result.type,
             max_result.score,
             max_result.left_score,
             max_result.right_score,
             max_result.top_score,
-            max_result.bottom_score
+            max_result.bottom_score,
+            coverage_map.get(max_result, 0.0)
         )
         return None
     filtered_results.sort(key=lambda x: x.score, reverse=True)
-    logger.info("Max card detect result: value=%d score=%.4f borders=(%.4f, %.4f, %.4f, %.4f)",
+    logger.info("Max card detect result: value=%d score=%.4f borders=(%.4f, %.4f, %.4f, %.4f) coverage=%.4f",
         filtered_results[0].type,
         filtered_results[0].score,
         filtered_results[0].left_score,
         filtered_results[0].right_score,
         filtered_results[0].top_score,
-        filtered_results[0].bottom_score
+        filtered_results[0].bottom_score,
+        coverage_map.get(filtered_results[0], 0.0)
     )
-    # 跟踪检测结果
     if conf().trace.recommend_card_detection:
         x, y, w, h = filtered_results[0].rect.xywh
         cv2.rectangle(original_image, (x, y), (x+w, y+h), (0, 0, 255), 3)
